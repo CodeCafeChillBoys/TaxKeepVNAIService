@@ -1,0 +1,57 @@
+# ==========================================================
+# Web Framework & Server
+# ==========================================================
+# Framework xây dựng RESTful API, tự sinh Swagger docs (/docs)
+fastapi>=0.115.0
+
+# Máy chủ ASGI hiệu năng cao để chạy ứng dụng FastAPI
+uvicorn>=0.30.0
+
+# Xử lý upload file (nhận file PDF qua API UploadFile)
+python-multipart>=0.0.9
+
+# ==========================================================
+# Quản lý Dữ liệu & Cấu hình (Data & Config)
+# ==========================================================
+# Kiểm tra hợp lệ dữ liệu (Data Validation) & tạo Schemas
+pydantic>=2.8.0
+
+# Quản lý tập trung biến môi trường và settings hệ thống
+pydantic-settings>=2.4.0
+
+# Đọc biến môi trường từ file .env (API key, DB URL,...)
+python-dotenv>=1.0.0
+
+# ==========================================================
+# Xử lý File Tài liệu (Document / PDF)
+# ==========================================================
+# Đọc và bóc tách nội dung text từ file PDF luật thuế với tốc độ cao
+pymupdf>=1.24.0
+
+# ==========================================================
+# Cơ sở dữ liệu (PostgreSQL & Vector Database)
+# ==========================================================
+# ORM hỗ trợ lập trình Code-First, ánh xạ Class Python sang bảng DB
+sqlalchemy>=2.0.0
+
+# Công cụ quản lý Database Migration tự động (Code-First)
+alembic>=1.13.0
+
+# Driver kết nối PostgreSQL thế hệ mới (Psycopg 3)
+psycopg>=3.1.0
+psycopg-binary>=3.1.0
+
+# Mở rộng PostgreSQL thành Vector DB: lưu trữ và tìm kiếm vector tương đồng
+pgvector>=0.3.0
+
+# ==========================================================
+# Trí tuệ nhân tạo (AI / LLM & Embeddings)
+# ==========================================================
+# SDK chính thức của Google Gemini: tạo Vector Embeddings & sinh câu trả lời RAG
+google-genai>=1.0.0
+
+# ==========================================================
+# Kiểm thử tự động (Testing)
+# ==========================================================
+# Framework viết và chạy tự động các bài kiểm thử (Unit Tests)
+pytest>=8.0.0
