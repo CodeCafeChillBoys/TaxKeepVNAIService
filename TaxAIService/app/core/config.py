@@ -1,5 +1,14 @@
+import os
 from functools import lru_cache
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Bắt buộc nạp .env với override=True để ghi đè các biến môi trường cũ trong hệ thống Windows
+load_dotenv(override=True)
+
+# Xóa GOOGLE_API_KEY cũ của hệ thống (nếu có) để tránh xung đột với GEMINI_API_KEY trong .env
+if "GOOGLE_API_KEY" in os.environ and os.environ["GOOGLE_API_KEY"] != os.environ.get("GEMINI_API_KEY"):
+    del os.environ["GOOGLE_API_KEY"]
 
 
 class Settings(BaseSettings):
@@ -13,19 +22,18 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSION: int = 768
 
     # AI / Gemini API Key
-    GEMINI_API_KEY: str = ""
+    GEMINI_API_KEY: str
+    EMBEDDING_MODEL: str = "gemini-embedding-001"
 
-    # Đọc tự động từ file .env ở thư mục gốc
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
-"""Decorator @lru_cache biến hàm get_settings() thành một dạng Singleton Pattern"""
+
 @lru_cache
 def get_settings() -> Settings:
-    """Sử dụng lru_cache để chỉ nạp cấu hình một lần duy nhất trong toàn bộ vòng đời app."""
     return Settings()
 
 
