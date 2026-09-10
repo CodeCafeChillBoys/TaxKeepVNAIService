@@ -1,6 +1,7 @@
 import os
 import uuid
 import re
+import json
 from urllib.parse import urlparse
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
+from app.models.dependent_rule import DependentRule
 from app.services.pdf_service import pdf_service, PDFProcessingError
 from app.services.tax_rule_extraction_service import tax_rule_extraction_service
 from app.core.config import settings
@@ -152,16 +154,24 @@ async def upload_and_extract_tax_rules(
         db.flush()  # Lấy rule_set_id vừa sinh
 
         new_rules = []
+        dependent_rules_to_create = []
+
         for item in extracted_data["taxRules"]:
             val = item.get("value")
             numeric_val = float(val) if val is not None else None
             
+            raw_cond = item.get("condition")
+            if isinstance(raw_cond, (dict, list)):
+                cond_str = json.dumps(raw_cond, ensure_ascii=False)
+            else:
+                cond_str = str(raw_cond) if raw_cond is not None else None
+
             rule_obj = TaxRule(
                 rule_set_id=new_rule_set.rule_set_id,
                 rule_code=item["ruleCode"],
                 rule_name=item["ruleName"],
                 rule_type=item["ruleType"],
-                condition=item.get("condition"),
+                condition=cond_str,
                 value=numeric_val,
                 unit=item.get("unit"),
                 effective_from=item.get("effectiveFrom") or rule_set_dict.get("effectiveFrom"),
@@ -176,10 +186,48 @@ async def upload_and_extract_tax_rules(
             )
             new_rules.append(rule_obj)
 
+            # Nếu condition có chứa danh sách eligibility của người phụ thuộc, tạo bản ghi DependentRule
+            if isinstance(raw_cond, dict) and "eligibility" in raw_cond:
+                for elig in raw_cond.get("eligibility", []):
+                    dep_type = elig.get("type", "OTHER")
+                    dep_name = elig.get("name") or elig.get("type", "Người phụ thuộc")
+                    max_age = elig.get("maxAge")
+                    max_inc = elig.get("maxMonthlyIncome")
+                    is_stud = bool(elig.get("isStudying", False))
+                    is_dis = bool(elig.get("isDisabled", False))
+                    conds = elig.get("conditions", [])
+                    conds_str = json.dumps(conds, ensure_ascii=False) if isinstance(conds, (dict, list)) else str(conds)
+
+                    dep_rule = DependentRule(
+                        rule_set_id=new_rule_set.rule_set_id,
+                        rule_id=rule_obj.rule_id,
+                        dependent_type=dep_type,
+                        name=dep_name,
+                        max_age=int(max_age) if max_age is not None else None,
+                        max_monthly_income=float(max_inc) if max_inc is not None else None,
+                        is_studying=is_stud,
+                        is_disabled=is_dis,
+                        conditions=conds_str,
+                        status="Draft"
+                    )
+                    dependent_rules_to_create.append(dep_rule)
+
         db.add_all(new_rules)
+        if dependent_rules_to_create:
+            db.add_all(dependent_rules_to_create)
         db.commit()
 
         # 13. Chuẩn bị response trả về cho Admin theo đúng Response sample
+        def parse_condition(cond_val):
+            if not cond_val:
+                return None
+            if isinstance(cond_val, str) and (cond_val.startswith("{") or cond_val.startswith("[")):
+                try:
+                    return json.loads(cond_val)
+                except Exception:
+                    return cond_val
+            return cond_val
+
         response_payload = {
             "message": "Tax document processed successfully.",
             "data": {
@@ -195,7 +243,7 @@ async def upload_and_extract_tax_rules(
                         "ruleCode": r.rule_code,
                         "ruleName": r.rule_name,
                         "ruleType": r.rule_type,
-                        "condition": r.condition,
+                        "condition": parse_condition(r.condition),
                         "value": r.value,
                         "unit": r.unit,
                         "effectiveFrom": r.effective_from,
@@ -209,6 +257,21 @@ async def upload_and_extract_tax_rules(
                         "version": r.version
                     }
                     for r in new_rules
+                ],
+                "dependentRules": [
+                    {
+                        "id": str(dep.id),
+                        "ruleSetId": str(dep.rule_set_id),
+                        "dependentType": dep.dependent_type,
+                        "name": dep.name,
+                        "maxAge": dep.max_age,
+                        "maxMonthlyIncome": dep.max_monthly_income,
+                        "isStudying": dep.is_studying,
+                        "isDisabled": dep.is_disabled,
+                        "conditions": parse_condition(dep.conditions),
+                        "status": dep.status
+                    }
+                    for dep in dependent_rules_to_create
                 ]
             }
         }
@@ -241,6 +304,9 @@ def approve_tax_rule_set(
 
     # Chuyển trạng thái toàn bộ TaxRule liên kết sang Active
     db.query(TaxRule).filter(TaxRule.rule_set_id == id).update({"status": "Active"})
+
+    # Chuyển trạng thái toàn bộ DependentRule liên kết sang Active
+    db.query(DependentRule).filter(DependentRule.rule_set_id == id).update({"status": "Active"})
     db.commit()
 
     return {

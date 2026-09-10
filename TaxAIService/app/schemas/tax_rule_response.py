@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -12,7 +12,7 @@ class TaxRuleItemResponse(BaseModel):
     rule_code: str = Field(..., alias="ruleCode", description="Mã quy tắc định danh duy nhất (vd: DED_PERSONAL_2026)")
     rule_name: str = Field(..., alias="ruleName", description="Tên mô tả quy tắc thuế")
     rule_type: str = Field(..., alias="ruleType", description="Phân loại: DEDUCTION, BRACKET, RATE, EXEMPTION")
-    condition: Optional[str] = Field(None, alias="condition", description="Điều kiện áp dụng quy tắc")
+    condition: Optional[Union[str, Dict[str, Any]]] = Field(None, alias="condition", description="Điều kiện áp dụng quy tắc (text hoặc JSON object)")
     value: Optional[float] = Field(None, alias="value", description="Giá trị số thực tế (tiền VNĐ, tỷ lệ %)")
     unit: Optional[str] = Field(None, alias="unit", description="Đơn vị tính: VND/thang, %, VND/nam...")
     effective_from: Optional[str] = Field(None, alias="effectiveFrom", description="Ngày bắt đầu hiệu lực (YYYY-MM-DD)")
@@ -40,14 +40,33 @@ class TaxRuleSetResponse(BaseModel):
     status: str = Field("Draft", alias="status", description="Trạng thái bộ luật: Draft hoặc Active")
 
 
+class DependentRuleResponse(BaseModel):
+    """
+    Schema đại diện cho từng loại điều kiện người phụ thuộc
+    """
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+    id: Optional[uuid.UUID] = Field(None, alias="id")
+    rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId")
+    dependent_type: str = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
+    name: str = Field(..., alias="name")
+    max_age: Optional[int] = Field(None, alias="maxAge")
+    max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")
+    is_studying: bool = Field(False, alias="isStudying")
+    is_disabled: bool = Field(False, alias="isDisabled")
+    conditions: Optional[Union[str, List[str], Dict[str, Any]]] = Field(None, alias="conditions")
+    status: str = Field("Draft", alias="status")
+
+
 class TaxRuleExtractionDataResponse(BaseModel):
     """
-    Schema gom nhóm dữ liệu bóc tách gồm Tax Rule Set và danh sách Tax Rules
+    Schema gom nhóm dữ liệu bóc tách gồm Tax Rule Set, danh sách Tax Rules và Dependent Rules
     """
     model_config = ConfigDict(populate_by_name=True)
 
     tax_rule_set: TaxRuleSetResponse = Field(..., alias="taxRuleSet")
     tax_rules: List[TaxRuleItemResponse] = Field(..., alias="taxRules")
+    dependent_rules: Optional[List[DependentRuleResponse]] = Field(default_factory=list, alias="dependentRules")
 
 
 class TaxRuleUploadResponse(BaseModel):

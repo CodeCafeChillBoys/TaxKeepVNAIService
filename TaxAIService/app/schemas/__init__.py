@@ -5,6 +5,7 @@ from app.schemas.tax_rule_response import (
     TaxRuleExtractionDataResponse,
     TaxRuleUploadResponse,
     TaxRuleApproveResponse,
+    DependentRuleResponse,
 )
 
 __all__ = [
@@ -16,4 +17,6 @@ __all__ = [
     "TaxRuleExtractionDataResponse",
     "TaxRuleUploadResponse",
     "TaxRuleApproveResponse",
+    "DependentRuleResponse",
 ]
+

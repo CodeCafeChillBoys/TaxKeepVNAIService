@@ -10,6 +10,7 @@ from app.schemas.tax_rule_response import (
     TaxRuleExtractionDataResponse,
     TaxRuleUploadResponse,
     TaxRuleApproveResponse,
+    DependentRuleResponse,
 )
 
 # Alias backward compatibility cho code cũ
@@ -26,6 +27,7 @@ __all__ = [
     "TaxRuleExtractionDataResponse",
     "TaxRuleUploadResponse",
     "TaxRuleApproveResponse",
+    "DependentRuleResponse",
     # Aliases
     "TaxRuleItemSchema",
     "TaxRuleSetSchema",

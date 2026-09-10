@@ -85,7 +85,7 @@ YÊU CẦU ĐẦU RA (JSON FORMAT DUY NHẤT):
       "ruleCode": "Mã quy tắc SNAKE_CASE in hoa (ví dụ: PIT_DEDUCTION_PERSONAL, PIT_BRACKET_1, PIT_RATE_REAL_ESTATE)",
       "ruleName": "Tên tiếng Anh hoặc tiếng Việt rõ ràng",
       "ruleType": "Phải là một trong [DEDUCTION, BRACKET, RATE, EXEMPTION]",
-      "condition": "Mô tả điều kiện áp dụng",
+      "condition": "Mô tả điều kiện áp dụng dưới dạng text hoặc JSON object. Riêng với PIT_DEDUCTION_DEPENDENT hãy xuất định dạng JSON: {{\"subject\": \"DEPENDENT\", \"eligibility\": [{{\"type\": \"CHILD\", \"name\": \"Con chưa thành niên\", \"maxAge\": 18, \"conditions\": [\"Chưa thành niên\"]}}, {{\"type\": \"ADULT_CHILD\", \"name\": \"Con thành niên khuyết tật hoặc đang đi học\", \"maxAge\": 24, \"isStudying\": true, \"maxMonthlyIncome\": 1000000, \"conditions\": [\"Bị khuyết tật\", \"Không có khả năng lao động\", \"Đang theo học ĐH/CĐ\"]}}, {{\"type\": \"SPOUSE\", \"name\": \"Vợ/chồng\", \"maxMonthlyIncome\": 1000000, \"conditions\": [\"Đáp ứng điều kiện theo luật\"]}}, {{\"type\": \"PARENT\", \"name\": \"Cha/Mẹ\", \"maxMonthlyIncome\": 1000000, \"conditions\": [\"Hết tuổi lao động\", \"Mất sức lao động\"]}}, {{\"type\": \"OTHER\", \"name\": \"Cá nhân khác\", \"maxMonthlyIncome\": 1000000, \"conditions\": [\"Đáp ứng điều kiện theo luật\"]}}]}}",
       "value": số thực đại diện cho mức tiền hoặc thuế suất (ví dụ: 15500000, 0.05, 0.1) hoặc null,
       "unit": "VND/month hoặc % hoặc null",
       "effectiveFrom": "YYYY-MM-DD hoặc null",
