@@ -19,6 +19,7 @@ class EmbeddingService:
         self.model = settings.EMBEDDING_MODEL
         self.dimension = settings.EMBEDDING_DIMENSION
 
+    # dùng xử lí các câu đơn
     def get_embedding(self, text: str) -> List[float]:
         """Tạo embedding cho 1 đoạn văn bản đơn lẻ.
         Trả về danh sách đúng 768 số thực (List[float]).
@@ -34,10 +35,12 @@ class EmbeddingService:
         )
         return response.embeddings[0].values
 
+    # dùng để xử lí hàng loạt văn bản đc gửi vào 
     def get_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """Tạo embedding hàng loạt cho nhiều đoạn văn bản (batch processing).
         Trả về danh sách các vector 768 chiều.
         """
+        # t.strip() dùng để lọc các kí tự và khoảng trắng
         cleaned_texts = [t.strip() for t in texts if t.strip()]
         if not cleaned_texts:
             return []
