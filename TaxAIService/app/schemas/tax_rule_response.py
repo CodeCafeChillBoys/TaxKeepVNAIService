@@ -52,7 +52,9 @@ class DependentRuleResponse(BaseModel):
     name: str = Field(..., alias="name")
     max_age: Optional[int] = Field(None, alias="maxAge")
     max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")
+    # Có đang học hay ko is_studying
     is_studying: bool = Field(False, alias="isStudying")
+    # Có đang khuyết tật hay ko is_disabled
     is_disabled: bool = Field(False, alias="isDisabled")
     conditions: Optional[Union[str, List[str], Dict[str, Any]]] = Field(None, alias="conditions")
     status: str = Field("Draft", alias="status")

@@ -124,7 +124,7 @@ YÊU CẦU ĐẦU RA (JSON FORMAT DUY NHẤT):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No tax rule information could be extracted from the document."
             )
-
+        
         if not isinstance(data, dict) or "taxRules" not in data or not data["taxRules"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
