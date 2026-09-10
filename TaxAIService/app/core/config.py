@@ -21,9 +21,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     EMBEDDING_DIMENSION: int = 768
 
-    # AI / Gemini API Key
+    # AI / Gemini API Config
     GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
+
+    # Upload & File Limits
+    UPLOAD_DIR: str = "data/pdf"
+    MAX_FILE_SIZE_MB: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",
