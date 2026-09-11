@@ -1,12 +1,7 @@
 import os
 from typing import List, Dict, Any, Tuple
 import pymupdf
-from fastapi import HTTPException, status
-
-
-class PDFProcessingError(HTTPException):
-    def __init__(self, detail: str = "PDF does not contain extractable text."):
-        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+from app.errors.pdf_errors import PDFProcessingError, PDFErrorMessages
 
 
 class PDFService:
@@ -16,16 +11,16 @@ class PDFService:
         Bóc tách text từng trang từ file PDF bằng PyMuPDF.
         """
         if not os.path.exists(file_path):
-            raise PDFProcessingError(detail="File not found.")
-
+            raise PDFProcessingError(detail=PDFErrorMessages.FILE_NOT_FOUND)
+        
         try:
             doc = pymupdf.open(file_path)
         except Exception as e:
-            raise PDFProcessingError(detail=f"Cannot open PDF file: {str(e)}")
+            raise PDFProcessingError(detail=PDFErrorMessages.cannot_open_pdf(str(e)))
 
         if len(doc) == 0:
             doc.close()
-            raise PDFProcessingError(detail="PDF does not contain extractable text.")
+            raise PDFProcessingError(detail=PDFErrorMessages.NO_EXTRACTABLE_TEXT)
 
         pages_data = []
         for page_idx, page in enumerate(doc):
@@ -56,13 +51,13 @@ class PDFService:
           Cắt tối đa max_scan_pages trang đầu để gửi dữ liệu nhị phân sang Gemini Multimodal Vision.
         """
         if not os.path.exists(file_path):
-            raise PDFProcessingError(detail="File not found.")
+            raise PDFProcessingError(detail=PDFErrorMessages.FILE_NOT_FOUND)
 
         doc = pymupdf.open(file_path)
         total_pages = len(doc)
         if total_pages == 0:
             doc.close()
-            raise PDFProcessingError(detail="PDF does not contain extractable text.")
+            raise PDFProcessingError(detail=PDFErrorMessages.NO_EXTRACTABLE_TEXT)
 
         empty_or_scanned_pages = 0
         pages_text = []

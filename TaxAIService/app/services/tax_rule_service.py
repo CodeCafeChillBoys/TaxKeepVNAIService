@@ -9,16 +9,10 @@ from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 from app.services.interfaces.tax_rule_service_interface import ITaxRuleService
-from app.services.pdf_service import pdf_service, PDFProcessingError
+from app.services.pdf_service import pdf_service
 from app.services.tax_rule_extraction_service import tax_rule_extraction_service
-
-
-class TaxRuleServiceError(Exception):
-    """Exception nghiệp vụ riêng cho TaxRuleService."""
-    def __init__(self, status_code: int, message: str):
-        self.status_code = status_code
-        self.message = message
-        super().__init__(message)
+from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleServiceError
+from app.errors.pdf_errors import PDFProcessingError, PDFErrorMessages
 
 
 def _parse_condition(cond_val: Any) -> Any:
@@ -61,7 +55,7 @@ class TaxRuleService(ITaxRuleService):
         if existing_rule_set:
             raise TaxRuleServiceError(
                 status_code=status.HTTP_409_CONFLICT,
-                message="A tax rule set for this tax year already exists."
+                message=TaxRuleErrorMessages.TAX_RULE_SET_EXISTS
             )
 
         # 2. Lưu file tạm thời vào thư mục uploads
@@ -81,7 +75,7 @@ class TaxRuleService(ITaxRuleService):
             except PDFProcessingError:
                 raise TaxRuleServiceError(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="No tax rule information could be extracted from the document."
+                    message=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED
                 )
 
             # 4. Gọi Gemini AI để trích xuất tax_rule_sets & tax_rules
@@ -244,7 +238,7 @@ class TaxRuleService(ITaxRuleService):
         if not approved_rule_set:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tax rule set not found."
+                detail=TaxRuleErrorMessages.RULE_SET_NOT_FOUND
             )
 
         return {

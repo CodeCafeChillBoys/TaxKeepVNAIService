@@ -34,7 +34,7 @@ class ITaxRuleRepository(IRepository[TaxRuleSet]):
     ) -> Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]:
         """Lưu TaxRuleSet cùng danh sách TaxRule và DependentRule trong Transaction."""
         pass
-
+        
     @abstractmethod
     def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Optional[TaxRuleSet]:
         """Kích hoạt trạng thái Active cho TaxRuleSet và các quy tắc liên kết."""
