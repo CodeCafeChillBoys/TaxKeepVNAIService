@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import Integer, String, Text, Float, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,6 +8,7 @@ from app.infrastructure.database import Base
 
 if TYPE_CHECKING:
     from app.models.tax_rule_set import TaxRuleSet
+    from app.models.dependent_rule import DependentRule
 
 
 class TaxRule(Base):
@@ -48,3 +49,6 @@ class TaxRule(Base):
     )
 
     rule_set: Mapped[Optional["TaxRuleSet"]] = relationship("TaxRuleSet", back_populates="rules")
+    dependent_rules: Mapped[List["DependentRule"]] = relationship(
+        "DependentRule", back_populates="rule", cascade="all, delete-orphan"
+    )

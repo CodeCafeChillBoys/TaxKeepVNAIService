@@ -47,6 +47,7 @@ class DependentRuleResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     id: Optional[uuid.UUID] = Field(None, alias="id")
+    rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId")
     dependent_type: str = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
     name: str = Field(..., alias="name")

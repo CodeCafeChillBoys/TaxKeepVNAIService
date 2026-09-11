@@ -125,7 +125,9 @@ class TaxRuleService(ITaxRuleService):
                 else:
                     cond_str = str(raw_cond) if raw_cond is not None else None
 
+                rule_id = uuid.uuid4()
                 rule_obj = TaxRule(
+                    rule_id=rule_id,
                     rule_code=item["ruleCode"],
                     rule_name=item["ruleName"],
                     rule_type=item["ruleType"],
@@ -167,6 +169,7 @@ class TaxRuleService(ITaxRuleService):
                             conditions=conds_str,
                             status="Draft"
                         )
+                        rule_obj.dependent_rules.append(dep_rule)
                         dependent_rules_to_create.append(dep_rule)
 
             # 7. Lưu vào DB thông qua Repository
@@ -210,7 +213,8 @@ class TaxRuleService(ITaxRuleService):
                     "dependentRules": [
                         {
                             "id": str(dep.id),
-                            "ruleSetId": str(dep.rule_set_id),
+                            "ruleId": str(dep.rule_id) if dep.rule_id else None,
+                            "ruleSetId": str(dep.rule_set_id) if dep.rule_set_id else None,
                             "dependentType": dep.dependent_type,
                             "name": dep.name,
                             "maxAge": dep.max_age,

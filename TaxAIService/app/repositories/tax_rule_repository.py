@@ -48,8 +48,6 @@ class TaxRuleRepository(ITaxRuleRepository):
             self.db.add_all(rules)
             self.db.flush()
 
-            for dep in dependent_rules:
-                dep.rule_set_id = rule_set.rule_set_id
             if dependent_rules:
                 self.db.add_all(dependent_rules)
 
@@ -68,7 +66,15 @@ class TaxRuleRepository(ITaxRuleRepository):
 
             rule_set.status = "Active"
             self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).update({"status": "Active"})
-            self.db.query(DependentRule).filter(DependentRule.rule_set_id == rule_set_id).update({"status": "Active"})
+
+            rule_ids = [
+                r[0] for r in self.db.query(TaxRule.rule_id).filter(TaxRule.rule_set_id == rule_set_id).all()
+            ]
+            if rule_ids:
+                self.db.query(DependentRule).filter(DependentRule.rule_id.in_(rule_ids)).update(
+                    {"status": "Active"}, synchronize_session=False
+                )
+
             self.db.commit()
             self.db.refresh(rule_set)
             return rule_set

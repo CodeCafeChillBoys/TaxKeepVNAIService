@@ -7,7 +7,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database import Base
 
 if TYPE_CHECKING:
-    from app.models.tax_rule_set import TaxRuleSet
     from app.models.tax_rule import TaxRule
 
 
@@ -20,16 +19,10 @@ class DependentRule(Base):
         default=uuid.uuid4,
         index=True
     )
-    rule_set_id: Mapped[uuid.UUID] = mapped_column(
+    rule_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("tax_rule_sets.rule_set_id", ondelete="CASCADE"),
+        ForeignKey("tax_rules.rule_id", ondelete="CASCADE"),
         nullable=False,
-        index=True
-    )
-    rule_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("tax_rules.rule_id", ondelete="SET NULL"),
-        nullable=True,
         index=True
     )
     dependent_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True) # CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER
@@ -45,5 +38,9 @@ class DependentRule(Base):
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    rule_set: Mapped["TaxRuleSet"] = relationship("TaxRuleSet", backref="dependent_rules")
-    rule: Mapped[Optional["TaxRule"]] = relationship("TaxRule")
+    rule: Mapped["TaxRule"] = relationship("TaxRule", back_populates="dependent_rules")
+
+    @property
+    def rule_set_id(self) -> Optional[uuid.UUID]:
+        """Thuộc tính tương thích ngược để lấy rule_set_id thông qua TaxRule cha."""
+        return self.rule.rule_set_id if self.rule else None
