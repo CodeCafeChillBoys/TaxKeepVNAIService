@@ -149,8 +149,23 @@ class TaxRuleService(ITaxRuleService):
                 new_rules.append(rule_obj)
 
                 # Nếu condition có chứa eligibility của người phụ thuộc
-                if isinstance(raw_cond, dict) and "eligibility" in raw_cond:
-                    for elig in raw_cond.get("eligibility", []):
+                cond_data = None
+                if isinstance(raw_cond, dict):
+                    cond_data = raw_cond
+                elif isinstance(raw_cond, str):
+                    try:
+                        cond_data = json.loads(raw_cond)
+                    except Exception:
+                        start_idx = raw_cond.find("{")
+                        end_idx = raw_cond.rfind("}")
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            try:
+                                cond_data = json.loads(raw_cond[start_idx:end_idx + 1])
+                            except Exception:
+                                cond_data = None
+
+                if isinstance(cond_data, dict) and "eligibility" in cond_data:
+                    for elig in cond_data.get("eligibility", []):
                         dep_type = elig.get("type", "OTHER")
                         dep_name = elig.get("name") or elig.get("type", "Người phụ thuộc")
                         max_age = elig.get("maxAge")
@@ -218,7 +233,7 @@ class TaxRuleService(ITaxRuleService):
                         {
                             "id": str(dep.id),
                             "ruleId": str(dep.rule_id) if dep.rule_id else None,
-                            "ruleSetId": str(dep.rule_set_id) if dep.rule_set_id else None,
+                            "ruleSetId": str(dep.rule_set_id or saved_rule_set.rule_set_id),
                             "dependentType": dep.dependent_type,
                             "name": dep.name,
                             "maxAge": dep.max_age,
