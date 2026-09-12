@@ -196,3 +196,57 @@ def test_route_approve_not_found():
     finally:
         app.dependency_overrides.clear()
 
+
+@pytest.mark.anyio
+async def test_service_process_with_admin_id():
+    mock_repo = MagicMock()
+    mock_repo.get_rule_set_by_year.return_value = None
+    mock_repo.check_existing_rule_codes.return_value = False
+
+    admin_id = uuid.uuid4()
+    saved_rule_set = TaxRuleSet(
+        rule_set_id=uuid.uuid4(),
+        admin_id=admin_id,
+        name="Luat Thue 2026",
+        tax_year=2026,
+        status="Draft"
+    )
+    mock_repo.create_tax_rule_set.return_value = (saved_rule_set, [], [])
+
+    service = TaxRuleService(mock_repo)
+
+    with patch("app.services.tax_rule_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
+         patch("app.services.tax_rule_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
+        mock_pdf.return_value = (False, "PDF Content", None)
+        mock_extract.return_value = {
+            "taxRuleSet": {"name": "Luat Thue 2026"},
+            "taxRules": []
+        }
+
+        res = await service.process_tax_rule_document(
+            filename="test.pdf",
+            file_bytes=b"%PDF-1.4 dummy",
+            tax_year=2026,
+            admin_id=admin_id
+        )
+
+        assert res["data"]["taxRuleSet"]["adminId"] == admin_id
+        # Kiểm tra instance TaxRuleSet gửi vào repository có admin_id chuẩn xác
+        created_rule_set = mock_repo.create_tax_rule_set.call_args[1]["rule_set"]
+        assert created_rule_set.admin_id == admin_id
+
+
+def test_route_upload_invalid_admin_id():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/tax-rules/documents/upload",
+        data={"taxYear": "2026", "adminId": "invalid-uuid-string"},
+        files={"file": ("test.pdf", b"%PDF-1.4 dummy", "application/pdf")}
+    )
+    assert response.status_code == 400
+    assert response.json()["message"] == "adminId must be a valid UUID."
+
+

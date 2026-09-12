@@ -45,6 +45,7 @@ async def upload_and_extract_tax_rules(
     taxYear: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
     sourceUrl: Optional[str] = Form(None),
+    adminId: Optional[str] = Form(None),
     service: ITaxRuleService = Depends(get_tax_rule_service)
 ):
     # 1. Kiểm tra trường file bắt buộc
@@ -87,7 +88,18 @@ async def upload_and_extract_tax_rules(
                 content={"SourceUrl": "The SourceUrl must be a valid URL."}
             )
 
-    # 6. Kiểm tra kích thước file (tối đa 20 MB)
+    # 6. Kiểm tra adminId hợp lệ nếu có truyền vào
+    admin_id_uuid: Optional[uuid.UUID] = None
+    if adminId and str(adminId).strip():
+        try:
+            admin_id_uuid = uuid.UUID(str(adminId).strip())
+        except (ValueError, TypeError):
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "adminId must be a valid UUID."}
+            )
+
+    # 7. Kiểm tra kích thước file (tối đa 20 MB)
     max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
     file_bytes = await file.read()
     if len(file_bytes) > max_bytes:
@@ -96,14 +108,15 @@ async def upload_and_extract_tax_rules(
             content={"message": f"The file size must not exceed {settings.MAX_FILE_SIZE_MB} MB."}
         )
 
-    # 7. Gọi TaxRuleService để xử lý toàn bộ quy trình nghiệp vụ
+    # 8. Gọi TaxRuleService để xử lý toàn bộ quy trình nghiệp vụ
     try:
         result = await service.process_tax_rule_document(
             filename=file.filename,
             file_bytes=file_bytes,
             tax_year=tax_year_int,
             name=name,
-            source_url=sourceUrl
+            source_url=sourceUrl,
+            admin_id=admin_id_uuid
         )
         return JSONResponse(status_code=status.HTTP_200_OK, content=result)
     except TaxRuleServiceError as e:

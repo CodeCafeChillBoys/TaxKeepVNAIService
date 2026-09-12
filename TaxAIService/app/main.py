@@ -7,6 +7,10 @@ from app.infrastructure.database import engine
 from app.api.routes import tax_rule_routes
 
 
+import asyncio
+from app.messaging import start_rabbitmq_consumer, rabbitmq_client
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Khởi động: kiểm tra kết nối database
@@ -15,8 +19,19 @@ async def lifespan(app: FastAPI):
             conn.execute(text("SELECT 1"))
     except Exception as e:
         print(f"[ERROR] Database connection failed on startup: {e}")
+
+    # Khởi động RabbitMQ consumer chạy ngầm
+    consumer_task = asyncio.create_task(start_rabbitmq_consumer())
+
     yield
-    # Shutdown logic nếu có
+
+    # Shutdown logic: Dừng background consumer và đóng kết nối RabbitMQ
+    consumer_task.cancel()
+    try:
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
+    await rabbitmq_client.close()
 
 
 app = FastAPI(

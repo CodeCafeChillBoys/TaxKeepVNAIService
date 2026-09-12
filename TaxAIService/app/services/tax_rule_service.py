@@ -39,7 +39,8 @@ class TaxRuleService(ITaxRuleService):
         file_bytes: bytes,
         tax_year: int,
         name: Optional[str] = None,
-        source_url: Optional[str] = None
+        source_url: Optional[str] = None,
+        admin_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """
         Quy trình xử lý văn bản luật thuế:
@@ -105,6 +106,7 @@ class TaxRuleService(ITaxRuleService):
             # 6. Chuẩn bị các thực thể ORM
             rule_set_dict = extracted_data["taxRuleSet"]
             new_rule_set = TaxRuleSet(
+                admin_id=admin_id,
                 name=rule_set_dict["name"],
                 tax_year=tax_year,
                 effective_from=rule_set_dict.get("effectiveFrom"),
@@ -184,6 +186,8 @@ class TaxRuleService(ITaxRuleService):
                 "message": "Tax document processed successfully.",
                 "data": {
                     "taxRuleSet": {
+                        "ruleSetId": saved_rule_set.rule_set_id,
+                        "adminId": saved_rule_set.admin_id,
                         "name": saved_rule_set.name,
                         "taxYear": saved_rule_set.tax_year,
                         "effectiveFrom": saved_rule_set.effective_from,

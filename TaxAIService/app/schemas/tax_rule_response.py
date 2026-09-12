@@ -33,6 +33,7 @@ class TaxRuleSetResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId", description="Mã định danh duy nhất bộ luật")
+    admin_id: Optional[uuid.UUID] = Field(None, alias="adminId", description="Mã định danh Admin khởi tạo bộ quy tắc")
     name: str = Field(..., alias="name", description="Tên bộ quy tắc thuế")
     tax_year: int = Field(..., alias="taxYear", description="Năm áp dụng luật thuế")
     effective_from: Optional[str] = Field(None, alias="effectiveFrom", description="Ngày bắt đầu áp dụng (YYYY-MM-DD)")

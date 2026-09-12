@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "data/pdf"
     MAX_FILE_SIZE_MB: int = 20
 
+    # Message Broker (RabbitMQ) Config
+    RABBITMQ_ENABLED: bool = True
+    RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
+    RABBITMQ_TAX_REQUEST_QUEUE: str = "tax.ai.request.queue"
+    RABBITMQ_TAX_RESPONSE_QUEUE: str = "tax.ai.response.queue"
+    RABBITMQ_EXCHANGE_NAME: str = "tax.ai.exchange"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

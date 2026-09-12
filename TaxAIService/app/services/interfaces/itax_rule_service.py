@@ -14,7 +14,8 @@ class ITaxRuleService(IService):
         file_bytes: bytes,
         tax_year: int,
         name: Optional[str] = None,
-        source_url: Optional[str] = None
+        source_url: Optional[str] = None,
+        admin_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """Quy trình tiếp nhận, trích xuất AI và lưu trữ Tax Rules từ file PDF."""
         pass

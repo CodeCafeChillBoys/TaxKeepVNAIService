@@ -19,6 +19,11 @@ class TaxRuleSet(Base):
         default=uuid.uuid4,
         index=True
     )
+    admin_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     tax_year: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)
     effective_from: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # e.g. "2026-01-01"
