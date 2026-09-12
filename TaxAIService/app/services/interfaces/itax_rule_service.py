@@ -21,6 +21,10 @@ class ITaxRuleService(IService):
         pass
 
     @abstractmethod
-    def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Dict[str, Any]:
-        """Phê duyệt TaxRuleSet sang Active."""
+    def approve_tax_rule_set(
+        self,
+        rule_set_id: uuid.UUID,
+        admin_id: Optional[uuid.UUID] = None
+    ) -> Dict[str, Any]:
+        """Phê duyệt TaxRuleSet sang Active và ghi nhận admin phê duyệt."""
         pass

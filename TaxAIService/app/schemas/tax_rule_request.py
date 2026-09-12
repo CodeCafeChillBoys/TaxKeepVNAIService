@@ -26,3 +26,16 @@ class TaxRuleUploadRequest(BaseModel):
         alias="sourceUrl",
         description="Đường dẫn URL nguồn pháp luật chính thức (bắt đầu bằng http/https)"
     )
+
+
+class TaxRuleApproveRequest(BaseModel):
+    """
+    Schema đại diện cho dữ liệu yêu cầu khi phê duyệt bộ quy tắc thuế (Tax Rule Set)
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    admin_id: uuid.UUID = Field(
+        ...,
+        alias="adminId",
+        description="ID của Admin thực hiện phê duyệt (UUID)"
+    )

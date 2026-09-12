@@ -29,6 +29,12 @@ class TaxRuleSet(Base):
     effective_from: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # e.g. "2026-01-01"
     effective_to: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)   # e.g. "2027-01-01"
     status: Mapped[str] = mapped_column(String(50), default="Draft", nullable=False) # Draft, Active, Expired
+    approved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True
+    )
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False

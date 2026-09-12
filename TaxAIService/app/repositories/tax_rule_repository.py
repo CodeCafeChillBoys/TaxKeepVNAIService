@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional, List, Tuple, Any
 from sqlalchemy.orm import Session
 from app.models.tax_rule_set import TaxRuleSet
@@ -58,13 +59,19 @@ class TaxRuleRepository(ITaxRuleRepository):
             self.db.rollback()
             raise
 
-    def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Optional[TaxRuleSet]:
+    def approve_tax_rule_set(
+        self,
+        rule_set_id: uuid.UUID,
+        admin_id: Optional[uuid.UUID] = None
+    ) -> Optional[TaxRuleSet]:
         try:
             rule_set = self.get_rule_set_by_id(rule_set_id)
             if not rule_set:
                 return None
 
             rule_set.status = "Active"
+            rule_set.approved_by = admin_id
+            rule_set.approved_at = datetime.now()
             self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).update({"status": "Active"})
 
             rule_ids = [

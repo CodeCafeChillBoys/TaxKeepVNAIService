@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,6 +40,8 @@ class TaxRuleSetResponse(BaseModel):
     effective_from: Optional[str] = Field(None, alias="effectiveFrom", description="Ngày bắt đầu áp dụng (YYYY-MM-DD)")
     effective_to: Optional[str] = Field(None, alias="effectiveTo", description="Ngày kết thúc áp dụng (YYYY-MM-DD)")
     status: str = Field("Draft", alias="status", description="Trạng thái bộ luật: Draft hoặc Active")
+    approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="Mã định danh Admin phê duyệt bộ quy tắc")
+    approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt bộ quy tắc")
 
 
 class DependentRuleResponse(BaseModel):
@@ -92,3 +95,5 @@ class TaxRuleApproveResponse(BaseModel):
     message: str = Field("Tax rule set approved successfully.", description="Thông báo phê duyệt thành công")
     rule_set_id: uuid.UUID = Field(..., alias="ruleSetId", description="ID của bộ quy tắc thuế đã duyệt")
     status: str = Field("Active", description="Trạng thái sau khi duyệt")
+    approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="ID của Admin đã phê duyệt")
+    approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt")

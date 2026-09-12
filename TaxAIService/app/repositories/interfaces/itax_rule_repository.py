@@ -36,6 +36,10 @@ class ITaxRuleRepository(IRepository[TaxRuleSet]):
         pass
         
     @abstractmethod
-    def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Optional[TaxRuleSet]:
-        """Kích hoạt trạng thái Active cho TaxRuleSet và các quy tắc liên kết."""
+    def approve_tax_rule_set(
+        self,
+        rule_set_id: uuid.UUID,
+        admin_id: Optional[uuid.UUID] = None
+    ) -> Optional[TaxRuleSet]:
+        """Kích hoạt trạng thái Active cho TaxRuleSet và các quy tắc liên kết, đồng thời ghi nhận admin phê duyệt."""
         pass

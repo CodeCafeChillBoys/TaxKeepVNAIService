@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.core.config import settings
-from app.schemas import TaxRuleUploadResponse, TaxRuleApproveResponse
+from app.schemas import TaxRuleUploadResponse, TaxRuleApproveResponse, TaxRuleApproveRequest
 from app.repositories.interfaces import ITaxRuleRepository
 from app.repositories import TaxRuleRepository
 from app.services.interfaces import ITaxRuleService
@@ -133,7 +133,8 @@ async def upload_and_extract_tax_rules(
 )
 def approve_tax_rule_set(
     id: uuid.UUID,
+    payload: TaxRuleApproveRequest,
     service: ITaxRuleService = Depends(get_tax_rule_service)
 ):
-    return service.approve_tax_rule_set(id)
+    return service.approve_tax_rule_set(rule_set_id=id, admin_id=payload.admin_id)
 

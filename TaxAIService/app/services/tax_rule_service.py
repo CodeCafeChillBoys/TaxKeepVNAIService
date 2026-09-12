@@ -255,9 +255,13 @@ class TaxRuleService(ITaxRuleService):
                 except OSError:
                     pass
 
-    def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Dict[str, Any]:
+    def approve_tax_rule_set(
+        self,
+        rule_set_id: uuid.UUID,
+        admin_id: Optional[uuid.UUID] = None
+    ) -> Dict[str, Any]:
         """Phê duyệt TaxRuleSet sang Active thông qua Repository."""
-        approved_rule_set = self.repository.approve_tax_rule_set(rule_set_id)
+        approved_rule_set = self.repository.approve_tax_rule_set(rule_set_id, admin_id=admin_id)
         if not approved_rule_set:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -267,5 +271,7 @@ class TaxRuleService(ITaxRuleService):
         return {
             "message": "Tax rule set approved successfully.",
             "ruleSetId": str(approved_rule_set.rule_set_id),
-            "status": "Active"
+            "status": "Active",
+            "approvedBy": approved_rule_set.approved_by,
+            "approvedAt": approved_rule_set.approved_at
         }

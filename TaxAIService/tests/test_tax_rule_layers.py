@@ -93,6 +93,7 @@ def test_repository_approve_tax_rule_set_not_found():
 def test_repository_approve_tax_rule_set_success():
     mock_db = MagicMock()
     test_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
     mock_rule_set = TaxRuleSet(rule_set_id=test_id, name="Test", tax_year=2026, status="Draft")
 
     mock_filter = MagicMock()
@@ -100,10 +101,12 @@ def test_repository_approve_tax_rule_set_success():
     mock_db.query.return_value.filter.return_value = mock_filter
 
     repo = TaxRuleRepository(mock_db)
-    result = repo.approve_tax_rule_set(test_id)
+    result = repo.approve_tax_rule_set(test_id, admin_id=admin_id)
 
     assert result is not None
     assert result.status == "Active"
+    assert result.approved_by == admin_id
+    assert result.approved_at is not None
     assert mock_db.commit.called
 
 
@@ -131,27 +134,35 @@ def test_service_approve_tax_rule_set_not_found():
     service = TaxRuleService(mock_repo)
 
     with pytest.raises(HTTPException) as exc_info:
-        service.approve_tax_rule_set(uuid.uuid4())
+        service.approve_tax_rule_set(uuid.uuid4(), admin_id=uuid.uuid4())
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == "Tax rule set not found."
 
 
 def test_service_approve_tax_rule_set_success():
+    from datetime import datetime
     mock_repo = MagicMock()
     test_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
+    now = datetime.now()
     mock_repo.approve_tax_rule_set.return_value = TaxRuleSet(
         rule_set_id=test_id,
         name="Test",
         tax_year=2026,
-        status="Active"
+        status="Active",
+        approved_by=admin_id,
+        approved_at=now
     )
     service = TaxRuleService(mock_repo)
 
-    result = service.approve_tax_rule_set(test_id)
+    result = service.approve_tax_rule_set(test_id, admin_id=admin_id)
     assert result["status"] == "Active"
     assert result["ruleSetId"] == str(test_id)
+    assert result["approvedBy"] == admin_id
+    assert result["approvedAt"] == now
     assert result["message"] == "Tax rule set approved successfully."
+    mock_repo.approve_tax_rule_set.assert_called_once_with(test_id, admin_id=admin_id)
 
 
 def test_route_approve_success():
@@ -160,22 +171,41 @@ def test_route_approve_success():
     from app.api.routes.tax_rule_routes import get_tax_rule_service
 
     test_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
     mock_service = MagicMock()
     mock_service.approve_tax_rule_set.return_value = {
         "message": "Tax rule set approved successfully.",
         "ruleSetId": str(test_id),
-        "status": "Active"
+        "status": "Active",
+        "approvedBy": str(admin_id),
+        "approvedAt": "2026-09-13T00:00:00"
     }
 
     app.dependency_overrides[get_tax_rule_service] = lambda: mock_service
     try:
         client = TestClient(app)
-        response = client.post(f"/api/tax-rules/{test_id}/approve")
+        response = client.post(
+            f"/api/tax-rules/{test_id}/approve",
+            json={"adminId": str(admin_id)}
+        )
         assert response.status_code == 200
         assert response.json()["status"] == "Active"
         assert response.json()["ruleSetId"] == str(test_id)
+        assert response.json()["approvedBy"] == str(admin_id)
+        mock_service.approve_tax_rule_set.assert_called_once_with(rule_set_id=test_id, admin_id=admin_id)
     finally:
         app.dependency_overrides.clear()
+
+
+def test_route_approve_validation_error():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    test_id = uuid.uuid4()
+    client = TestClient(app)
+    # Thiếu adminId trong body
+    response = client.post(f"/api/tax-rules/{test_id}/approve", json={})
+    assert response.status_code == 422
 
 
 def test_route_approve_not_found():
@@ -184,13 +214,17 @@ def test_route_approve_not_found():
     from app.api.routes.tax_rule_routes import get_tax_rule_service
 
     test_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
     mock_service = MagicMock()
     mock_service.approve_tax_rule_set.side_effect = HTTPException(status_code=404, detail="Tax rule set not found.")
 
     app.dependency_overrides[get_tax_rule_service] = lambda: mock_service
     try:
         client = TestClient(app)
-        response = client.post(f"/api/tax-rules/{test_id}/approve")
+        response = client.post(
+            f"/api/tax-rules/{test_id}/approve",
+            json={"adminId": str(admin_id)}
+        )
         assert response.status_code == 404
         assert response.json()["detail"] == "Tax rule set not found."
     finally:
