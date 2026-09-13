@@ -14,12 +14,17 @@ class ITaxRuleService(IService):
         file_bytes: bytes,
         tax_year: int,
         name: Optional[str] = None,
-        source_url: Optional[str] = None
+        source_url: Optional[str] = None,
+        admin_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """Quy trình tiếp nhận, trích xuất AI và lưu trữ Tax Rules từ file PDF."""
         pass
 
     @abstractmethod
-    def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Dict[str, Any]:
-        """Phê duyệt TaxRuleSet sang Active."""
+    def approve_tax_rule_set(
+        self,
+        rule_set_id: uuid.UUID,
+        admin_id: Optional[uuid.UUID] = None
+    ) -> Dict[str, Any]:
+        """Phê duyệt TaxRuleSet sang Active và ghi nhận admin phê duyệt."""
         pass

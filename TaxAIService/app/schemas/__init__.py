@@ -1,4 +1,4 @@
-from app.schemas.tax_rule_request import TaxRuleUploadRequest
+from app.schemas.tax_rule_request import TaxRuleUploadRequest, TaxRuleApproveRequest
 from app.schemas.tax_rule_response import (
     TaxRuleItemResponse,
     TaxRuleSetResponse,
@@ -11,6 +11,7 @@ from app.schemas.tax_rule_response import (
 __all__ = [
     # Requests
     "TaxRuleUploadRequest",
+    "TaxRuleApproveRequest",
     # Responses
     "TaxRuleItemResponse",
     "TaxRuleSetResponse",

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,11 +34,14 @@ class TaxRuleSetResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId", description="Mã định danh duy nhất bộ luật")
+    admin_id: Optional[uuid.UUID] = Field(None, alias="adminId", description="Mã định danh Admin khởi tạo bộ quy tắc")
     name: str = Field(..., alias="name", description="Tên bộ quy tắc thuế")
     tax_year: int = Field(..., alias="taxYear", description="Năm áp dụng luật thuế")
     effective_from: Optional[str] = Field(None, alias="effectiveFrom", description="Ngày bắt đầu áp dụng (YYYY-MM-DD)")
     effective_to: Optional[str] = Field(None, alias="effectiveTo", description="Ngày kết thúc áp dụng (YYYY-MM-DD)")
     status: str = Field("Draft", alias="status", description="Trạng thái bộ luật: Draft hoặc Active")
+    approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="Mã định danh Admin phê duyệt bộ quy tắc")
+    approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt bộ quy tắc")
 
 
 class DependentRuleResponse(BaseModel):
@@ -47,6 +51,7 @@ class DependentRuleResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     id: Optional[uuid.UUID] = Field(None, alias="id")
+    rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId")
     dependent_type: str = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
     name: str = Field(..., alias="name")
@@ -90,3 +95,5 @@ class TaxRuleApproveResponse(BaseModel):
     message: str = Field("Tax rule set approved successfully.", description="Thông báo phê duyệt thành công")
     rule_set_id: uuid.UUID = Field(..., alias="ruleSetId", description="ID của bộ quy tắc thuế đã duyệt")
     status: str = Field("Active", description="Trạng thái sau khi duyệt")
+    approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="ID của Admin đã phê duyệt")
+    approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt")

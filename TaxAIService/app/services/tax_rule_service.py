@@ -39,7 +39,8 @@ class TaxRuleService(ITaxRuleService):
         file_bytes: bytes,
         tax_year: int,
         name: Optional[str] = None,
-        source_url: Optional[str] = None
+        source_url: Optional[str] = None,
+        admin_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """
         Quy trình xử lý văn bản luật thuế:
@@ -105,6 +106,7 @@ class TaxRuleService(ITaxRuleService):
             # 6. Chuẩn bị các thực thể ORM
             rule_set_dict = extracted_data["taxRuleSet"]
             new_rule_set = TaxRuleSet(
+                admin_id=admin_id,
                 name=rule_set_dict["name"],
                 tax_year=tax_year,
                 effective_from=rule_set_dict.get("effectiveFrom"),
@@ -125,7 +127,9 @@ class TaxRuleService(ITaxRuleService):
                 else:
                     cond_str = str(raw_cond) if raw_cond is not None else None
 
+                rule_id = uuid.uuid4()
                 rule_obj = TaxRule(
+                    rule_id=rule_id,
                     rule_code=item["ruleCode"],
                     rule_name=item["ruleName"],
                     rule_type=item["ruleType"],
@@ -145,8 +149,23 @@ class TaxRuleService(ITaxRuleService):
                 new_rules.append(rule_obj)
 
                 # Nếu condition có chứa eligibility của người phụ thuộc
-                if isinstance(raw_cond, dict) and "eligibility" in raw_cond:
-                    for elig in raw_cond.get("eligibility", []):
+                cond_data = None
+                if isinstance(raw_cond, dict):
+                    cond_data = raw_cond
+                elif isinstance(raw_cond, str):
+                    try:
+                        cond_data = json.loads(raw_cond)
+                    except Exception:
+                        start_idx = raw_cond.find("{")
+                        end_idx = raw_cond.rfind("}")
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            try:
+                                cond_data = json.loads(raw_cond[start_idx:end_idx + 1])
+                            except Exception:
+                                cond_data = None
+
+                if isinstance(cond_data, dict) and "eligibility" in cond_data:
+                    for elig in cond_data.get("eligibility", []):
                         dep_type = elig.get("type", "OTHER")
                         dep_name = elig.get("name") or elig.get("type", "Người phụ thuộc")
                         max_age = elig.get("maxAge")
@@ -167,6 +186,7 @@ class TaxRuleService(ITaxRuleService):
                             conditions=conds_str,
                             status="Draft"
                         )
+                        rule_obj.dependent_rules.append(dep_rule)
                         dependent_rules_to_create.append(dep_rule)
 
             # 7. Lưu vào DB thông qua Repository
@@ -181,6 +201,8 @@ class TaxRuleService(ITaxRuleService):
                 "message": "Tax document processed successfully.",
                 "data": {
                     "taxRuleSet": {
+                        "ruleSetId": saved_rule_set.rule_set_id,
+                        "adminId": saved_rule_set.admin_id,
                         "name": saved_rule_set.name,
                         "taxYear": saved_rule_set.tax_year,
                         "effectiveFrom": saved_rule_set.effective_from,
@@ -210,7 +232,8 @@ class TaxRuleService(ITaxRuleService):
                     "dependentRules": [
                         {
                             "id": str(dep.id),
-                            "ruleSetId": str(dep.rule_set_id),
+                            "ruleId": str(dep.rule_id) if dep.rule_id else None,
+                            "ruleSetId": str(dep.rule_set_id or saved_rule_set.rule_set_id),
                             "dependentType": dep.dependent_type,
                             "name": dep.name,
                             "maxAge": dep.max_age,
@@ -232,9 +255,13 @@ class TaxRuleService(ITaxRuleService):
                 except OSError:
                     pass
 
-    def approve_tax_rule_set(self, rule_set_id: uuid.UUID) -> Dict[str, Any]:
+    def approve_tax_rule_set(
+        self,
+        rule_set_id: uuid.UUID,
+        admin_id: Optional[uuid.UUID] = None
+    ) -> Dict[str, Any]:
         """Phê duyệt TaxRuleSet sang Active thông qua Repository."""
-        approved_rule_set = self.repository.approve_tax_rule_set(rule_set_id)
+        approved_rule_set = self.repository.approve_tax_rule_set(rule_set_id, admin_id=admin_id)
         if not approved_rule_set:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -244,5 +271,7 @@ class TaxRuleService(ITaxRuleService):
         return {
             "message": "Tax rule set approved successfully.",
             "ruleSetId": str(approved_rule_set.rule_set_id),
-            "status": "Active"
+            "status": "Active",
+            "approvedBy": approved_rule_set.approved_by,
+            "approvedAt": approved_rule_set.approved_at
         }
