@@ -197,55 +197,20 @@ class TaxRuleService(ITaxRuleService):
             )
 
             # 8. Định dạng cấu trúc trả về
+            verification_data = extracted_data.get("verification")
+            warning_msg = extracted_data.get("warning")
+
+            res_data = self._format_tax_rule_data(saved_rule_set, saved_rules, saved_dep_rules)
+
+            if verification_data:
+                res_data["verification"] = verification_data
+            if warning_msg:
+                res_data["warning"] = warning_msg
+
             return {
-                "message": "Tax document processed successfully.",
-                "data": {
-                    "taxRuleSet": {
-                        "ruleSetId": saved_rule_set.rule_set_id,
-                        "adminId": saved_rule_set.admin_id,
-                        "name": saved_rule_set.name,
-                        "taxYear": saved_rule_set.tax_year,
-                        "effectiveFrom": saved_rule_set.effective_from,
-                        "effectiveTo": saved_rule_set.effective_to,
-                        "status": saved_rule_set.status
-                    },
-                    "taxRules": [
-                        {
-                            "ruleCode": r.rule_code,
-                            "ruleName": r.rule_name,
-                            "ruleType": r.rule_type,
-                            "condition": _parse_condition(r.condition),
-                            "value": r.value,
-                            "unit": r.unit,
-                            "effectiveFrom": r.effective_from,
-                            "effectiveTo": r.effective_to,
-                            "legalDocument": r.legal_document,
-                            "article": r.article,
-                            "clause": r.clause,
-                            "point": r.point,
-                            "sourceUrl": r.source_url,
-                            "status": r.status,
-                            "version": r.version
-                        }
-                        for r in saved_rules
-                    ],
-                    "dependentRules": [
-                        {
-                            "id": str(dep.id),
-                            "ruleId": str(dep.rule_id) if dep.rule_id else None,
-                            "ruleSetId": str(dep.rule_set_id or saved_rule_set.rule_set_id),
-                            "dependentType": dep.dependent_type,
-                            "name": dep.name,
-                            "maxAge": dep.max_age,
-                            "maxMonthlyIncome": dep.max_monthly_income,
-                            "isStudying": dep.is_studying,
-                            "isDisabled": dep.is_disabled,
-                            "conditions": _parse_condition(dep.conditions),
-                            "status": dep.status
-                        }
-                        for dep in saved_dep_rules
-                    ]
-                }
+                "message": "Tax document processed successfully." if not warning_msg else f"Tax document processed with warning: {warning_msg}",
+                "warning": warning_msg,
+                "data": res_data
             }
         finally:
             # Luôn dọn dẹp file tạm sau khi xử lý xong
@@ -255,13 +220,129 @@ class TaxRuleService(ITaxRuleService):
                 except OSError:
                     pass
 
+    def _format_tax_rule_data(
+        self,
+        rule_set: TaxRuleSet,
+        rules: List[TaxRule],
+        dep_rules: List[DependentRule]
+    ) -> Dict[str, Any]:
+        return {
+            "taxRuleSet": {
+                "ruleSetId": rule_set.rule_set_id,
+                "adminId": rule_set.admin_id,
+                "name": rule_set.name,
+                "taxYear": rule_set.tax_year,
+                "effectiveFrom": rule_set.effective_from,
+                "effectiveTo": rule_set.effective_to,
+                "status": rule_set.status,
+                "approvedBy": rule_set.approved_by,
+                "approvedAt": rule_set.approved_at
+            },
+            "taxRules": [
+                {
+                    "ruleCode": r.rule_code,
+                    "ruleName": r.rule_name,
+                    "ruleType": r.rule_type,
+                    "condition": _parse_condition(r.condition),
+                    "value": r.value,
+                    "unit": r.unit,
+                    "effectiveFrom": r.effective_from,
+                    "effectiveTo": r.effective_to,
+                    "legalDocument": r.legal_document,
+                    "article": r.article,
+                    "clause": r.clause,
+                    "point": r.point,
+                    "sourceUrl": r.source_url,
+                    "status": r.status,
+                    "version": r.version
+                }
+                for r in rules
+            ],
+            "dependentRules": [
+                {
+                    "id": str(dep.id),
+                    "ruleId": str(dep.rule_id) if dep.rule_id else None,
+                    "ruleSetId": str(dep.rule_set_id or rule_set.rule_set_id),
+                    "dependentType": dep.dependent_type,
+                    "name": dep.name,
+                    "maxAge": dep.max_age,
+                    "maxMonthlyIncome": dep.max_monthly_income,
+                    "isStudying": dep.is_studying,
+                    "isDisabled": dep.is_disabled,
+                    "conditions": _parse_condition(dep.conditions),
+                    "status": dep.status
+                }
+                for dep in dep_rules
+            ]
+        }
+
+    def get_tax_rule_set_detail(self, rule_set_id: uuid.UUID) -> Dict[str, Any]:
+        """Review toàn bộ nội dung chi tiết của TaxRuleSet, TaxRules và DependentRules."""
+        result = self.repository.get_tax_rule_set_detail(rule_set_id)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=TaxRuleErrorMessages.RULE_SET_NOT_FOUND
+            )
+        rule_set, rules, dep_rules = result
+        return {
+            "message": "Tax rule set retrieved successfully.",
+            "data": self._format_tax_rule_data(rule_set, rules, dep_rules)
+        }
+
+    def update_tax_rule_set(self, rule_set_id: uuid.UUID, payload: Any) -> Dict[str, Any]:
+        """Chỉnh sửa toàn bộ nội dung TaxRuleSet, TaxRules, DependentRules và cập nhật taxYear."""
+        existing_detail = self.repository.get_tax_rule_set_detail(rule_set_id)
+        if not existing_detail:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=TaxRuleErrorMessages.RULE_SET_NOT_FOUND
+            )
+
+        data_dict = payload.model_dump(exclude_unset=True) if hasattr(payload, "model_dump") else dict(payload)
+
+        # Kiểm tra trùng lặp tax_year nếu có thay đổi
+        new_tax_year = data_dict.get("tax_year")
+        curr_rule_set = existing_detail[0]
+        if new_tax_year is not None and new_tax_year != curr_rule_set.tax_year:
+            conflict_set = self.repository.get_rule_set_by_year(new_tax_year)
+            if conflict_set and conflict_set.rule_set_id != rule_set_id:
+                raise TaxRuleServiceError(
+                    status_code=status.HTTP_409_CONFLICT,
+                    message=TaxRuleErrorMessages.TAX_RULE_SET_EXISTS
+                )
+
+        updated_result = self.repository.update_tax_rule_set(
+            rule_set_id=rule_set_id,
+            name=data_dict.get("name"),
+            tax_year=new_tax_year,
+            effective_from=data_dict.get("effective_from"),
+            effective_to=data_dict.get("effective_to"),
+            status=data_dict.get("status"),
+            tax_rules=data_dict.get("tax_rules"),
+            dependent_rules=data_dict.get("dependent_rules")
+        )
+        if not updated_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=TaxRuleErrorMessages.RULE_SET_NOT_FOUND
+            )
+        rule_set, rules, dep_rules = updated_result
+        return {
+            "message": "Tax rule set updated successfully.",
+            "data": self._format_tax_rule_data(rule_set, rules, dep_rules)
+        }
+
     def approve_tax_rule_set(
         self,
         rule_set_id: uuid.UUID,
         admin_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
         """Phê duyệt TaxRuleSet sang Active thông qua Repository."""
-        approved_rule_set = self.repository.approve_tax_rule_set(rule_set_id, admin_id=admin_id)
+        approved_rule_set = self.repository.approve_tax_rule_set(
+            rule_set_id=rule_set_id,
+            admin_id=admin_id
+        )
         if not approved_rule_set:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -6,7 +6,13 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.core.config import settings
-from app.schemas import TaxRuleUploadResponse, TaxRuleApproveResponse, TaxRuleApproveRequest
+from app.schemas import (
+    TaxRuleUploadResponse,
+    TaxRuleApproveResponse,
+    TaxRuleApproveRequest,
+    TaxRuleUpdateRequest,
+    TaxRuleDetailResponse,
+)
 from app.repositories.interfaces import ITaxRuleRepository
 from app.repositories import TaxRuleRepository
 from app.services.interfaces import ITaxRuleService
@@ -126,6 +132,37 @@ async def upload_and_extract_tax_rules(
         )
 
 
+@router.get(
+    "/{id}",
+    response_model=TaxRuleDetailResponse,
+    summary="Review chi tiết toàn bộ nội dung của Tax Rule Set (Rules & Dependent Rules)"
+)
+def get_tax_rule_set(
+    id: uuid.UUID,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.get_tax_rule_set_detail(rule_set_id=id)
+
+
+@router.put(
+    "/{id}",
+    response_model=TaxRuleDetailResponse,
+    summary="Chỉnh sửa toàn bộ nội dung Tax Rule Set, Tax Rules và cập nhật taxYear"
+)
+def update_tax_rule_set(
+    id: uuid.UUID,
+    payload: TaxRuleUpdateRequest,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    try:
+        return service.update_tax_rule_set(rule_set_id=id, payload=payload)
+    except TaxRuleServiceError as e:
+        return JSONResponse(
+            status_code=e.status_code,
+            content={"message": e.message}
+        )
+
+
 @router.post(
     "/{id}/approve",
     response_model=TaxRuleApproveResponse,
@@ -136,5 +173,8 @@ def approve_tax_rule_set(
     payload: TaxRuleApproveRequest,
     service: ITaxRuleService = Depends(get_tax_rule_service)
 ):
-    return service.approve_tax_rule_set(rule_set_id=id, admin_id=payload.admin_id)
+    return service.approve_tax_rule_set(
+        rule_set_id=id,
+        admin_id=payload.admin_id
+    )
 

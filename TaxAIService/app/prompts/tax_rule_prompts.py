@@ -14,10 +14,15 @@ def build_tax_rule_extraction_prompt(
     """
     prompt = f"""
 Bạn là một Chuyên gia Pháp chế cao cấp và Chuyên gia Phân tích Dữ liệu Thuế Thu Nhập Cá Nhân (PIT Legal & Tax Engine Specialist).
-Nhiệm vụ của bạn là đọc sâu, rà soát toàn diện từng điều, khoản, điểm và bảng phụ lục trong văn bản pháp luật được cung cấp, sau đó phân tích và trích xuất ĐẦY ĐỦ, CHÍNH XÁC, CHI TIẾT TỪNG QUY TẮC THUẾ (Tax Rules) phục vụ cho Công cụ Tính Thuế (Tax Calculation Engine) cho năm tính thuế {tax_year}.
+Nhiệm vụ của bạn là đọc sâu, rà soát toàn diện từng điều, khoản, điểm và bảng phụ lục trong văn bản pháp luật được cung cấp, sau đó phân tích và trích xuất CHUYÊN BIỆT CÁC QUY TẮC THUẾ THU NHẬP CÁ NHÂN TỪ TIỀN LƯƠNG, TIỀN CÔNG (Personal Income Tax on Salary & Wages / Employment Income) có trong văn bản này phục vụ cho Công cụ Tính Thuế (Tax Calculation Engine).
+
+QUY TẮC RÀNG BUỘC PHẠM VI BẮT BUỘC (SCOPE CONSTRAINTS - CHỈ LẤY TIỀN LƯƠNG, TIỀN CÔNG - TUYỆT ĐỐI KHÔNG LẤY KINH DOANH):
+- CHỈ trích xuất các quy tắc thuế trực tiếp áp dụng cho thu nhập từ TIỀN LƯƠNG, TIỀN CÔNG (Employment Income / Salary & Wages của người lao động làm công ăn lương).
+- TUYỆT ĐỐI KHÔNG trích xuất bất kỳ quy tắc thuế nào liên quan đến THU NHẬP TỪ KINH DOANH (Business Income / hộ kinh doanh / cá nhân kinh doanh / doanh thu kinh doanh). Mọi điều khoản về cá nhân kinh doanh trong văn bản BẮT BUỘC PHẢI BỎ QUA HOÀN TOÀN.
+- TUYỆT ĐỐI KHÔNG trích xuất các nguồn thu nhập khác: chuyển nhượng bất động sản, chuyển nhượng vốn, chứng khoán, đầu tư vốn (cổ tức, lợi tức), trúng thưởng, bản quyền, nhượng quyền thương mại, thừa kế, quà tặng.
 
 THÔNG TIN ĐẦU VÀO:
-- Năm tính thuế (taxYear): {tax_year}
+- Năm tính thuế người dùng nhập (taxYear): {tax_year}
 - Tên Rule Set: {default_set_name}
 - Nguồn tài liệu (sourceUrl): {source_url or ""}
 - Văn bản căn cứ (legalDocument): {legal_doc_name or "Luật Thuế Thu Nhập Cá Nhân"}
@@ -25,28 +30,39 @@ THÔNG TIN ĐẦU VÀO:
 ════════════════════════════════════════════════════════════════════════════════
 QUY TRÌNH PHÂN TÍCH VĂN BẢN PHÁP LUẬT BẮT BUỘC (DEEP ANALYSIS PROTOCOL):
 ════════════════════════════════════════════════════════════════════════════════
-Trước khi xuất JSON, bạn phải thực hiện tuần tự 4 bước phân tích trong tư duy:
-1. RÀ SOÁT CẤU TRÚC VĂN BẢN: Đọc kỹ từ đầu đến cuối, xác định rõ:
-   - Các điều khoản quy định đối tượng nộp thuế (cá nhân cư trú, không cư trú).
-   - Các điều khoản quy định thu nhập chịu thuế, thu nhập tính thuế.
-   - Các điều khoản và phụ lục biểu thuế (biểu lũy tiến từng phần, biểu thuế toàn phần).
-   - Các quy định về giảm trừ gia cảnh, bảo hiểm, đóng góp từ thiện nhân đạo.
-   - Các quy định về miễn thuế, giảm thuế.
-2. ĐỐI SOÁT CHÍNH XÁC PHÁP LÝ (Không suy diễn, không bịa đặt số liệu):
+Trước khi xuất JSON, bạn phải thực hiện tuần tự 5 bước phân tích trong tư duy:
+1. BẮT BUỘC ĐỐI SOÁT NĂM ÁP DỤNG (TAX YEAR VERIFICATION):
+   - Đọc kỹ tiêu đề, căn cứ pháp lý, ngày ký ban hành và điều khoản về hiệu lực thi hành để xác định năm áp dụng thuế của văn bản (extractedTaxYear dạng số nguyên, ví dụ: 2026 hoặc 2020).
+   - So sánh extractedTaxYear với năm người dùng đã nhập ({tax_year}):
+     + isTaxYearMatched = true: nếu văn bản pháp luật này quy định áp dụng hoặc có hiệu lực điều chỉnh cho năm tính thuế {tax_year}.
+     + isTaxYearMatched = false: nếu văn bản này thuộc về năm khác và KHÔNG áp dụng cho năm tính thuế {tax_year}.
+     + mismatchReason: Nếu không khớp, giải thích rõ lý do ngắn gọn bằng tiếng Việt (ví dụ: "Văn bản này ban hành và áp dụng cho năm 2020, không phải năm {tax_year}"). Nếu khớp thì ghi null.
+
+   ⚠️ CHỈ THỊ BẮT BUỘC KHI NĂM KHÔNG KHỚP (CRITICAL RULE FOR YEAR MISMATCH):
+   - DÙ NĂM CỦA VĂN BẢN (extractedTaxYear) CÓ KHỚP VỚI NĂM NGƯỜI DÙNG NHẬP ({tax_year}) HAY KHÔNG (kể cả khi isTaxYearMatched = false, ví dụ: văn bản thuộc năm 2020 trong khi người dùng nhập {tax_year}), BẠN VẪN BẮT BUỘC 100% PHẢI TRÍCH XUẤT ĐẦY ĐỦ CÁC QUY TẮC THUẾ (DEDUCTIONS, BRACKETS, RATES, EXEMPTIONS) CÓ TRONG VĂN BẢN NÀY VÀO MẢNG "taxRules".
+   - TUYỆT ĐỐI KHÔNG ĐƯỢC trả về "taxRules": [] rỗng chỉ vì lý do lệch năm! Hệ thống sẽ lưu các quy tắc này kèm cảnh báo lệch năm để Admin có thể đối soát và chỉnh sửa lại năm áp dụng.
+   - Nếu văn bản là văn bản sửa đổi, bổ sung (ví dụ: chỉ quy định về mức giảm trừ gia cảnh): Hãy trích xuất tất cả các quy tắc xuất hiện trong văn bản đó.
+2. RÀ SOÁT CẤU TRÚC VĂN BẢN (CHUYÊN BIỆT TIỀN LƯƠNG, TIỀN CÔNG): Đọc kỹ từ đầu đến cuối, chỉ tập trung vào:
+   - Các điều khoản quy định đối tượng nộp thuế có thu nhập từ tiền lương, tiền công (cá nhân cư trú, không cư trú).
+   - Biểu thuế lũy tiến từng phần áp dụng cho thu nhập từ tiền lương, tiền công.
+   - Các quy định về giảm trừ gia cảnh (bản thân, người phụ thuộc), bảo hiểm bắt buộc trừ vào lương, đóng góp từ thiện nhân đạo.
+   - Thuế suất áp dụng cho tiền lương cá nhân không cư trú hoặc hợp đồng vãng lai/ngắn hạn.
+   - Các khoản miễn thuế gắn liền trực tiếp với tiền lương, tiền công (làm đêm, thêm giờ, lương hưu, trợ cấp bồi thường tai nạn lao động).
+3. ĐỐI SOÁT CHÍNH XÁC PHÁP LÝ (Không suy diễn, không bịa đặt số liệu):
    - Mọi quy tắc trích xuất BẮT BUỘC phải ghi rõ căn cứ: Số Điều (article), Số Khoản (clause), Điểm (point) nếu có trong văn bản.
    - Trích xuất đúng số tiền (VND) hoặc thuế suất dạng số thập phân (ví dụ: 5% -> 0.05, 10% -> 0.1, 20% -> 0.2, 35% -> 0.35).
-3. ĐẢM BẢO TÍNH TOÀN VẸN (COMPLETENESS):
+4. ĐẢM BẢO TÍNH TOÀN VẸN (COMPLETENESS):
    - Không được bỏ sót bất kỳ Bậc thuế nào trong Biểu thuế lũy tiến từng phần.
    - Phải có đầy đủ 2 mức giảm trừ gia cảnh cốt lõi: Bản thân và Người phụ thuộc.
-4. CHUẨN HÓA MÃ QUY TẮC (RULE CODE):
+5. CHUẨN HÓA MÃ QUY TẮC (RULE CODE):
    - Dùng tiền tố PIT_ kèm loại quy tắc viết HOA chuẩn SNAKE_CASE.
 
 ════════════════════════════════════════════════════════════════════════════════
-DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT:
+DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC TIỀN LƯƠNG, TIỀN CÔNG):
 ════════════════════════════════════════════════════════════════════════════════
 
 1. NHÓM GIẢM TRỪ (ruleType: "DEDUCTION"):
-   a. PIT_DEDUCTION_PERSONAL: Mức giảm trừ cho bản thân người nộp thuế.
+   a. PIT_DEDUCTION_PERSONAL: Mức giảm trừ cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công.
       - Giá trị (value): Số tiền VND/tháng theo luật (ví dụ: 11000000 hoặc mức cập nhật mới như 15500000).
       - Đơn vị (unit): "VND/month".
       - Điều kiện (condition): "Áp dụng cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công".
@@ -55,13 +71,13 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT:
       - Đơn vị (unit): "VND/person/month".
       - Điều kiện (condition): BẮT BUỘC định dạng chuỗi JSON chi tiết tiêu chí xét duyệt người phụ thuộc theo luật:
         {{"subject": "DEPENDENT", "eligibility": [{{"type": "CHILD", "name": "Con chưa thành niên", "maxAge": 18, "conditions": ["Con đẻ, con nuôi, con ngoài giá thú hợp pháp", "Dưới 18 tuổi"]}}, {{"type": "ADULT_CHILD", "name": "Con thành niên đang học hoặc khuyết tật", "maxAge": 24, "isStudying": true, "maxMonthlyIncome": 1000000, "conditions": ["Bị tàn tật/khuyết tật không có khả năng lao động HOẶC đang học ĐH, CĐ, THCN, học nghề có thu nhập <= 1 triệu đồng/tháng"]}}, {{"type": "SPOUSE", "name": "Vợ hoặc chồng", "maxMonthlyIncome": 1000000, "conditions": ["Trong độ tuổi lao động bị khuyết tật mất khả năng lao động HOẶC ngoài độ tuổi lao động không có thu nhập hoặc thu nhập bình quân <= 1 triệu đồng/tháng"]}}, {{"type": "PARENT", "name": "Cha đẻ, mẹ đẻ, cha mẹ vợ/chồng", "maxMonthlyIncome": 1000000, "conditions": ["Hết tuổi lao động HOẶC trong độ tuổi lao động bị khuyết tật không có khả năng lao động, có thu nhập bình quân <= 1 triệu đồng/tháng"]}}, {{"type": "OTHER", "name": "Cá nhân khác không nơi nương tựa", "maxMonthlyIncome": 1000000, "conditions": ["Người nộp thuế trực tiếp nuôi dưỡng, đáp ứng điều kiện mất sức lao động hoặc hết tuổi lao động và thu nhập <= 1 triệu đồng/tháng"]}}]}}
-   c. PIT_DEDUCTION_INSURANCE: Các khoản đóng bảo hiểm bắt buộc được trừ.
-      - Trích xuất quy tắc trừ các khoản bảo hiểm bắt buộc: BHXH, BHYT, BHTN, bảo hiểm trách nhiệm nghề nghiệp.
-   d. PIT_DEDUCTION_CHARITY: Các khoản đóng góp từ thiện, nhân đạo, khuyến học.
-      - Điều kiện: Đóng góp vào các tổ chức, cơ sở được cơ quan nhà nước có thẩm quyền công nhận.
+   c. PIT_DEDUCTION_INSURANCE: Các khoản đóng bảo hiểm bắt buộc trừ vào thu nhập tiền lương (BHXH, BHYT, BHTN, bảo hiểm trách nhiệm nghề nghiệp).
+      - Đơn vị (unit): "VND/month" hoặc "%" hoặc "actual".
+   d. PIT_DEDUCTION_CHARITY: Các khoản đóng góp từ thiện, nhân đạo, khuyến học trừ vào thu nhập tiền lương, tiền công.
+      - Điều kiện (condition): Đóng góp vào các tổ chức, quỹ từ thiện được Nhà nước cấp phép.
 
 2. NHÓM BIỂU THUẾ LŨY TIẾN TỪNG PHẦN (ruleType: "BRACKET"):
-   Áp dụng đối với thu nhập tính thuế từ tiền lương, tiền công của cá nhân cư trú. BẮT BUỘC TRÍCH XUẤT ĐẦY ĐỦ TỪNG BẬC:
+   Áp dụng đối với thu nhập tính thuế từ tiền lương, tiền công của cá nhân cư trú ký hợp đồng lao động từ 3 tháng trở lên. BẮT BUỘC TRÍCH XUẤT ĐẦY ĐỦ TỪNG BẬC:
    - PIT_BRACKET_1: Bậc 1 (ví dụ: Thu nhập tính thuế đến 5 hoặc 10 triệu đồng/tháng, thuế suất ví dụ 0.05).
    - PIT_BRACKET_2: Bậc 2.
    - PIT_BRACKET_3: Bậc 3.
@@ -73,24 +89,18 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT:
    - "value": Thuế suất dạng thập phân (0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35...).
    - "unit": "%".
 
-3. NHÓM THUẾ SUẤT TOÀN PHẦN VÀ CÁC THU NHẬP KHÁC (ruleType: "RATE"):
-   Trích xuất chi tiết thuế suất từng nguồn thu nhập:
-   - PIT_RATE_NON_RESIDENT_SALARY: Thuế suất đối với tiền lương, tiền công của cá nhân KHÔNG cư trú (thường 20% -> value: 0.2).
-   - PIT_RATE_REAL_ESTATE: Chuyển nhượng bất động sản (thường 2% trên giá chuyển nhượng -> value: 0.02).
-   - PIT_RATE_CAPITAL_TRANSFER: Chuyển nhượng vốn, chuyển nhượng chứng khoán (ví dụ chứng khoán 0.1% giá chuyển nhượng -> value: 0.001).
-   - PIT_RATE_CAPITAL_INVESTMENT: Đầu tư vốn (cổ tức, lợi tức cổ phần, lãi tiền gửi phi ngân hàng -> value: 0.05).
-   - PIT_RATE_PRIZE: Trúng thưởng xổ số, khuyến mại, cá cược (thường 10% phần vượt trên 10 triệu đồng -> value: 0.1).
-   - PIT_RATE_ROYALTY: Bản quyền, nhượng quyền thương mại (thường 5% phần vượt trên 10 triệu đồng -> value: 0.05).
-   - PIT_RATE_INHERITANCE_GIFT: Thừa kế, quà tặng (chứng khoán, vốn, BĐS) (thường 10% phần vượt trên 10 triệu đồng -> value: 0.1).
-   - PIT_RATE_BUSINESS: Thu nhập từ kinh doanh của cá nhân (ghi rõ ngành nghề và tỷ lệ % thuế tính trên doanh thu nếu văn bản có nêu).
+3. NHÓM THUẾ SUẤT TIỀN LƯƠNG, TIỀN CÔNG ĐẶC THÙ (ruleType: "RATE"):
+   CHỈ trích xuất các thuế suất liên quan đến tiền lương, tiền công:
+   - PIT_RATE_NON_RESIDENT_SALARY: Thuế suất đối với thu nhập từ tiền lương, tiền công của cá nhân KHÔNG cư trú (20% -> value: 0.2).
+   - PIT_RATE_CASUAL_SALARY: Thuế suất khấu trừ tại nguồn đối với cá nhân cư trú không ký hợp đồng lao động hoặc ký hợp đồng dưới 3 tháng có mức chi trả thu nhập từ 2 triệu đồng/lần trở lên (10% -> value: 0.1).
+   *(CHÚ Ý: TUYỆT ĐỐI BỎ QUA các loại thuế suất Bất động sản, Chứng khoán, Đầu tư vốn, Trúng thưởng, Bản quyền, Thừa kế, Quà tặng, Kinh doanh).*
 
-4. NHÓM MIỄN THUẾ TIÊU BIỂU (ruleType: "EXEMPTION"):
-   Trích xuất 4-6 khoản miễn thuế quan trọng, có ảnh hưởng trực tiếp đến người nộp thuế:
-   - PIT_EXEMPTION_OVERTIME: Thu nhập từ phần tiền lương, tiền công làm việc ban đêm, làm thêm giờ được trả cao hơn so với bình thường.
-   - PIT_EXEMPTION_REAL_ESTATE_FAMILY: Thu nhập từ chuyển nhượng, thừa kế, quà tặng bất động sản giữa những người thân (vợ với chồng, cha mẹ với con, anh chị em ruột, ông bà với cháu...).
-   - PIT_EXEMPTION_INSURANCE_COMPENSATION: Tiền bồi thường bảo hiểm nhân thọ, phi nhân thọ, tai nạn lao động.
-   - PIT_EXEMPTION_SCHOLARSHIP: Học bổng nhận được từ ngân sách nhà nước hoặc tổ chức trong/ngoài nước.
+4. NHÓM MIỄN THUẾ GẮN LIỀN VỚI TIỀN LƯƠNG, TIỀN CÔNG (ruleType: "EXEMPTION"):
+   CHỈ trích xuất các khoản miễn thuế trực tiếp thuộc thu nhập từ tiền lương, tiền công:
+   - PIT_EXEMPTION_OVERTIME: Thu nhập từ phần tiền lương, tiền công làm việc ban đêm, làm thêm giờ được trả cao hơn so với tiền lương làm việc ban ngày, làm việc trong giờ tiêu chuẩn.
    - PIT_EXEMPTION_RETIREMENT_PENSION: Tiền lương hưu do Quỹ bảo hiểm xã hội chi trả.
+   - PIT_EXEMPTION_INSURANCE_COMPENSATION: Tiền bồi thường bảo hiểm nhân thọ, phi nhân thọ, tiền trợ cấp tai nạn lao động hoặc bệnh nghề nghiệp.
+   *(CHÚ Ý: TUYỆT ĐỐI BỎ QUA miễn thuế chuyển nhượng BĐS, quà tặng BĐS gia đình, học bổng ngoại giao...)*
 
 ════════════════════════════════════════════════════════════════════════════════
 VĂN BẢN PHÁP LUẬT CẦN PHÂN TÍCH:
@@ -106,7 +116,7 @@ NỘI DUNG VĂN BẢN PHÁP LUẬT:
     else:
         prompt += """
 TÀI LIỆU PHÁP LUẬT ĐÍNH KÈM:
-File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang in điện tử, scan ảnh và bảng biểu). Hãy rà soát kỹ từng trang để tìm các điều khoản về Biểu thuế lũy tiến từng phần, Mức giảm trừ gia cảnh, các khoản giảm trừ khác, biểu thuế toàn phần và các khoản miễn thuế.
+File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang in điện tử, scan ảnh và bảng biểu). Hãy rà soát kỹ từng trang để tìm các điều khoản quy định về thuế thu nhập từ tiền lương, tiền công: Biểu thuế lũy tiến từng phần, Mức giảm trừ gia cảnh (bản thân, người phụ thuộc), các khoản giảm trừ bảo hiểm/từ thiện, thuế suất tiền lương đặc thù và các khoản miễn thuế gắn liền với tiền lương.
 """
 
     prompt += f"""
@@ -114,6 +124,12 @@ File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang 
 YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ, KHÔNG KÈM TEXT GIẢI THÍCH):
 ════════════════════════════════════════════════════════════════════════════════
 {{
+  "verification": {{
+    "inputTaxYear": {tax_year},
+    "extractedTaxYear": {tax_year},
+    "isTaxYearMatched": true,
+    "mismatchReason": null
+  }},
   "taxRuleSet": {{
     "name": "{default_set_name}",
     "taxYear": {tax_year},
@@ -123,7 +139,7 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
   }},
   "taxRules": [
     {{
-      "ruleCode": "Mã chuẩn SNAKE_CASE in hoa (ví dụ: PIT_DEDUCTION_PERSONAL, PIT_BRACKET_1, PIT_RATE_REAL_ESTATE)",
+      "ruleCode": "Mã chuẩn SNAKE_CASE in hoa (ví dụ: PIT_DEDUCTION_PERSONAL, PIT_BRACKET_1, PIT_RATE_NON_RESIDENT_SALARY)",
       "ruleName": "Tên quy tắc ngắn gọn, rõ nghĩa bằng tiếng Việt hoặc tiếng Anh",
       "ruleType": "Bắt buộc thuộc một trong 4 loại: DEDUCTION, BRACKET, RATE, EXEMPTION",
       "condition": "Mo ta chi tiet dieu kien ap dung hoac nguong thu nhap tinh thue. Voi PIT_DEDUCTION_DEPENDENT thi bat buoc xuat JSON eligibility nhu mau o tren, khong kem chu ben ngoai JSON.",

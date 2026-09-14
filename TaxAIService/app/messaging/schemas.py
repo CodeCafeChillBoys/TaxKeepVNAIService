@@ -35,6 +35,7 @@ class TaxRuleExtractResponseMessage(BaseModel):
     admin_id: Optional[uuid.UUID] = Field(None, alias="adminId", description="ID của Admin đã tạo")
     status: str = Field(..., alias="status", description="Kết quả: SUCCESS hoặc FAILED")
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId", description="ID bộ luật vừa tạo thành công")
+    warning: Optional[str] = Field(None, alias="warning", description="Cảnh báo lệch năm hoặc thông tin cần lưu ý")
     data: Optional[Dict[str, Any]] = Field(None, alias="data", description="Toàn bộ dữ liệu trích xuất thành công")
     error_message: Optional[str] = Field(None, alias="errorMessage", description="Chi tiết lỗi nếu thất bại")
     processed_at: str = Field(
