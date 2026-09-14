@@ -15,6 +15,12 @@ from app.schemas.tax_rule_response import (
     DependentRuleResponse,
 )
 
+from app.schemas.url_rule_schema import (
+    UrlRuleCreateRequest,
+    UrlRuleUpdateRequest,
+    UrlRuleResponse,
+)
+
 __all__ = [
     # Requests
     "TaxRuleUploadRequest",
@@ -30,5 +36,9 @@ __all__ = [
     "TaxRuleApproveResponse",
     "TaxRuleDetailResponse",
     "DependentRuleResponse",
+    # URL Rules
+    "UrlRuleCreateRequest",
+    "UrlRuleUpdateRequest",
+    "UrlRuleResponse",
 ]
 

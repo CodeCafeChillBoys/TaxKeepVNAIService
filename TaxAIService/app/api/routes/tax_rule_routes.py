@@ -14,9 +14,9 @@ from app.schemas import (
     TaxRuleDetailResponse,
 )
 from app.repositories.interfaces import ITaxRuleRepository
-from app.repositories import TaxRuleRepository
+from app.repositories import TaxRuleRepository, UrlRuleRepository
 from app.services.interfaces import ITaxRuleService
-from app.services import TaxRuleService, TaxRuleServiceError
+from app.services import TaxRuleService, TaxRuleServiceError, UrlValidationService
 
 router = APIRouter(prefix="/api/tax-rules", tags=["Tax Rules Extraction"])
 
@@ -31,6 +31,11 @@ def get_tax_rule_service(
 ) -> ITaxRuleService:
     """Dependency injection cho ITaxRuleService."""
     return TaxRuleService(repo)
+
+
+def get_url_validation_service(db: Session = Depends(get_db)) -> UrlValidationService:
+    """Dependency injection cho UrlValidationService."""
+    return UrlValidationService(UrlRuleRepository(db))
 
 
 def is_valid_url(url: str) -> bool:
@@ -52,7 +57,8 @@ async def upload_and_extract_tax_rules(
     name: Optional[str] = Form(None),
     sourceUrl: Optional[str] = Form(None),
     adminId: Optional[str] = Form(None),
-    service: ITaxRuleService = Depends(get_tax_rule_service)
+    service: ITaxRuleService = Depends(get_tax_rule_service),
+    url_service: UrlValidationService = Depends(get_url_validation_service)
 ):
     # 1. Kiểm tra trường file bắt buộc
     if file is None or not file.filename:
@@ -86,12 +92,13 @@ async def upload_and_extract_tax_rules(
             content={"message": "Tax year must be a valid year."}
         )
 
-    # 5. Kiểm tra SourceUrl nếu có truyền vào
+    # 5. Kiểm tra SourceUrl nếu có truyền vào qua Dynamic URL Validation Rules
     if sourceUrl and sourceUrl.strip():
-        if not is_valid_url(sourceUrl.strip()):
+        is_valid, err_msg, _ = url_service.validate_url(sourceUrl.strip())
+        if not is_valid:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={"SourceUrl": "The SourceUrl must be a valid URL."}
+                content={"SourceUrl": err_msg or "The SourceUrl is not allowed by active URL validation rules."}
             )
 
     # 6. Kiểm tra adminId hợp lệ nếu có truyền vào

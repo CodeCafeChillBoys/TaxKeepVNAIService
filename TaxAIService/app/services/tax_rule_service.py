@@ -30,8 +30,17 @@ def _parse_condition(cond_val: Any) -> Any:
 class TaxRuleService(ITaxRuleService):
     """Triển khai cụ thể ITaxRuleService."""
 
-    def __init__(self, repository: ITaxRuleRepository):
+    def __init__(
+        self,
+        repository: ITaxRuleRepository,
+        url_validation_service: Optional[Any] = None
+    ):
         self.repository = repository
+        self.url_validation_service = url_validation_service
+        if not self.url_validation_service and hasattr(repository, "db"):
+            from app.repositories import UrlRuleRepository
+            from app.services.url_validation_service import UrlValidationService
+            self.url_validation_service = UrlValidationService(UrlRuleRepository(repository.db))
 
     async def process_tax_rule_document(
         self,
@@ -44,6 +53,7 @@ class TaxRuleService(ITaxRuleService):
     ) -> Dict[str, Any]:
         """
         Quy trình xử lý văn bản luật thuế:
+        0. Kiểm tra tính hợp lệ của source_url theo quy tắc cấu hình của Admin.
         1. Kiểm tra trùng lặp taxYear trong database.
         2. Lưu file tạm thời và xử lý PDF (PyMuPDF / Scan bytes).
         3. Gọi AI trích xuất thông tin quy tắc thuế.
@@ -51,6 +61,15 @@ class TaxRuleService(ITaxRuleService):
         5. Tạo và lưu bản ghi TaxRuleSet, TaxRule, DependentRule qua Repository.
         6. Dọn dẹp file tạm và chuẩn bị dữ liệu phản hồi.
         """
+        # 0. Kiểm tra tính hợp lệ của source_url nếu có truyền vào
+        if source_url and source_url.strip():
+            if self.url_validation_service:
+                is_valid, err_msg, _ = self.url_validation_service.validate_url(source_url.strip())
+                if not is_valid:
+                    raise TaxRuleServiceError(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message=err_msg or f"URL nguồn '{source_url}' không thuộc danh sách được phê duyệt bởi Admin."
+                    )
         # 1. Kiểm tra trùng lặp taxYear trước khi xử lý AI
         existing_rule_set = self.repository.get_rule_set_by_year(tax_year)
         if existing_rule_set:

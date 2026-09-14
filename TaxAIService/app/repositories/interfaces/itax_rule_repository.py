@@ -51,7 +51,7 @@ class ITaxRuleRepository(IRepository[TaxRuleSet]):
     ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]:
         """Truy xuất chi tiết bộ quy tắc thuế bao gồm TaxRuleSet, TaxRules và DependentRules."""
         pass
-
+    
     @abstractmethod
     def update_tax_rule_set(
         self,
