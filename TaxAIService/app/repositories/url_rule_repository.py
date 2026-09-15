@@ -10,7 +10,7 @@ class UrlRuleRepository(IUrlRuleRepository):
         self.db = db
 
     def get_all(self, active_only: bool = False) -> List[UrlValidationRule]:
-        query = self.db.query(UrlValidationRule).filter(UrlValidationRule.is_deleted.is_(False))
+        query = self.db.query(UrlValidationRule)
         if active_only:
             query = query.filter(UrlValidationRule.is_active.is_(True))
         return query.order_by(UrlValidationRule.created_at.desc()).all()

@@ -27,8 +27,20 @@ class TaxRuleRepository(ITaxRuleRepository):
     def get_rule_set_by_year(self, tax_year: int) -> Optional[TaxRuleSet]:
         return self.db.query(TaxRuleSet).filter(TaxRuleSet.tax_year == tax_year).first()
 
+    def get_all_rule_sets(self) -> List[TaxRuleSet]:
+        return self.db.query(TaxRuleSet).order_by(TaxRuleSet.tax_year.desc()).all()
+
+    def get_tax_rule_set_detail_by_year(
+        self,
+        tax_year: int
+    ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]:
+        rule_set = self.get_rule_set_by_year(tax_year)
+        if not rule_set:
+            return None
+        return self.get_tax_rule_set_detail(rule_set.rule_set_id)
+
     def get_rule_set_by_id(self, rule_set_id: uuid.UUID) -> Optional[TaxRuleSet]:
-        return self.db.query(TaxRuleSet).filter(TaxRuleSet.rule_set_id == rule_set_id).first()
+        return self.db.query(TaxRuleSet).filter(TaxRuleSet.rule_set_id == rule_set_id).first()  
 
     def check_existing_rule_codes(self, rule_codes: List[str]) -> bool:
         if not rule_codes:
@@ -103,7 +115,6 @@ class TaxRuleRepository(ITaxRuleRepository):
         dep_rules = []
         if rule_ids:
             dep_rules = self.db.query(DependentRule).filter(DependentRule.rule_id.in_(rule_ids)).all()
-
         return rule_set, rules, dep_rules
 
     def update_tax_rule_set(
@@ -142,6 +153,8 @@ class TaxRuleRepository(ITaxRuleRepository):
                     rule_id_str = str(r_data.get("rule_id")) if r_data.get("rule_id") else None
                     code = r_data.get("rule_code")
                     cond = r_data.get("condition")
+                    # parse từ dic sang json
+                    # ensure_ascii=False : giữ nguyên ký tự Unicode như tiếng Việt thay vì chuyển chúng thành dạng \uXXXX.
                     cond_str = json.dumps(cond, ensure_ascii=False) if isinstance(cond, (dict, list)) else (str(cond) if cond is not None else None)
 
                     r = None
@@ -179,8 +192,6 @@ class TaxRuleRepository(ITaxRuleRepository):
                             r.source_url = r_data["source_url"]
                         if "status" in r_data and r_data["status"]:
                             r.status = r_data["status"]
-                        if "version" in r_data and r_data["version"] is not None:
-                            r.version = r_data["version"]
                     else:
                         new_r = TaxRule(
                             rule_id=r_data.get("rule_id") or uuid.uuid4(),
@@ -198,8 +209,7 @@ class TaxRuleRepository(ITaxRuleRepository):
                             clause=r_data.get("clause"),
                             point=r_data.get("point"),
                             source_url=r_data.get("source_url"),
-                            status=r_data.get("status", "Draft"),
-                            version=r_data.get("version", 1)
+                            status=r_data.get("status", "Draft")
                         )
                         self.db.add(new_r)
                         if new_r.rule_code:

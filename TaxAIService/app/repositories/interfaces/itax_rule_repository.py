@@ -16,6 +16,19 @@ class ITaxRuleRepository(IRepository[TaxRuleSet]):
         pass
 
     @abstractmethod
+    def get_all_rule_sets(self) -> List[TaxRuleSet]:
+        """Truy xuất danh sách tất cả các bộ quy tắc thuế đã tạo."""
+        pass
+
+    @abstractmethod
+    def get_tax_rule_set_detail_by_year(
+        self,
+        tax_year: int
+    ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]:
+        """Truy xuất chi tiết bộ quy tắc thuế theo năm tính thuế."""
+        pass
+
+    @abstractmethod
     def get_rule_set_by_id(self, rule_set_id: uuid.UUID) -> Optional[TaxRuleSet]:
         """Truy vấn TaxRuleSet theo ID (UUID)."""
         pass

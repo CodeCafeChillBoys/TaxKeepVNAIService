@@ -1,12 +1,12 @@
 import uuid
-from urllib.parse import urlparse
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Form, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.core.config import settings
 from app.schemas import (
+    TaxRuleSetResponse,
     TaxRuleUploadResponse,
     TaxRuleApproveResponse,
     TaxRuleApproveRequest,
@@ -37,13 +37,6 @@ def get_url_validation_service(db: Session = Depends(get_db)) -> UrlValidationSe
     """Dependency injection cho UrlValidationService."""
     return UrlValidationService(UrlRuleRepository(db))
 
-
-def is_valid_url(url: str) -> bool:
-    try:
-        result = urlparse(url)
-        return all([result.scheme in ("http", "https"), result.netloc])
-    except Exception:
-        return False
 
 
 @router.post(
@@ -140,9 +133,32 @@ async def upload_and_extract_tax_rules(
 
 
 @router.get(
+    "",
+    response_model=List[TaxRuleSetResponse],
+    summary="Lấy danh sách tất cả các bộ quy tắc thuế đã tạo/bóc tách"
+)
+def get_all_tax_rule_sets(
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.get_all_rule_sets()
+
+
+@router.get(
+    "/year/{taxYear}",
+    response_model=TaxRuleDetailResponse,
+    summary="Lấy toàn bộ thông tin AI đã bóc tách theo năm tính thuế (vd: 2026)"
+)
+def get_tax_rule_set_by_year(
+    taxYear: int,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.get_tax_rule_set_detail_by_year(tax_year=taxYear)
+
+
+@router.get(
     "/{id}",
     response_model=TaxRuleDetailResponse,
-    summary="Review chi tiết toàn bộ nội dung của Tax Rule Set (Rules & Dependent Rules)"
+    summary="Review chi tiết toàn bộ nội dung của Tax Rule Set (Rules & Dependent Rules) theo UUID"
 )
 def get_tax_rule_set(
     id: uuid.UUID,

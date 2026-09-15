@@ -62,7 +62,6 @@ class TaxRuleItemUpdateRequest(BaseModel):
     point: Optional[str] = Field(None, alias="point")
     source_url: Optional[str] = Field(None, alias="sourceUrl")
     status: Optional[str] = Field(None, alias="status")
-    version: Optional[int] = Field(None, alias="version")
 
 
 class DependentRuleUpdateRequest(BaseModel):

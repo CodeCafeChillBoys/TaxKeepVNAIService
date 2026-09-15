@@ -30,6 +30,19 @@ class ITaxRuleService(IService):
         pass
 
     @abstractmethod
+    def get_all_rule_sets(self) -> List[Dict[str, Any]]:
+        """Lấy danh sách tóm tắt tất cả các bộ quy tắc thuế đã bóc tách."""
+        pass
+
+    @abstractmethod
+    def get_tax_rule_set_detail_by_year(
+        self,
+        tax_year: int
+    ) -> Dict[str, Any]:
+        """Review toàn bộ nội dung chi tiết của TaxRuleSet theo năm tính thuế."""
+        pass
+
+    @abstractmethod
     def get_tax_rule_set_detail(
         self,
         rule_set_id: uuid.UUID

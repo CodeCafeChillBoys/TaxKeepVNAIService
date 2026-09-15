@@ -129,38 +129,16 @@ class TaxRuleExtractionService:
         if not isinstance(tax_rules, list):
             raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
 
-        # Hạn chế phạm vi: CHỈ giữ lại các quy tắc thuế TNCN từ Tiền lương, Tiền công (Employment Income).
-        # Loại trừ triệt để mọi quy tắc kinh doanh, chuyển nhượng/đầu tư vốn, bất động sản, trúng thưởng, bản quyền...
-        disallowed_codes = [
-            "BUSINESS", "KINH_DOANH", "REAL_ESTATE", "BAT_DONG_SAN",
-            "CAPITAL_TRANSFER", "CAPITAL_INVESTMENT", "DAU_TU_VON", "CHUYEN_NHUONG_VON",
-            "PRIZE", "TRUNG_THUONG", "ROYALTY", "BAN_QUYEN", "INHERITANCE", "THUA_KE", "GIFT", "QUA_TANG"
-        ]
-        disallowed_name_keywords = [
-            "thu nhập từ kinh doanh", "thuế kinh doanh", "cá nhân kinh doanh", "hộ kinh doanh", "doanh thu kinh doanh",
-            "bất động sản", "đầu tư vốn", "chuyển nhượng vốn",
-            "trúng thưởng", "bản quyền", "nhượng quyền", "thừa kế", "quà tặng"
-        ]
-
-        filtered_rules = []
-        for rule in tax_rules:
-            if not isinstance(rule, dict):
-                continue
-            rule_code = (rule.get("ruleCode") or "").upper()
-            rule_name = (rule.get("ruleName") or "").lower()
-            if any(code_kw in rule_code for code_kw in disallowed_codes) or any(name_kw in rule_name for name_kw in disallowed_name_keywords):
-                continue
-            filtered_rules.append(rule)
-
-        data["taxRules"] = filtered_rules
+        valid_rules = [r for r in tax_rules if isinstance(r, dict)]
+        data["taxRules"] = valid_rules
 
         # Nếu không trích xuất được rules nào:
         # Nếu có cảnh báo lệch năm (hoặc verification xác định không khớp), KHÔNG ném lỗi để hệ thống vẫn lưu Draft kèm cảnh báo cho Admin
-        if not filtered_rules:
+        if not valid_rules:
             if not warning_msg and verification.get("isTaxYearMatched") is not False:
                 raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
 
-        for rule in filtered_rules:
+        for rule in valid_rules:
             if not rule.get("ruleCode"):
                 rule["ruleCode"] = f"PIT_RULE_{uuid.uuid4().hex[:8].upper()}"
             if not rule.get("ruleName"):

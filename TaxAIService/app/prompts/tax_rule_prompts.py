@@ -152,8 +152,7 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
       "clause": "Số khoản (ví dụ: 'Khoản 1' hoặc '1')",
       "point": "Điểm (ví dụ: 'Điểm a' hoặc 'a') hoặc null",
       "sourceUrl": "{source_url or ''}",
-      "status": "Draft",
-      "version": 1
+      "status": "Draft"
     }}
   ]
 }}

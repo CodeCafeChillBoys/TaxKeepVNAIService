@@ -1,5 +1,4 @@
 # app/services/url_validation_service.py
-import re
 import uuid
 from typing import List, Optional, Tuple
 from urllib.parse import urlparse
@@ -11,9 +10,17 @@ class UrlValidationService:
     def __init__(self, repo: IUrlRuleRepository):
         self.repo = repo
 
+    def _clean_domain(self, domain_str: str) -> str:
+        """Hàm chuẩn hóa domain: bỏ http, https, www, và path đằng sau."""
+        clean = domain_str.strip().lower()
+        clean = clean.replace("https://", "").replace("http://", "").split("/")[0].split(":")[0]
+        if clean.startswith("www."):
+            clean = clean[4:]
+        return clean
+
     def validate_url(self, url: str) -> Tuple[bool, Optional[str], Optional[UrlValidationRule]]:
         """
-        Kiểm tra URL dựa trên danh sách quy tắc active trong CSDL.
+        Kiểm tra URL có thuộc danh sách tên miền cho phép trong CSDL không.
         Trả về: (is_valid, error_message, matched_rule)
         """
         if not url or not url.strip():
@@ -23,10 +30,14 @@ class UrlValidationService:
 
         # 1. Kiểm tra cú pháp cơ bản
         try:
+            # urlparse thư viên dùng để bóc tách từng phần trong URL
+            # Ví du: ParseResult(scheme='https', netloc='thuvienphapluat.vn', path='/lao-dong-tien-luong/tinh-thue.html',params='',query='',fragment='')
             parsed = urlparse(clean_url)
             if parsed.scheme not in ("http", "https") or not parsed.netloc:
                 return False, "URL không đúng định dạng (phải bắt đầu bằng http:// hoặc https://).", None
-            hostname = parsed.netloc.split(":")[0].lower() # Bỏ port nếu có
+            hostname = parsed.netloc.split(":")[0].lower()
+            if hostname.startswith("www."):
+                hostname = hostname[4:]
         except Exception:
             return False, "Không thể phân tích cú pháp URL.", None
 
@@ -36,30 +47,15 @@ class UrlValidationService:
             # Nếu chưa có rule nào trong DB, mặc định cho qua cú pháp hợp lệ
             return True, None, None
 
-        # 3. So khớp với từng rule
+        # 3. So khớp tên miền/đuôi tên miền
         for rule in active_rules:
-            rule_type = rule.rule_type.upper()
-            pattern = rule.pattern.strip()
+            target_domain = self._clean_domain(rule.domain)
+            if not target_domain:
+                continue
 
-            if rule_type == "DOMAIN":
-                pat_domain = pattern.lower()
-                if hostname == pat_domain or hostname.endswith("." + pat_domain):
-                    return True, None, rule
-
-            elif rule_type == "PREFIX":
-                if clean_url.startswith(pattern):
-                    return True, None, rule
-
-            elif rule_type == "REGEX":
-                try:
-                    if re.search(pattern, clean_url):
-                        return True, None, rule
-                except re.error:
-                    continue  # Bỏ qua nếu regex của rule bị lỗi cú pháp
-
-            elif rule_type == "EXACT":
-                if clean_url == pattern:
-                    return True, None, rule
+            # Khớp chính xác tên miền hoặc là subdomain (vd: vanban.chinhphu.vn khớp chinhphu.vn)
+            if hostname == target_domain or hostname.endswith("." + target_domain):
+                return True, None, rule
 
         return False, "URL nguồn không thuộc danh sách tên miền/nguồn được phê duyệt trong hệ thống.", None
 
@@ -70,10 +66,11 @@ class UrlValidationService:
     def create_rule(self, dto: UrlRuleCreateRequest) -> UrlValidationRule:
         rule = UrlValidationRule(
             name=dto.name,
-            rule_type=dto.rule_type.upper(),
-            pattern=dto.pattern,
+            domain=self._clean_domain(dto.domain),
             description=dto.description,
             is_active=dto.is_active,
+            created_by=dto.created_by,
+            updated_by=dto.created_by,
         )
         return self.repo.create(rule)
 
@@ -82,10 +79,10 @@ class UrlValidationService:
         if not rule:
             return None
         if dto.name is not None: rule.name = dto.name
-        if dto.rule_type is not None: rule.rule_type = dto.rule_type.upper()
-        if dto.pattern is not None: rule.pattern = dto.pattern
+        if dto.domain is not None: rule.domain = self._clean_domain(dto.domain)
         if dto.description is not None: rule.description = dto.description
         if dto.is_active is not None: rule.is_active = dto.is_active
+        if dto.updated_by is not None: rule.updated_by = dto.updated_by
         return self.repo.update(rule)
 
     def delete_rule(self, rule_id: uuid.UUID) -> bool:

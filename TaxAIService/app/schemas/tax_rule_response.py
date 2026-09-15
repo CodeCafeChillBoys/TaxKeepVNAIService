@@ -24,7 +24,6 @@ class TaxRuleItemResponse(BaseModel):
     point: Optional[str] = Field(None, alias="point", description="Điểm luật")
     source_url: Optional[str] = Field(None, alias="sourceUrl", description="URL văn bản pháp luật gốc")
     status: str = Field("Draft", alias="status", description="Trạng thái quy tắc: Draft hoặc Active")
-    version: int = Field(1, alias="version", description="Số phiên bản của quy tắc")
 
 
 class TaxRuleSetResponse(BaseModel):

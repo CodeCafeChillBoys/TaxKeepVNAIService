@@ -36,18 +36,12 @@ def get_rules(
     "",
     response_model=UrlRuleResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Admin tạo mới quy tắc kiểm tra URL"
+    summary="Admin thêm tên miền nguồn kiểm tra URL"
 )
 def create_rule(
     payload: UrlRuleCreateRequest,
     service: UrlValidationService = Depends(get_url_validation_service)
 ):
-    valid_types = {"DOMAIN", "PREFIX", "REGEX", "EXACT"}
-    if payload.rule_type.upper() not in valid_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"rule_type không hợp lệ. Phải là một trong các giá trị: {', '.join(valid_types)}"
-        )
     return service.create_rule(payload)
 
 
@@ -72,21 +66,13 @@ def get_rule_by_id(
 @router.put(
     "/{id}",
     response_model=UrlRuleResponse,
-    summary="Admin cập nhật quy tắc kiểm tra URL"
+    summary="Admin cập nhật tên miền nguồn kiểm tra URL"
 )
 def update_rule(
     id: uuid.UUID,
     payload: UrlRuleUpdateRequest,
     service: UrlValidationService = Depends(get_url_validation_service)
 ):
-    if payload.rule_type:
-        valid_types = {"DOMAIN", "PREFIX", "REGEX", "EXACT"}
-        if payload.rule_type.upper() not in valid_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"rule_type không hợp lệ. Phải là một trong các giá trị: {', '.join(valid_types)}"
-            )
-
     updated_rule = service.update_rule(rule_id=id, dto=payload)
     if not updated_rule:
         raise HTTPException(

@@ -14,12 +14,13 @@ class UrlValidationRule(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    rule_type: Mapped[str] = mapped_column(String(20), nullable=False, default="DOMAIN") # DOMAIN, PREFIX, REGEX, EXACT
-    pattern: Mapped[str] = mapped_column(String(500), nullable=False)
+    domain: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False

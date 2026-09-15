@@ -9,6 +9,7 @@ from app.repositories.interfaces import IRepository, IRepo, ITaxRuleRepository
 from app.repositories import TaxRuleRepository
 from app.services.interfaces import IService, ITaxRuleService
 from app.services import TaxRuleService, TaxRuleServiceError
+from app.errors.tax_rule_errors import TaxRuleErrorMessages
 
 
 def test_interfaces_inheritance():
@@ -249,8 +250,8 @@ async def test_service_process_with_admin_id():
 
     service = TaxRuleService(mock_repo)
 
-    with patch("app.services.tax_rule_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
-         patch("app.services.tax_rule_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
+    with patch("app.services.tax_rule_document_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
+         patch("app.services.tax_rule_document_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
         mock_pdf.return_value = (False, "PDF Content", None)
         mock_extract.return_value = {
             "taxRuleSet": {"name": "Luat Thue 2026"},
@@ -385,8 +386,8 @@ async def test_service_process_year_mismatch_saves_draft_with_warning():
 
     service = TaxRuleService(mock_repo)
 
-    with patch("app.services.tax_rule_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
-         patch("app.services.tax_rule_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
+    with patch("app.services.tax_rule_document_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
+         patch("app.services.tax_rule_document_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
         mock_pdf.return_value = (False, "PDF Content", None)
         mock_extract.return_value = {
             "verification": {
@@ -487,6 +488,47 @@ def test_service_update_tax_rule_set_conflict():
     assert exc_info.value.message == "A tax rule set for this tax year already exists."
 
 
+def test_service_update_tax_rule_set_active_error():
+    mock_repo = MagicMock()
+    test_id = uuid.uuid4()
+
+    curr_set = TaxRuleSet(rule_set_id=test_id, name="Active Rule Set", tax_year=2025, status="Active")
+    mock_repo.get_tax_rule_set_detail.return_value = (curr_set, [], [])
+
+    service = TaxRuleService(mock_repo)
+    with pytest.raises(TaxRuleServiceError) as exc_info:
+        service.update_tax_rule_set(
+            rule_set_id=test_id,
+            payload={"name": "Attempt Update"}
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.message == TaxRuleErrorMessages.CANNOT_UPDATE_ACTIVE_RULE_SET
+
+
+def test_service_get_all_rule_sets_includes_admin_id():
+    mock_repo = MagicMock()
+    test_id = uuid.uuid4()
+    admin_id = uuid.uuid4()
+
+    mock_set = TaxRuleSet(
+        rule_set_id=test_id,
+        admin_id=admin_id,
+        name="Rule Set 2026",
+        tax_year=2026,
+        status="Draft"
+    )
+    mock_repo.get_all_rule_sets.return_value = [mock_set]
+
+    service = TaxRuleService(mock_repo)
+    result = service.get_all_rule_sets()
+
+    assert len(result) == 1
+    assert result[0]["ruleSetId"] == test_id
+    assert result[0]["adminId"] == admin_id
+    assert result[0]["name"] == "Rule Set 2026"
+
+
 def test_route_get_tax_rule_set_success():
     from fastapi.testclient import TestClient
     from app.main import app
@@ -553,7 +595,7 @@ def test_route_update_tax_rule_set_success():
         app.dependency_overrides.clear()
 
 
-def test_extraction_service_filters_business_and_non_employment_rules():
+def test_extraction_service_extracts_rules_successfully():
     import json
     from app.services.tax_rule_extraction_service import tax_rule_extraction_service
 
@@ -570,26 +612,8 @@ def test_extraction_service_filters_business_and_non_employment_rules():
             {
                 "ruleCode": "PERSONAL_DEDUCTION",
                 "ruleName": "Giảm trừ gia cảnh bản thân từ tiền lương",
-                "ruleType": "Deduction",
-                "description": "11 triệu/tháng",
-                "rate": 0,
-                "bracketOrder": 0
-            },
-            {
-                "ruleCode": "PIT_BUSINESS_INCOME",
-                "ruleName": "Thuế thu nhập từ kinh doanh",
-                "ruleType": "Rate",
-                "description": "Tỷ lệ thuế cá nhân kinh doanh",
-                "rate": 0.05,
-                "bracketOrder": 0
-            },
-            {
-                "ruleCode": "PIT_REAL_ESTATE_TRANSFER",
-                "ruleName": "Chuyển nhượng bất động sản",
-                "ruleType": "Rate",
-                "description": "Thuế BĐS",
-                "rate": 0.02,
-                "bracketOrder": 0
+                "ruleType": "DEDUCTION",
+                "value": 11000000
             }
         ],
         "dependentRules": []
@@ -603,7 +627,7 @@ def test_extraction_service_filters_business_and_non_employment_rules():
         assert result["taxRules"][0]["ruleCode"] == "PERSONAL_DEDUCTION"
 
 
-def test_extraction_service_raises_when_all_rules_disallowed():
+def test_extraction_service_raises_when_rules_empty():
     import json
     from app.services.tax_rule_extraction_service import tax_rule_extraction_service, TaxRuleExtractionError
     from app.errors.tax_rule_errors import TaxRuleErrorMessages
@@ -616,15 +640,8 @@ def test_extraction_service_raises_when_all_rules_disallowed():
             "isTaxYearMatched": True,
             "mismatchReason": None
         },
-        "taxRuleSet": {"name": "Luật Thuế Kinh Doanh 2026"},
-        "taxRules": [
-            {
-                "ruleCode": "PIT_BUSINESS_INCOME",
-                "ruleName": "Thuế kinh doanh",
-                "ruleType": "Rate",
-                "rate": 0.05
-            }
-        ],
+        "taxRuleSet": {"name": "Luật Thuế TNCN 2026"},
+        "taxRules": [],
         "dependentRules": []
     })
 
@@ -642,7 +659,7 @@ def test_repository_update_tax_rule_set_all_fields():
     dep_id = uuid.uuid4()
 
     mock_rule_set = TaxRuleSet(rule_set_id=test_id, name="Old", tax_year=2025, status="Draft")
-    mock_rule = TaxRule(rule_id=rule_id, rule_set_id=test_id, rule_code="PIT_DEDUCTION_PERSONAL", rule_name="Old", rule_type="DEDUCTION", status="Draft", version=1)
+    mock_rule = TaxRule(rule_id=rule_id, rule_set_id=test_id, rule_code="PIT_DEDUCTION_PERSONAL", rule_name="Old", rule_type="DEDUCTION", status="Draft")
     mock_dep = DependentRule(id=dep_id, rule_id=rule_id, dependent_type="CHILD", name="Old", status="Draft")
 
     repo = TaxRuleRepository(mock_db)
@@ -676,8 +693,7 @@ def test_repository_update_tax_rule_set_all_fields():
             "rule_type": "DEDUCTION",
             "value": 11000000.0,
             "unit": "VND/month",
-            "status": "Active",
-            "version": 2
+            "status": "Active"
         }],
         dependent_rules=[{
             "id": dep_id,
@@ -693,7 +709,6 @@ def test_repository_update_tax_rule_set_all_fields():
     assert mock_rule_set.tax_year == 2026
     assert mock_rule_set.status == "Active"
     assert mock_rule.rule_name == "New Personal"
-    assert mock_rule.version == 2
     assert mock_dep.name == "Con dưới 18 tuổi"
     assert mock_dep.max_age == 18
 
