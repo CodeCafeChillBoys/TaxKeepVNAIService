@@ -21,6 +21,12 @@ from app.schemas.url_rule_schema import (
     UrlRuleResponse,
 )
 
+from app.schemas.ocr_document_schema import (
+    ExtractedDependentData,
+    OcrExtractionResponse
+
+)
+
 __all__ = [
     # Requests
     "TaxRuleUploadRequest",
@@ -40,5 +46,8 @@ __all__ = [
     "UrlRuleCreateRequest",
     "UrlRuleUpdateRequest",
     "UrlRuleResponse",
+
+    "ExtractedDependentData",
+    "OcrExtractionResponse"
 ]
 

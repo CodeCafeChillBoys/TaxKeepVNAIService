@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.core.config import settings
 from app.infrastructure.database import engine
-from app.api.routes import tax_rule_routes, url_rule_routes
+from app.api.routes import tax_rule_routes, url_rule_routes, dependent_ocr_routes
 
 
 import asyncio
@@ -53,6 +53,7 @@ app.add_middleware(
 # Đăng ký các Router
 app.include_router(tax_rule_routes.router)
 app.include_router(url_rule_routes.router)
+app.include_router(dependent_ocr_routes.router)
 
 from fastapi.responses import RedirectResponse
 
