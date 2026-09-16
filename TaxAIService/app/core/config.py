@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     RABBITMQ_TAX_REQUEST_QUEUE: str = "tax.ai.request.queue"
     RABBITMQ_TAX_RESPONSE_QUEUE: str = "tax.ai.response.queue"
     RABBITMQ_EXCHANGE_NAME: str = "tax.ai.exchange"
+    
+    RABBITMQ_OCR_REQUEST_QUEUE: str = "ocr.ai.request.queue"
+    RABBITMQ_OCR_RESPONSE_QUEUE: str = "ocr.ai.response.queue"
 
     model_config = SettingsConfigDict(
         env_file=".env",
