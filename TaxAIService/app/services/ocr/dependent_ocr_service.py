@@ -5,8 +5,8 @@ from google import genai
 from google.genai import types
 
 from app.core.config import settings
-from app.schemas.ocr_document_schema import OcrExtractionResponse, DocumentType, ExtractedDependentData
-from app.prompts.ocr_prompts import OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT
+from app.schemas.ocr import OcrExtractionResponse, DocumentType, ExtractedDependentData
+from app.prompts.ocr import OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 

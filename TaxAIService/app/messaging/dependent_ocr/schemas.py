@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
-from app.schemas.ocr_document_schema import ExtractedDependentData
+from app.schemas.ocr import ExtractedDependentData
 
 
 class OcrExtractRequestMessage(BaseModel):

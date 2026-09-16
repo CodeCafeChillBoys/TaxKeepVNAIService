@@ -7,7 +7,7 @@ from typing import Optional, List, Tuple
 import aio_pika
 import httpx
 
-from app.services.dependent_ocr_service import DependentOcrService
+from app.services.ocr import DependentOcrService
 from app.messaging.dependent_ocr.schemas import (
     OcrExtractRequestMessage,
     OcrExtractResponseMessage,

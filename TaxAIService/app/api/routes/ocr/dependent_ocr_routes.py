@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
-from app.services.dependent_ocr_service import DependentOcrService
-from app.schemas.ocr_document_schema import OcrExtractionResponse
+from app.services.ocr import DependentOcrService
+from app.schemas.ocr import OcrExtractionResponse
 
 router = APIRouter(prefix="/api/ocr", tags=["OCR Documents"])
 ocr_service = DependentOcrService()

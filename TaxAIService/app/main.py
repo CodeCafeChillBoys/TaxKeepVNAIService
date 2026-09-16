@@ -4,7 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.core.config import settings
 from app.infrastructure.database import engine
-from app.api.routes import tax_rule_routes, url_rule_routes, dependent_ocr_routes
+from app.api.routes.tax_rule import tax_rule_routes
+from app.api.routes.url_rule import url_rule_routes
+from app.api.routes.ocr import dependent_ocr_routes
 
 
 import asyncio

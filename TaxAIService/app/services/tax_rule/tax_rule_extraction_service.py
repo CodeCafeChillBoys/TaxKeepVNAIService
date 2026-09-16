@@ -6,7 +6,7 @@ from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
 from app.core.config import settings
-from app.prompts.tax_rule_prompts import build_tax_rule_extraction_prompt
+from app.prompts.tax_rule import build_tax_rule_extraction_prompt
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleExtractionError
 
 logger = logging.getLogger(__name__)

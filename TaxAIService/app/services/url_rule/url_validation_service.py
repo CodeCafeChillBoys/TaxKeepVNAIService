@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 from app.models.url_validation_rule import UrlValidationRule
 from app.repositories.interfaces.iurl_rule_repository import IUrlRuleRepository
-from app.schemas.url_rule_schema import UrlRuleCreateRequest, UrlRuleUpdateRequest
+from app.schemas.url_rule import UrlRuleCreateRequest, UrlRuleUpdateRequest
 
 class UrlValidationService:
     def __init__(self, repo: IUrlRuleRepository):

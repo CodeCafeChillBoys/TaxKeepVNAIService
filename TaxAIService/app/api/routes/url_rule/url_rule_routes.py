@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database import get_db
-from app.repositories import UrlRuleRepository
-from app.services import UrlValidationService
-from app.schemas import (
+from app.repositories.url_rule import UrlRuleRepository
+from app.services.url_rule import UrlValidationService
+from app.schemas.url_rule import (
     UrlRuleCreateRequest,
     UrlRuleUpdateRequest,
     UrlRuleResponse,

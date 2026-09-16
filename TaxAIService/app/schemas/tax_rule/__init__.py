@@ -1,11 +1,11 @@
-from app.schemas.tax_rule_request import (
+from app.schemas.tax_rule.tax_rule_request import (
     TaxRuleUploadRequest,
     TaxRuleApproveRequest,
     TaxRuleUpdateRequest,
     TaxRuleItemUpdateRequest,
     DependentRuleUpdateRequest,
 )
-from app.schemas.tax_rule_response import (
+from app.schemas.tax_rule.tax_rule_response import (
     TaxRuleItemResponse,
     TaxRuleSetResponse,
     TaxRuleExtractionDataResponse,
@@ -14,17 +14,10 @@ from app.schemas.tax_rule_response import (
     TaxRuleDetailResponse,
     DependentRuleResponse,
 )
-
-from app.schemas.url_rule_schema import (
-    UrlRuleCreateRequest,
-    UrlRuleUpdateRequest,
-    UrlRuleResponse,
-)
-
-from app.schemas.ocr_document_schema import (
-    ExtractedDependentData,
-    OcrExtractionResponse
-
+from app.schemas.tax_rule.tax_rule_schema import (
+    TaxRuleItemSchema,
+    TaxRuleSetSchema,
+    TaxRuleExtractionData,
 )
 
 __all__ = [
@@ -42,12 +35,8 @@ __all__ = [
     "TaxRuleApproveResponse",
     "TaxRuleDetailResponse",
     "DependentRuleResponse",
-    # URL Rules
-    "UrlRuleCreateRequest",
-    "UrlRuleUpdateRequest",
-    "UrlRuleResponse",
-
-    "ExtractedDependentData",
-    "OcrExtractionResponse"
+    # Aliases
+    "TaxRuleItemSchema",
+    "TaxRuleSetSchema",
+    "TaxRuleExtractionData",
 ]
-

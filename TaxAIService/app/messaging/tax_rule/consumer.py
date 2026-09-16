@@ -9,8 +9,8 @@ import httpx
 
 from app.core.config import settings
 from app.infrastructure.database import get_db_context
-from app.repositories import TaxRuleRepository
-from app.services import TaxRuleService, TaxRuleServiceError
+from app.repositories.tax_rule import TaxRuleRepository
+from app.services.tax_rule import TaxRuleService, TaxRuleServiceError
 from app.messaging.rabbitmq_client import rabbitmq_client
 from app.messaging.tax_rule.schemas import (
     TaxRuleExtractRequestMessage,

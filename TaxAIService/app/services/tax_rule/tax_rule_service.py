@@ -3,8 +3,8 @@ from typing import Optional, Dict, Any, List
 from fastapi import status, HTTPException
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 from app.services.interfaces.tax_rule_service_interface import ITaxRuleService
-from app.services.tax_rule_document_service import TaxRuleDocumentService
-from app.mappers import format_tax_rule_data
+from app.services.tax_rule.tax_rule_document_service import TaxRuleDocumentService
+from app.mappers.tax_rule import format_tax_rule_data
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleServiceError
 
 
