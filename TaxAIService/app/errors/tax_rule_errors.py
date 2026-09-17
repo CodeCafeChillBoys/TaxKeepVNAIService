@@ -1,3 +1,4 @@
+from typing import Any, Optional
 from fastapi import HTTPException, status
 
 
@@ -11,10 +12,21 @@ class TaxRuleErrorMessages:
     FAILED_TO_PROCESS_DOCUMENT = "Failed to process tax rule document."
     RULE_SET_NOT_FOUND = "Tax rule set not found."
     RULE_SET_ALREADY_ACTIVE = "Tax rule set is already active."
+    TAX_YEAR_MISMATCH = "The tax year in the document does not match the provided tax year."
+    CANNOT_UPDATE_ACTIVE_RULE_SET = "Cannot update tax rule set because it has already been approved and is active."
+
 
     @staticmethod
     def duplicate_db_rule_code(code: str) -> str:
         return f"Duplicate ruleCode in database: {code}."
+
+    @staticmethod
+    def tax_year_mismatch(doc_year: Any, input_year: int, reason: Optional[str] = None) -> str:
+        doc_year_str = str(doc_year) if doc_year is not None else "không xác định"
+        msg = f"Năm áp dụng trong văn bản ({doc_year_str}) không khớp với năm tính thuế nhập vào ({input_year})."
+        if reason:
+            msg += f" Chi tiết: {reason}"
+        return msg
 
 
 class TaxRuleServiceError(Exception):

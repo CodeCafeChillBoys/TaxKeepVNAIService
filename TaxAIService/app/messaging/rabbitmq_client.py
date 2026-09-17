@@ -51,7 +51,7 @@ class RabbitMQClient:
         """
         if not self.channel or self.channel.is_closed:
             await self.connect()
-
+        #chuyển đổi data trong message khi lấy đc thành json => dumps
         payload_bytes = json.dumps(message_data, default=str).encode("utf-8")
         msg = aio_pika.Message(
             body=payload_bytes,

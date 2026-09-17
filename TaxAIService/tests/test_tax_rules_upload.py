@@ -47,4 +47,4 @@ def test_upload_invalid_source_url():
         data={"taxYear": "2030", "sourceUrl": "invalid_url_without_http"}
     )
     assert response.status_code == 400
-    assert response.json() == {"SourceUrl": "The SourceUrl must be a valid URL."}
+    assert response.json() == {"SourceUrl": "URL không đúng định dạng (phải bắt đầu bằng http:// hoặc https://)."}

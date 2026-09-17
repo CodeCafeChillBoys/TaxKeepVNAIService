@@ -24,7 +24,6 @@ class TaxRuleItemResponse(BaseModel):
     point: Optional[str] = Field(None, alias="point", description="Điểm luật")
     source_url: Optional[str] = Field(None, alias="sourceUrl", description="URL văn bản pháp luật gốc")
     status: str = Field("Draft", alias="status", description="Trạng thái quy tắc: Draft hoặc Active")
-    version: int = Field(1, alias="version", description="Số phiên bản của quy tắc")
 
 
 class TaxRuleSetResponse(BaseModel):
@@ -74,6 +73,8 @@ class TaxRuleExtractionDataResponse(BaseModel):
     tax_rule_set: TaxRuleSetResponse = Field(..., alias="taxRuleSet")
     tax_rules: List[TaxRuleItemResponse] = Field(..., alias="taxRules")
     dependent_rules: Optional[List[DependentRuleResponse]] = Field(default_factory=list, alias="dependentRules")
+    verification: Optional[Dict[str, Any]] = Field(None, alias="verification", description="Thông tin đối soát năm tính thuế")
+    warning: Optional[str] = Field(None, alias="warning", description="Cảnh báo lệch năm nếu có")
 
 
 class TaxRuleUploadResponse(BaseModel):
@@ -83,6 +84,7 @@ class TaxRuleUploadResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     message: str = Field("Tax document processed successfully.", description="Thông báo kết quả xử lý")
+    warning: Optional[str] = Field(None, alias="warning", description="Cảnh báo nếu có")
     data: TaxRuleExtractionDataResponse = Field(..., description="Dữ liệu bộ quy tắc thuế đã bóc tách")
 
 
@@ -97,3 +99,14 @@ class TaxRuleApproveResponse(BaseModel):
     status: str = Field("Active", description="Trạng thái sau khi duyệt")
     approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="ID của Admin đã phê duyệt")
     approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt")
+
+
+class TaxRuleDetailResponse(BaseModel):
+    """
+    Response trả về khi Admin Review (GET) hoặc Edit (PUT) toàn bộ nội dung bộ quy tắc thuế
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    message: str = Field("Tax rule set retrieved successfully.", description="Thông báo kết quả")
+    warning: Optional[str] = Field(None, alias="warning", description="Cảnh báo nếu có")
+    data: TaxRuleExtractionDataResponse = Field(..., description="Dữ liệu chi tiết của bộ quy tắc thuế")

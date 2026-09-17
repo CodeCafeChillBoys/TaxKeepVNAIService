@@ -94,6 +94,7 @@ async def handle_tax_extract_message(message: aio_pika.IncomingMessage) -> None:
                 admin_id=admin_id,
                 status="SUCCESS",
                 rule_set_id=rule_set_id,
+                warning=data_dict.get("warning"),
                 data=data_dict,
                 error_message=None
             )

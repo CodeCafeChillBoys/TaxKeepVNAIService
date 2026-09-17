@@ -1,16 +1,22 @@
 import uuid
-from urllib.parse import urlparse
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Form, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.core.config import settings
-from app.schemas import TaxRuleUploadResponse, TaxRuleApproveResponse, TaxRuleApproveRequest
+from app.schemas import (
+    TaxRuleSetResponse,
+    TaxRuleUploadResponse,
+    TaxRuleApproveResponse,
+    TaxRuleApproveRequest,
+    TaxRuleUpdateRequest,
+    TaxRuleDetailResponse,
+)
 from app.repositories.interfaces import ITaxRuleRepository
-from app.repositories import TaxRuleRepository
+from app.repositories import TaxRuleRepository, UrlRuleRepository
 from app.services.interfaces import ITaxRuleService
-from app.services import TaxRuleService, TaxRuleServiceError
+from app.services import TaxRuleService, TaxRuleServiceError, UrlValidationService
 
 router = APIRouter(prefix="/api/tax-rules", tags=["Tax Rules Extraction"])
 
@@ -27,12 +33,10 @@ def get_tax_rule_service(
     return TaxRuleService(repo)
 
 
-def is_valid_url(url: str) -> bool:
-    try:
-        result = urlparse(url)
-        return all([result.scheme in ("http", "https"), result.netloc])
-    except Exception:
-        return False
+def get_url_validation_service(db: Session = Depends(get_db)) -> UrlValidationService:
+    """Dependency injection cho UrlValidationService."""
+    return UrlValidationService(UrlRuleRepository(db))
+
 
 
 @router.post(
@@ -46,7 +50,8 @@ async def upload_and_extract_tax_rules(
     name: Optional[str] = Form(None),
     sourceUrl: Optional[str] = Form(None),
     adminId: Optional[str] = Form(None),
-    service: ITaxRuleService = Depends(get_tax_rule_service)
+    service: ITaxRuleService = Depends(get_tax_rule_service),
+    url_service: UrlValidationService = Depends(get_url_validation_service)
 ):
     # 1. Kiểm tra trường file bắt buộc
     if file is None or not file.filename:
@@ -80,12 +85,13 @@ async def upload_and_extract_tax_rules(
             content={"message": "Tax year must be a valid year."}
         )
 
-    # 5. Kiểm tra SourceUrl nếu có truyền vào
+    # 5. Kiểm tra SourceUrl nếu có truyền vào qua Dynamic URL Validation Rules
     if sourceUrl and sourceUrl.strip():
-        if not is_valid_url(sourceUrl.strip()):
+        is_valid, err_msg, _ = url_service.validate_url(sourceUrl.strip())
+        if not is_valid:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={"SourceUrl": "The SourceUrl must be a valid URL."}
+                content={"SourceUrl": err_msg or "The SourceUrl is not allowed by active URL validation rules."}
             )
 
     # 6. Kiểm tra adminId hợp lệ nếu có truyền vào
@@ -126,6 +132,60 @@ async def upload_and_extract_tax_rules(
         )
 
 
+@router.get(
+    "",
+    response_model=List[TaxRuleSetResponse],
+    summary="Lấy danh sách tất cả các bộ quy tắc thuế đã tạo/bóc tách"
+)
+def get_all_tax_rule_sets(
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.get_all_rule_sets()
+
+
+@router.get(
+    "/year/{taxYear}",
+    response_model=TaxRuleDetailResponse,
+    summary="Lấy toàn bộ thông tin AI đã bóc tách theo năm tính thuế (vd: 2026)"
+)
+def get_tax_rule_set_by_year(
+    taxYear: int,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.get_tax_rule_set_detail_by_year(tax_year=taxYear)
+
+
+@router.get(
+    "/{id}",
+    response_model=TaxRuleDetailResponse,
+    summary="Review chi tiết toàn bộ nội dung của Tax Rule Set (Rules & Dependent Rules) theo UUID"
+)
+def get_tax_rule_set(
+    id: uuid.UUID,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.get_tax_rule_set_detail(rule_set_id=id)
+
+
+@router.put(
+    "/{id}",
+    response_model=TaxRuleDetailResponse,
+    summary="Chỉnh sửa toàn bộ nội dung Tax Rule Set, Tax Rules và cập nhật taxYear"
+)
+def update_tax_rule_set(
+    id: uuid.UUID,
+    payload: TaxRuleUpdateRequest,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    try:
+        return service.update_tax_rule_set(rule_set_id=id, payload=payload)
+    except TaxRuleServiceError as e:
+        return JSONResponse(
+            status_code=e.status_code,
+            content={"message": e.message}
+        )
+
+
 @router.post(
     "/{id}/approve",
     response_model=TaxRuleApproveResponse,
@@ -136,5 +196,8 @@ def approve_tax_rule_set(
     payload: TaxRuleApproveRequest,
     service: ITaxRuleService = Depends(get_tax_rule_service)
 ):
-    return service.approve_tax_rule_set(rule_set_id=id, admin_id=payload.admin_id)
+    return service.approve_tax_rule_set(
+        rule_set_id=id,
+        admin_id=payload.admin_id
+    )
 

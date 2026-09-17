@@ -1,4 +1,6 @@
 import json
+import logging
+import uuid
 from typing import Dict, Any, Optional
 from google import genai
 from google.genai import types
@@ -6,6 +8,8 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.prompts.tax_rule_prompts import build_tax_rule_extraction_prompt
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleExtractionError
+
+logger = logging.getLogger(__name__)
 
 
 class TaxRuleExtractionService:
@@ -45,6 +49,7 @@ class TaxRuleExtractionService:
             contents.append(pdf_part)
         contents.append(prompt)
 
+        raw_text = ""
         try:
             response = self.client.models.generate_content(
                 model=self.model,
@@ -54,23 +59,96 @@ class TaxRuleExtractionService:
                     temperature=0.1
                 )
             )
-            raw_text = response.text or "{}"
-            data = json.loads(raw_text)
-        except Exception:
+            raw_text = (response.text or "").strip()
+            # Làm sạch markdown code fences nếu LLM có kèm ```json ... ```
+            clean_text = raw_text
+            if clean_text.startswith("```"):
+                lines = clean_text.splitlines()
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                clean_text = "\n".join(lines).strip()
+
+            try:
+                data = json.loads(clean_text)
+            except Exception:
+                start_idx = clean_text.find("{")
+                end_idx = clean_text.rfind("}")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    data = json.loads(clean_text[start_idx:end_idx + 1])
+                else:
+                    raise
+        except Exception as e:
+            logger.error(f"Error calling Gemini or parsing JSON: {e}\nRaw output: {raw_text}", exc_info=True)
             raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
         
-        if not isinstance(data, dict) or "taxRules" not in data or not data["taxRules"]:
+        if not isinstance(data, dict):
             raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
+
+        # Kiểm tra verification đối soát năm tính thuế
+        verification = data.get("verification")
+        warning_msg = None
+        if isinstance(verification, dict):
+            is_matched = verification.get("isTaxYearMatched")
+            extracted_year = verification.get("extractedTaxYear")
+            mismatch_reason = verification.get("mismatchReason")
+
+            extracted_year_int = None
+            if extracted_year is not None:
+                try:
+                    extracted_year_int = int(str(extracted_year).strip())
+                except (ValueError, TypeError):
+                    pass
+
+            # Nếu AI xác định không khớp hoặc năm bóc tách khác với tax_year nhập vào
+            if is_matched is False or (extracted_year_int is not None and extracted_year_int != tax_year):
+                warning_msg = TaxRuleErrorMessages.tax_year_mismatch(
+                    doc_year=extracted_year_int if extracted_year_int is not None else extracted_year,
+                    input_year=tax_year,
+                    reason=mismatch_reason
+                )
+                verification["isTaxYearMatched"] = False
+                verification["warningMessage"] = warning_msg
+            else:
+                verification["isTaxYearMatched"] = True
+                verification["warningMessage"] = None
+        else:
+            verification = {
+                "inputTaxYear": tax_year,
+                "extractedTaxYear": tax_year,
+                "isTaxYearMatched": True,
+                "mismatchReason": None,
+                "warningMessage": None
+            }
+        data["verification"] = verification
+        if warning_msg:
+            data["warning"] = warning_msg
 
         tax_rules = data.get("taxRules", [])
-        if not isinstance(tax_rules, list) or len(tax_rules) == 0:
+        if not isinstance(tax_rules, list):
             raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
 
-        for rule in tax_rules:
-            if not rule.get("ruleCode") or not rule.get("ruleName") or not rule.get("ruleType"):
-                raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.REQUIRED_FIELDS_MISSING)
+        valid_rules = [r for r in tax_rules if isinstance(r, dict)]
+        data["taxRules"] = valid_rules
+
+        # Nếu không trích xuất được rules nào:
+        # Nếu có cảnh báo lệch năm (hoặc verification xác định không khớp), KHÔNG ném lỗi để hệ thống vẫn lưu Draft kèm cảnh báo cho Admin
+        if not valid_rules:
+            if not warning_msg and verification.get("isTaxYearMatched") is not False:
+                raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
+
+        for rule in valid_rules:
+            if not rule.get("ruleCode"):
+                rule["ruleCode"] = f"PIT_RULE_{uuid.uuid4().hex[:8].upper()}"
+            if not rule.get("ruleName"):
+                rule["ruleName"] = rule["ruleCode"]
+            if not rule.get("ruleType"):
+                rule["ruleType"] = "DEDUCTION"
 
         rule_set = data.get("taxRuleSet", {})
+        if not isinstance(rule_set, dict):
+            rule_set = {}
         if not rule_set.get("name"):
             rule_set["name"] = default_set_name
         rule_set["taxYear"] = tax_year
