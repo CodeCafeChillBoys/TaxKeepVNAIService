@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.core.config import settings
-from app.schemas import (
+from app.schemas.tax_rule import (
     TaxRuleSetResponse,
     TaxRuleUploadResponse,
     TaxRuleApproveResponse,
@@ -14,9 +14,11 @@ from app.schemas import (
     TaxRuleDetailResponse,
 )
 from app.repositories.interfaces import ITaxRuleRepository
-from app.repositories import TaxRuleRepository, UrlRuleRepository
+from app.repositories.tax_rule import TaxRuleRepository
+from app.repositories.url_rule import UrlRuleRepository
 from app.services.interfaces import ITaxRuleService
-from app.services import TaxRuleService, TaxRuleServiceError, UrlValidationService
+from app.services.tax_rule import TaxRuleService, TaxRuleServiceError
+from app.services.url_rule import UrlValidationService
 
 router = APIRouter(prefix="/api/tax-rules", tags=["Tax Rules Extraction"])
 

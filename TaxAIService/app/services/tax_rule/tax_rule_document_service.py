@@ -4,9 +4,9 @@ from typing import Optional, Dict, Any
 from fastapi import status, HTTPException
 from app.core.config import settings
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
-from app.services.pdf_service import pdf_service
-from app.services.tax_rule_extraction_service import tax_rule_extraction_service
-from app.mappers import build_tax_rule_models, format_tax_rule_data
+from app.services.tax_rule.pdf_service import pdf_service
+from app.services.tax_rule.tax_rule_extraction_service import tax_rule_extraction_service
+from app.mappers.tax_rule import build_tax_rule_models, format_tax_rule_data
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleServiceError
 from app.errors.pdf_errors import PDFProcessingError
 
@@ -25,8 +25,8 @@ class TaxRuleDocumentService:
         self.repository = repository
         self.url_validation_service = url_validation_service
         if not self.url_validation_service and hasattr(repository, "db"):
-            from app.repositories import UrlRuleRepository
-            from app.services.url_validation_service import UrlValidationService
+            from app.repositories.url_rule import UrlRuleRepository
+            from app.services.url_rule import UrlValidationService
             self.url_validation_service = UrlValidationService(UrlRuleRepository(repository.db))
 
     async def process_tax_rule_document(
