@@ -2,6 +2,7 @@ from app.schemas.ocr.ocr_document_schema import (
     ConfidenceScores,
     DependentRuleItem,
     RuleValidationResult,
+    ThresholdValidationResult,
     ExtractedDependentData,
     DependentOcrData,
     OcrExtractionResponse,
@@ -15,11 +16,13 @@ __all__ = [
     "ConfidenceScores",
     "DependentRuleItem",
     "RuleValidationResult",
+    "ThresholdValidationResult",
     "ExtractedDependentData",
     "DependentOcrData",
     "OcrExtractionResponse",
     "DocumentType",
     "DependentGroup",
 ]
+
 
 

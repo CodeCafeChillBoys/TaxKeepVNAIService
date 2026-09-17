@@ -67,6 +67,37 @@ class ConfidenceScores(BaseModel):
     document_number: Optional[float] = Field(None, alias="documentNumber")
     issuing_authority: Optional[float] = Field(None, alias="issuingAuthority")
 
+class ThresholdValidationResult(BaseModel):
+    """Kết quả đối soát ngưỡng động từ Database/Admin - KHÔNG HARDCODE"""
+    model_config = ConfigDict(populate_by_name=True)
+    applied_threshold: float = Field(
+        ..., 
+        alias="appliedThreshold", 
+        description="Ngưỡng tin cậy áp dụng (lấy động từ DB system_configs hoặc request)"
+    )
+    overall_confidence: float = Field(
+        ..., 
+        alias="overallConfidence", 
+        description="Điểm tin cậy trung bình tính từ tổng điểm / độ dài các trường hiện có"
+    )
+    is_passed_threshold: bool = Field(
+        ..., 
+        alias="isPassedThreshold", 
+        description="True nếu đạt ngưỡng, False nếu nhỏ hơn ngưỡng và cần nhập lại"
+    )
+    low_confidence_fields: List[str] = Field(
+        default_factory=list, 
+        alias="lowConfidenceFields", 
+        description="Tự động chứa danh sách các trường có điểm thấp hơn ngưỡng"
+    )
+    warning_message: Optional[str] = Field(
+        None, 
+        alias="warningMessage", 
+        description="Thông báo cảnh báo động nếu không đạt ngưỡng"
+    )
+
+    
+
 
 
 class ExtractedDependentData(BaseModel):
@@ -145,6 +176,13 @@ class ExtractedDependentData(BaseModel):
         description="Đánh giá tính hợp lệ theo cấu hình của Admin"
     )
 
+    threshold_validation: Optional[ThresholdValidationResult] = Field(
+        None, 
+        alias="thresholdValidation", 
+        description="Kết quả kiểm tra ngưỡng động"
+    )
+
+
     # 2. Thông tin thân nhân (Dành cho Giấy khai sinh / Kết hôn / CT07 nếu quét)
     father_full_name: Optional[str] = Field(
         None, 
@@ -194,6 +232,7 @@ class ExtractedDependentData(BaseModel):
 DependentOcrData = ExtractedDependentData
 
 
+
 class OcrExtractionResponse(BaseModel):
     """Response chuẩn trả về cho .NET"""
     model_config = ConfigDict(populate_by_name=True)
@@ -203,3 +242,5 @@ class OcrExtractionResponse(BaseModel):
     message: str = Field("Trích xuất thông tin CCCD thành công.", alias="message")
     data: Optional[ExtractedDependentData] = Field(None, alias="data")
     errors: Optional[Any] = Field(None, alias="errors")
+
+

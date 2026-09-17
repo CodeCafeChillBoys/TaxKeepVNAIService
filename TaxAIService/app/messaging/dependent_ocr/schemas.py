@@ -27,6 +27,7 @@ class OcrExtractRequestMessage(BaseModel):
     # Quy tắc động từ DB (dependent_document_rules)
     target_group: Optional[str] = Field(None, alias="targetGroup", description="Nhóm đối tượng người phụ thuộc")
     rules: Optional[list] = Field(None, alias="rules", description="Danh sách rules từ bảng dependent_document_rules")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold", description="Ngưỡng tin cậy áp dụng")
 
 
 class OcrExtractResponseMessage(BaseModel):
