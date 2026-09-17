@@ -10,6 +10,25 @@ class AdminCategoryItem(BaseModel):
     description: str = Field(..., description="Mô tả đặc điểm để AI nhận diện")
 
 
+DEFAULT_EXPENSE_CATEGORIES = [
+    AdminCategoryItem(
+        code=DefaultExpenseDocTypeCode.MEDICAL_EXPENSE_INVOICE.value,
+        name="Chi phí y tế & Khám chữa bệnh",
+        description="Hóa đơn viện phí, bảng kê chi phí điều trị, phiếu thu tiền thuốc, khám bệnh tại bệnh viện, phòng khám"
+    ),
+    AdminCategoryItem(
+        code=DefaultExpenseDocTypeCode.TUITION_FEE_INVOICE.value,
+        name="Chi phí học phí & Giáo dục",
+        description="Hóa đơn, biên lai thu học phí chính quy, học phí bán trú của học sinh, sinh viên tại trường học hoặc trung tâm"
+    ),
+    AdminCategoryItem(
+        code=DefaultExpenseDocTypeCode.CHARITY_DONATION_RECEIPT.value,
+        name="Đóng góp từ thiện nhân đạo",
+        description="Biên nhận đóng góp cho các quỹ từ thiện, tổ chức nhân đạo, cứu trợ thiên tai hợp pháp"
+    )
+]
+
+
 # 2. Chi tiết từng trường kèm Bounding Box
 class BoundingBox(BaseModel):
     x: int = 0

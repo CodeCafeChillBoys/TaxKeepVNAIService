@@ -5,8 +5,8 @@ from google import genai
 from google.genai import types
 
 from app.core.config import settings
-from app.schemas.ocr import OcrExtractionResponse, DocumentType, ExtractedDependentData
-from app.prompts.ocr import OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT
+from app.schemas.ocr import OcrExtractionResponse, ExtractedDependentData
+from app.prompts.ocr import build_dependent_ocr_prompt, OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +20,13 @@ class DependentOcrService:
 
     def extract_document(
         self, 
-        files: List[tuple[bytes, str]] # Danh sách các cặp (file_bytes, mime_type)
+        files: List[tuple[bytes, str]], # Danh sách các cặp (file_bytes, mime_type)
+        target_group: Optional[str] = None,
+        rules: Optional[List[dict]] = None
     ) -> OcrExtractionResponse:
         """
         Bóc tách thông tin từ 1 hoặc 2 ảnh (ví dụ: mặt trước + mặt sau CCCD).
+        Hỗ trợ nhận diện & đối chiếu động theo danh mục quy tắc (rules) từ bảng dependent_document_rules của .NET.
         """
         try:
             # 1. Chuẩn bị các Part hình ảnh gửi lên Gemini
@@ -36,8 +39,9 @@ class DependentOcrService:
                     )
                 )
 
-            # 2. Thêm prompt hướng dẫn
-            contents.append(OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT)
+            # 2. Xây dựng prompt động dựa trên rules của Admin truyền vào (nếu có)
+            prompt = build_dependent_ocr_prompt(target_group=target_group, rules=rules)
+            contents.append(prompt)
 
             # 3. Gọi Gemini API với Structured JSON Output
             response = self.client.models.generate_content(

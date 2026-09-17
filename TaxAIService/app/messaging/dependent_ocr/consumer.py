@@ -79,8 +79,12 @@ async def handle_ocr_extract_message(message: aio_pika.IncomingMessage) -> None:
                 )
                 files_to_process.append((back_bytes, mime_type))
 
-            # 3. Gọi Gemini OCR bóc tách dữ liệu
-            ocr_result = ocr_service.extract_document(files_to_process)
+            # 3. Gọi Gemini OCR bóc tách dữ liệu & đối chiếu rules
+            ocr_result = ocr_service.extract_document(
+                files=files_to_process,
+                target_group=request_msg.target_group,
+                rules=request_msg.rules
+            )
 
             # 4. Đóng gói phản hồi thành công
             success_response = OcrExtractResponseMessage(

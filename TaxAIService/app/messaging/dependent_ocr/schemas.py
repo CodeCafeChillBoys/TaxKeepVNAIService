@@ -24,6 +24,10 @@ class OcrExtractRequestMessage(BaseModel):
     back_file_url: Optional[str] = Field(None, alias="backFileUrl", description="URL tải ảnh mặt sau nếu có")
     back_file_base64: Optional[str] = Field(None, alias="backFileBase64", description="Base64 ảnh mặt sau nếu có")
 
+    # Quy tắc động từ DB (dependent_document_rules)
+    target_group: Optional[str] = Field(None, alias="targetGroup", description="Nhóm đối tượng người phụ thuộc")
+    rules: Optional[list] = Field(None, alias="rules", description="Danh sách rules từ bảng dependent_document_rules")
+
 
 class OcrExtractResponseMessage(BaseModel):
     """
