@@ -13,11 +13,11 @@ async def publish_ocr_response(response_msg: OcrExtractResponseMessage) -> None:
     try:
         data = response_msg.model_dump(by_alias=True)
         await rabbitmq_client.publish_json(
-            routing_key=settings.RABBITMQ_OCR_RESPONSE_QUEUE,
+            routing_key=settings.RABBITMQ_EXPENSE_OCR_RESPONSE_QUEUE,
             message_data=data
         )
         logger.info(
-            f"Published OCR response to {settings.RABBITMQ_OCR_RESPONSE_QUEUE} "
+            f"Published OCR response to {settings.RABBITMQ_EXPENSE_OCR_RESPONSE_QUEUE} "
             f"[taskId={response_msg.task_id}, success={response_msg.success}]"
         )
     except Exception as e:

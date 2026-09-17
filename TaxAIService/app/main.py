@@ -2,11 +2,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from app.api.routes.expense_ocr import expense_ocr_routes
 from app.core.config import settings
 from app.infrastructure.database import engine
 from app.api.routes.tax_rule import tax_rule_routes
 from app.api.routes.url_rule import url_rule_routes
 from app.api.routes.ocr import dependent_ocr_routes
+from app.api.routes.system_config import system_config_routes
+
 
 
 import asyncio
@@ -56,6 +59,9 @@ app.add_middleware(
 app.include_router(tax_rule_routes.router)
 app.include_router(url_rule_routes.router)
 app.include_router(dependent_ocr_routes.router)
+app.include_router(expense_ocr_routes.router)
+app.include_router(system_config_routes.router)
+
 
 from fastapi.responses import RedirectResponse
 
