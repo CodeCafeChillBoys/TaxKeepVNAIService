@@ -44,6 +44,16 @@ class ExtractedFieldDetail(BaseModel):
     boundingBox: Optional[BoundingBox] = None
 
 
+# Chi tiết từng dòng hàng hóa / dịch vụ trên hóa đơn
+class InvoiceLineItem(BaseModel):
+    itemOrder: int = Field(1, description="Số thứ tự mặt hàng (1, 2, 3...)")
+    itemName: str = Field(..., description="Tên hàng hóa, dịch vụ, danh mục khám, thuốc, học phí...")
+    unit: Optional[str] = Field(None, description="Đơn vị tính (Lần, cái, tháng...)")
+    quantity: float = Field(1.0, description="Số lượng")
+    unitPrice: float = Field(0.0, description="Đơn giá")
+    totalPrice: float = Field(0.0, description="Thành tiền = số lượng x đơn giá")
+
+
 # 3. Kết quả Gemini trả về
 class GeminiOcrOutput(BaseModel):
     # Phân loại
@@ -81,6 +91,9 @@ class GeminiOcrOutput(BaseModel):
     lookupUrl: Optional[str] = Field(None, description="Đường dẫn tra cứu hóa đơn")
     lookupCode: Optional[str] = Field(None, description="Mã tra cứu / Mã bí mật")
 
+    # Danh sách chi tiết từng hàng hóa / dịch vụ trên hóa đơn
+    items: List[InvoiceLineItem] = Field(default_factory=list, description="Bảng danh sách các mặt hàng, dịch vụ, viện phí, học phí trong hóa đơn")
+
     # Danh sách chi tiết từng trường để lưu AI_EXTRACTIONS_Value
     fields: List[ExtractedFieldDetail] = Field(default_factory=list)
 
@@ -117,6 +130,7 @@ class ProcessDocumentResponseData(BaseModel):
     totalAmountInWords: Optional[str] = None
     lookupUrl: Optional[str] = None
     lookupCode: Optional[str] = None
+    items: List[InvoiceLineItem] = Field(default_factory=list)
     validationStatus: ValidationStatus = Field(default_factory=ValidationStatus)
     validationErrors: List[str] = Field(default_factory=list)
     status: DocumentExtractionStatus = DocumentExtractionStatus.EXTRACTED

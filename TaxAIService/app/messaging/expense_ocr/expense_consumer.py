@@ -1,3 +1,4 @@
+import os
 import json
 import uuid
 import logging
@@ -22,21 +23,24 @@ logger = logging.getLogger(__name__)
 
 
 async def _get_file_bytes_and_mime(file_url: str = None, file_base64: str = None, filename: str = "invoice.jpg"):
-    """Tải file từ URL hoặc giải mã Base64 an toàn"""
+    """Tải file từ URL, file local hoặc giải mã Base64 an toàn"""
     file_bytes = None
     mime_type = "image/jpeg"
 
     if file_base64:
         file_bytes = base64.b64decode(file_base64)
     elif file_url:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            file_resp = await client.get(file_url)
-            file_resp.raise_for_status()
-            file_bytes = file_resp.content
-            raw_content_type = file_resp.headers.get("content-type", "")
-            if raw_content_type:
-                mime_type = raw_content_type.split(";")[0].strip().lower()
+        # 1. Nếu là HTTP / HTTPS URL
+        if file_url.startswith("http://") or file_url.startswith("https://"):
+            async with httpx.AsyncClient(timeout=60.0, verify=False) as client:
+                file_resp = await client.get(file_url)
+                file_resp.raise_for_status()
+                file_bytes = file_resp.content
+                raw_content_type = file_resp.headers.get("content-type", "")
+                if raw_content_type:
+                    mime_type = raw_content_type.split(";")[0].strip().lower()
 
+        
     if not file_bytes:
         raise ValueError("Không thể lấy dữ liệu file từ fileUrl hoặc fileBase64")
 
@@ -150,6 +154,7 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                 "totalAmountInWords": doc.totalAmountInWords,
                 "lookupUrl": doc.lookupUrl,
                 "lookupCode": doc.lookupCode,
+                "items": [item.model_dump() for item in doc.items] if hasattr(doc, "items") and doc.items else [],
                 "validationStatus": {
                   "isYearValid": result["is_year_valid"],
                   "isDocTypeValid": result["is_doc_type_valid"],

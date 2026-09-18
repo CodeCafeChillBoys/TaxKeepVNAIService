@@ -17,8 +17,15 @@ DANH SÁCH DANH MỤC HỢP LỆ DO QUẢN TRỊ VIÊN (ADMIN) QUY ĐỊNH:
 
 NHIỆM VỤ:
 1. Đọc ảnh/tài liệu, phân tích nội dung và chọn ra 1 mã 'docTypeCode' phù hợp nhất.
-2. Bóc tách các trường: sellerName, sellerTaxCode, sellerAddress, sellerPhone, invoiceSeries, invoiceNumber, invoiceDate (YYYY-MM-DD), extractedYear, buyerName, buyerIdCard, buyerAddress, paymentMethod, totalAmount, totalAmountInWords, lookupUrl, lookupCode.
-3. Trong mảng 'fields', liệt kê từng trường bóc tách được, chấm điểm confidenceScore (0.0 đến 1.0) và boundingBox [x, y, w, h] trên ảnh. Chữ bị mờ hoặc số bị nhòe thì hạ điểm confidenceScore < 0.75.
+2. Bóc tách các trường thông tin chung: sellerName, sellerTaxCode, sellerAddress, sellerPhone, invoiceSeries, invoiceNumber, invoiceDate (YYYY-MM-DD), extractedYear, buyerName, buyerIdCard, buyerAddress, paymentMethod, totalAmount, totalAmountInWords, lookupUrl, lookupCode.
+3. Bóc tách toàn bộ bảng danh sách chi tiết hàng hóa / dịch vụ / mục khám / học phí vào mảng 'items':
+   - itemOrder: STT dòng (1, 2, 3...)
+   - itemName: Tên hàng hóa, dịch vụ, thuốc, viện phí
+   - unit: Đơn vị tính (Lần, cái, tháng...)
+   - quantity: Số lượng
+   - unitPrice: Đơn giá
+   - totalPrice: Thành tiền
+4. Trong mảng 'fields', liệt kê từng trường bóc tách được, chấm điểm confidenceScore (0.0 đến 1.0) và boundingBox [x, y, w, h] trên ảnh. Chữ bị mờ hoặc số bị nhòe thì hạ điểm confidenceScore < 0.75.
 """
 
 _build_prompt = build_expense_ocr_prompt
