@@ -16,7 +16,9 @@
 6. [CƠ CHẾ ĐỐI SOÁT NGƯỠNG 3 TẦNG & KIỂM TRA TRƯỜNG CỐT LÕI (CRUCIAL FIELDS)](#6-cơ-chế-đối-soát-ngưỡng-3-tầng--kiểm-tra-trường-cốt-lõi)
 7. [THIẾT KẾ CƠ SỞ DỮ LIỆU & LƯU TRỮ VẾT BÓC TÁCH (AUDIT TRAIL PERSISTENCE)](#7-thiết-kế-cơ-sở-dữ-liệu--lưu-trữ-vết-bóc-tách)
 8. [ĐẶC TẢ GIAO DIỆN HÀNG ĐỢI RABBITMQ & REST API](#8-đặc-tả-giao-diện-hàng-đợi-rabbitmq--rest-api)
-9. [KẾT LUẬN & GIÁ TRỊ ĐÓNG GÓP CHO ĐỒ ÁN CAPSTONE](#9-kết-luận--giá-trị-đóng-góp-cho-đồ-án-capstone)
+9. [MA TRẬN ĐỐI SOÁT 13 KỊCH BẢN VALIDATION & ĐẶC TẢ LỖI (VALIDATION MATRIX)](#9-ma-trận-đối-soát-13-kịch-bản-validation--đặc-tả-lỗi)
+10. [KẾT LUẬN & GIÁ TRỊ ĐÓNG GÓP CHO ĐỒ ÁN CAPSTONE](#10-kết-luận--giá-trị-đóng-góp-cho-đồ-án-capstone)
+
 
 ---
 
@@ -333,8 +335,208 @@ erDiagram
 
 ---
 
-### 9. KẾT LUẬN & GIÁ TRỊ ĐÓNG GÓP CHO ĐỒ ÁN CAPSTONE
+### 9. MA TRẬN ĐỐI SOÁT 13 KỊCH BẢN VALIDATION & ĐẶC TẢ LỖI (VALIDATION MATRIX)
 
-1. **Khả năng thương mại hóa cao:** Phân hệ xử lý trọn vẹn bài toán bóc tách hóa đơn tài chính phức tạp, bao gồm cả các bảng kê hàng hóa nhiều dòng, tự động loại bỏ hóa đơn không hợp lệ (`UNSUPPORTED`).
+Phân hệ xử lý dữ liệu và phân loại chứng từ thuế tích hợp chặt chẽ giữa **AI Service (Python/Gemini)** và **Backend Core (.NET)**. Dưới đây là bảng ma trận đối soát chi tiết 13 kịch bản lỗi, phân định rõ trách nhiệm xử lý và hiện trạng hoàn thành tính đến thời điểm hiện tại:
+
+| STT | Mã HTTP & Tên Kịch bản Nghiệp vụ | Phân tầng Phụ trách | Trạng thái Triển khai | Mã Lỗi (Error Code) |
+| :---: | :--- | :---: | :---: | :---: |
+| **1** | **404:** Document không tồn tại hoặc không thuộc user | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_DOCUMENT_NOT_FOUND` |
+| **2** | **400:** Document không ở trạng thái hợp lệ (`UPLOADED`) | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_INVALID_STATUS` |
+| **3** | **422:** File hỏng / AI không thể mở hoặc parse dữ liệu | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_CORRUPTED_FILE` / `ERR_UNREADABLE_IMAGE` |
+| **4** | **401:** Token không hợp lệ, thiếu hoặc hết hạn | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_UNAUTHORIZED` |
+| **5** | **422:** Năm trên hóa đơn không khớp năm kê khai thuế | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_YEAR_MISMATCH` |
+| **6** | **422:** Loại chứng từ không đủ điều kiện giảm trừ thuế | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_INVALID_DOC_TYPE` |
+| **7** | **422:** Danh tính người mua không khớp NNT hoặc thân nhân | **BE .NET & AI** | ❌ **CÒN THIẾU (PENDING)** | `ERR_IDENTITY_MISMATCH` |
+| **8** | **403:** Kỳ kê khai thuế đã nộp và bị khóa (`SUBMITTED`) | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_TAX_PERIOD_LOCKED` |
+| **9** | **422:** Chất lượng ảnh thấp dưới ngưỡng quy định | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_IMAGE_QUALITY_TOO_LOW` |
+| **10** | **422:** Tệp tin không phải là chứng từ thuế hợp lệ | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_NOT_TAX_DOCUMENT` |
+| **11** | **409:** Trùng số hóa đơn & MST người bán trong cùng kỳ | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_DUPLICATE_DOCUMENT` |
+| **12** | **422:** Ngày lập hóa đơn không được ở tương lai | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_FUTURE_DATE` |
+| **13** | **409:** Trùng mã băm SHA-256 nội dung file nhị phân | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_DUPLICATE_FILE_HASH` |
+
+---
+
+#### 9.1. Chi tiết các Kịch bản ĐÃ HOÀN THÀNH (100% Implemented)
+
+##### 1. Kịch bản 3: Tệp tin bị hỏng hoặc AI không thể đọc dữ liệu (HTTP 422)
+* **Vị trí xử lý:** `app/errors/expense_ocr_errors.py` & `app/services/expense_ocr/expense_ocr_service.py`.
+* **Cơ chế:** Phân tách tách bạch giữa lỗi tệp tin hỏng (`CorruptedFileError`) khi giải mã Base64/tải URL thất bại hoặc rỗng bytes, với lỗi ảnh mờ/lóa sáng không nhận diện được chữ (`UnreadableDocumentError`).
+* **Response Payload:**
+```json
+{
+  "statusCode": 422,
+  "message": "AI Engine could not parse the document. The image quality may be too blurry or illegible.",
+  "errors": [
+    {
+      "code": "ERR_UNREADABLE_IMAGE",
+      "field": "file",
+      "message": "AI Engine could not parse the document. The image quality may be too blurry or illegible."
+    }
+  ]
+}
+```
+
+##### 2. Kịch bản 5: Năm trên hóa đơn không khớp năm kê khai thuế (HTTP 422)
+* **Vị trí xử lý:** `app/services/expense_ocr/expense_ocr_service.py` & `expense_consumer.py`.
+* **Cơ chế:** AI trích xuất `extractedYear` từ `invoiceDate` và so sánh với `targetYear`. Nếu lệch, gán mã lỗi chuẩn `ERR_YEAR_MISMATCH`.
+* **Response Payload:**
+```json
+{
+  "statusCode": 422,
+  "message": "Validation failed: Document date does not match the active filing tax year.",
+  "errors": [
+    {
+      "code": "ERR_YEAR_MISMATCH",
+      "field": "extractedYear",
+      "message": "Document is dated in 2025 but filing year is 2026."
+    }
+  ]
+}
+```
+
+##### 3. Kịch bản 6: Loại chứng từ không thuộc danh mục giảm trừ thuế (HTTP 422)
+* **Vị trí xử lý:** `app/services/expense_ocr/expense_ocr_service.py`.
+* **Cơ chế:** Khi hóa đơn là hóa đơn tài chính thật nhưng thuộc mục cà phê, ăn uống, xem phim... AI gán `isTaxDocument = True` và `docTypeCode = 'UNSUPPORTED'`, sinh mã lỗi chuẩn `ERR_INVALID_DOC_TYPE`.
+* **Response Payload:**
+```json
+{
+  "statusCode": 422,
+  "message": "Validation failed: Document type is not eligible for Personal Income Tax deductions.",
+  "errors": [
+    {
+      "code": "ERR_INVALID_DOC_TYPE",
+      "field": "docTypeCode",
+      "message": "This document category does not qualify for tax relief or deductions."
+    }
+  ]
+}
+```
+
+##### 4. Kịch bản 9: Điểm chất lượng ảnh thấp hơn ngưỡng (HTTP 422)
+* **Vị trí xử lý:** `app/schemas/expense_ocr/expense_ocr_schema.py` & `app/prompts/expense_ocr/expense_orc_promt.py`.
+* **Cơ chế:** AI trực tiếp quan sát và đánh giá khuyết tật quang học trên ảnh (`qualityIssues`), trả về danh sách lý do cụ thể (`IMAGE_BLURRY`, `EXCESSIVE_GLARE`, `CROPPED_EDGES`, `LOW_RESOLUTION`).
+* **Response Payload:**
+```json
+{
+  "statusCode": 422,
+  "message": "Image quality is too low for accurate tax document extraction. Please capture or upload a clearer document.",
+  "errors": [
+    {
+      "code": "ERR_IMAGE_QUALITY_TOO_LOW",
+      "field": "file",
+      "qualityScore": 0.52,
+      "requiredThreshold": 0.75,
+      "reasons": ["IMAGE_BLURRY", "EXCESSIVE_GLARE"]
+    }
+  ]
+}
+```
+
+##### 5. Kịch bản 10: Tệp tin không phải chứng từ thuế hợp lệ (HTTP 422)
+* **Vị trí xử lý:** `app/prompts/expense_ocr/expense_orc_promt.py` & `expense_ocr_service.py`.
+* **Cơ chế:** Phân định dứt khoát giữa hóa đơn không giảm trừ với tệp tin rác (ảnh selfie, phong cảnh, động vật, meme). Khi phát hiện tệp tin rác, AI gán `isTaxDocument = False` và ném mã lỗi `ERR_NOT_TAX_DOCUMENT`.
+* **Response Payload:**
+```json
+{
+  "statusCode": 422,
+  "message": "Uploaded file is not recognized as a valid tax document.",
+  "errors": [
+    {
+      "code": "ERR_NOT_TAX_DOCUMENT",
+      "field": "file",
+      "message": "Uploaded file is not recognized as a valid tax document."
+    }
+  ]
+}
+```
+
+##### 6. Kịch bản 12: Ngày hóa đơn không được ở tương lai (HTTP 422)
+* **Vị trí xử lý:** `app/services/expense_ocr/expense_ocr_service.py`.
+* **Cơ chế:** So sánh `inv_date = datetime.strptime(invoiceDate, "%Y-%m-%d").date()` với `today_utc = datetime.now(timezone.utc).date()`. Nếu `inv_date > today_utc`, sinh mã lỗi `ERR_FUTURE_DATE`.
+* **Response Payload:**
+```json
+{
+  "statusCode": 422,
+  "message": "Invoice date cannot be greater than the current date.",
+  "errors": [
+    {
+      "code": "ERR_FUTURE_DATE",
+      "field": "invoiceDate",
+      "message": "Invoice date cannot be greater than the current date."
+    }
+  ]
+}
+```
+
+##### 7. Kịch bản 1, 4, 8: Các ràng buộc bảo mật & kỳ tính thuế phía Backend .NET
+* **404 Document not found:** Đã có trong `TaxPeriodService.ConfirmDocumentReviewAsync` (kiểm tra `document == null || document.Period.UserId != userId`).
+* **401 Unauthorized:** Đã có qua JWT Bearer Middleware (`[Authorize]`).
+* **403 Tax Period Locked:** Đã có trong `TaxPeriodService.InitOrGetPeriodAsync` và `BatchUploadDocumentsAsync` (kiểm tra `TaxPeriodStatus.SUBMITTED`).
+
+---
+
+#### 9.2. Chi tiết các Kịch bản CÒN THIẾU (Pending Implementation)
+
+##### 1. Kịch bản 2: Document không ở trạng thái hợp lệ (HTTP 400)
+* **Phân tầng:** Backend Core (.NET API).
+* **Mô tả:** Khi một chứng từ đã được AI bóc tách xong (`Status = EXTRACTED`) hoặc người dùng đã xác nhận (`Status = CONFIRMED`), nếu người dùng hoặc client gửi lệnh trigger bóc tách lại hoặc tải đè, hệ thống phải chặn lại.
+* **Cần bổ sung tại .NET:** Trong `DocumentService` hoặc `TaxPeriodService`, kiểm tra:
+  ```csharp
+  if (document.Status != "UPLOADED")
+  {
+      throw new BadRequestException(ErrorCodes.InvalidDocumentStatus, 
+          "Document has already been extracted or verified.");
+  }
+  ```
+
+##### 2. Kịch bản 7: Danh tính người mua không khớp NNT hoặc người phụ thuộc (HTTP 422)
+* **Phân tầng:** Tích hợp giữa BE .NET & AI Service.
+* **Mô tả:** Trên hóa đơn viện phí / học phí, thông tin người mua / bệnh nhân (`buyerIdCard` hoặc `buyerName`) bắt buộc phải trùng khớp với Căn cước công dân / Họ tên của chính người nộp thuế HOẶC một trong các người phụ thuộc đã đăng ký trong kỳ.
+* **Hiện trạng & Cần bổ sung:** 
+  * Hiện tại trong `expense_consumer.py`, cờ `isIdentityValid` đang được gán mặc định `True`.
+  * **Cần bổ sung:** Phía .NET Backend khi gửi message vào `expense.ocr.ai.request.queue` cần đính kèm thông tin: `taxpayerProfile: { idCard, fullName }` và danh sách `dependents: [{ idCard, fullName }]`. Sau đó AI Service hoặc BE .NET thực hiện so khớp chéo chuỗi định danh.
+
+##### 3. Kịch bản 11: Trùng số hóa đơn & MST người bán trong cùng kỳ tính thuế (HTTP 409)
+* **Phân tầng:** Backend Core (.NET API & Database).
+* **Mô tả:** Trong cùng một kỳ tính thuế (`periodId`), không được phép tồn tại 2 chứng từ có cùng cặp `(sellerTaxCode, invoiceNumber)`.
+* **Cần bổ sung tại .NET:** Trong `ConfirmDocumentReviewAsync`:
+  ```csharp
+  var duplicate = await docRepo.FindAsync(d => 
+      d.PeriodId == periodId &&
+      d.Id != documentId &&
+      d.SellerTaxCode == dto.SellerTaxCode && 
+      d.InvoiceNumber == dto.InvoiceNumber);
+  if (duplicate.Any())
+  {
+      throw new ConflictException(ErrorCodes.DuplicateDocument, 
+          $"Duplicate document: Invoice number {dto.InvoiceNumber} from seller {dto.SellerTaxCode} already exists.");
+  }
+  ```
+
+##### 4. Kịch bản 13: Trùng mã băm SHA-256 nội dung file nhị phân (HTTP 409)
+* **Phân tầng:** Backend Core (.NET API - Tầng Upload).
+* **Mô tả:** Khi người nộp thuế upload nhiều hóa đơn, nếu vô tình chọn lại đúng file ảnh/PDF đã upload trước đó trong cùng kỳ, hệ thống phát hiện trùng mã băm SHA-256 nhị phân và từ chối ngay lập tức tại cổng upload.
+* **Cần bổ sung tại .NET:** Thêm cột `FileHash` (String 64) vào bảng `documents`. Khi xử lý `IFormFile`:
+  ```csharp
+  using var sha256 = SHA256.Create();
+  using var stream = file.OpenReadStream();
+  var hashBytes = await sha256.ComputeHashAsync(stream);
+  var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+  var isDuplicate = (await docRepo.FindAsync(d => d.PeriodId == periodId && d.FileHash == fileHash)).Any();
+  if (isDuplicate)
+  {
+      throw new ConflictException("ERR_DUPLICATE_FILE_HASH",
+          "Duplicate file detected: An identical file has already been uploaded in this tax filing period.");
+  }
+  ```
+
+---
+
+### 10. KẾT LUẬN & GIÁ TRỊ ĐÓNG GÓP CHO ĐỒ ÁN CAPSTONE
+
+1. **Khả năng thương mại hóa cao:** Phân hệ xử lý trọn vẹn bài toán bóc tách hóa đơn tài chính phức tạp, bao gồm cả các bảng kê hàng hóa nhiều dòng, tự động phân định rạch ròi giữa hóa đơn không đủ điều kiện thuế (`UNSUPPORTED`) và ảnh rác không phải chứng từ thuế (`NOT_TAX_DOCUMENT`).
 2. **Kiến trúc phần mềm linh hoạt (Zero Hardcode):** Toàn bộ ngưỡng tin cậy, quy tắc trường cốt lõi và danh mục chứng từ đều được điều khiển động từ CSDL qua hệ thống `system_configs`.
-3. **Quản trị rủi ro & An toàn dữ liệu tài chính:** Mô hình kết hợp giữa điểm tin cậy tổng thể, kiểm soát trường cốt lõi và Bounding Box trực quan tạo tiền đề vững chắc cho quy trình kiểm toán và hậu kiểm của cơ quan thuế.
+3. **Quản trị rủi ro & An toàn dữ liệu tài chính:** Mô hình kết hợp giữa điểm tin cậy tổng thể, kiểm soát trường cốt lõi và phát hiện lỗi quang học trực quan (`IMAGE_BLURRY`, `EXCESSIVE_GLARE`) tạo tiền đề vững chắc cho quy trình kiểm toán và hậu kiểm của cơ quan thuế.
+
