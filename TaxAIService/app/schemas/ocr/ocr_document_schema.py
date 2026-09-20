@@ -1,16 +1,103 @@
-from typing import Optional, Any
+from typing import Optional, List, Any
 from pydantic import BaseModel, ConfigDict, Field
-from app.enum.ocr_document_enum import DocumentType
+
+
+class DependentRuleItem(BaseModel):
+    """Quy tắc giấy tờ từ bảng dependent_document_rules của .NET truyền sang"""
+    #cho phép model nhận dữ liệu bằng tên field Python hoặc alias của field.
+    model_config = ConfigDict(populate_by_name=True)
+
+    doc_type: str = Field(..., alias="docType", description="Mã loại giấy tờ trong DB")
+    is_mandatory: bool = Field(True, alias="isMandatory", description="Bắt buộc hay không")
+    description: Optional[str] = Field(None, alias="description", description="Tiêu chí/hướng dẫn của Admin")
+
+
+class RuleValidationResult(BaseModel):
+    """Kết quả AI đối chiếu giấy tờ thực tế với Rule của Admin"""
+    model_config = ConfigDict(populate_by_name=True)
+
+    is_matched_rule: bool = Field(
+        True, 
+        alias="isMatchedRule", 
+        description="Giấy tờ có khớp với một trong các rule trong DB không"
+    )
+    matched_doc_type: Optional[str] = Field(
+        None, 
+        alias="matchedDocType", 
+        description="Mã doc_type trong DB mà AI nhận diện được"
+    )
+    is_compliant_with_description: bool = Field(
+        True, 
+        alias="isCompliantWithDescription", 
+        description="Ảnh có thỏa mãn các tiêu chí Admin ghi trong description không"
+    )
+    notes: Optional[str] = Field(
+        None, 
+        alias="notes", 
+        description="Đánh giá chi tiết của AI theo mô tả của Admin"
+    )
 
 
 class ConfidenceScores(BaseModel):
-    """Độ tin cậy trích xuất của từng trường"""
+    """Độ tin cậy trích xuất của từng trường dữ liệu (từ 0.0 đến 1.0)"""
     model_config = ConfigDict(populate_by_name=True)
 
-    overall: float = Field(default=0.95, alias="overall")
-    citizen_id: Optional[float] = Field(default=0.95, alias="citizenId")
-    full_name: Optional[float] = Field(default=0.95, alias="fullName")
-    birth_date: Optional[float] = Field(default=0.95, alias="birthDate")
+    overall: float = Field(default=0.95, alias="overall", description="Độ tin cậy tổng thể của tài liệu")
+
+    # 1. Thông tin cá nhân
+    citizen_id: Optional[float] = Field(None, alias="citizenId")
+    full_name: Optional[float] = Field(None, alias="fullName")
+    birth_date: Optional[float] = Field(None, alias="birthDate")
+    gender: Optional[float] = Field(None, alias="gender")
+    nationality: Optional[float] = Field(None, alias="nationality")
+    origin_place: Optional[float] = Field(None, alias="originPlace")
+    residence_place: Optional[float] = Field(None, alias="residencePlace")
+    expiry_date: Optional[float] = Field(None, alias="expiryDate")
+    issue_date: Optional[float] = Field(None, alias="issueDate")
+
+    # 2. Thông tin thân nhân
+    father_full_name: Optional[float] = Field(None, alias="fatherFullName")
+    father_id_number: Optional[float] = Field(None, alias="fatherIdNumber")
+    mother_full_name: Optional[float] = Field(None, alias="motherFullName")
+    mother_id_number: Optional[float] = Field(None, alias="motherIdNumber")
+    spouse_full_name: Optional[float] = Field(None, alias="spouseFullName")
+
+    # 3. Thông tin văn bản pháp lý
+    document_type: Optional[float] = Field(None, alias="documentType")
+    document_number: Optional[float] = Field(None, alias="documentNumber")
+    issuing_authority: Optional[float] = Field(None, alias="issuingAuthority")
+
+class ThresholdValidationResult(BaseModel):
+    """Kết quả đối soát ngưỡng động từ Database/Admin - KHÔNG HARDCODE"""
+    model_config = ConfigDict(populate_by_name=True)
+    applied_threshold: float = Field(
+        ..., 
+        alias="appliedThreshold", 
+        description="Ngưỡng tin cậy áp dụng (lấy động từ DB system_configs hoặc request)"
+    )
+    overall_confidence: float = Field(
+        ..., 
+        alias="overallConfidence", 
+        description="Điểm tin cậy trung bình tính từ tổng điểm / độ dài các trường hiện có"
+    )
+    is_passed_threshold: bool = Field(
+        ..., 
+        alias="isPassedThreshold", 
+        description="True nếu đạt ngưỡng, False nếu nhỏ hơn ngưỡng và cần nhập lại"
+    )
+    low_confidence_fields: List[str] = Field(
+        default_factory=list, 
+        alias="lowConfidenceFields", 
+        description="Tự động chứa danh sách các trường có điểm thấp hơn ngưỡng"
+    )
+    warning_message: Optional[str] = Field(
+        None, 
+        alias="warningMessage", 
+        description="Thông báo cảnh báo động nếu không đạt ngưỡng"
+    )
+
+    
+
 
 
 class ExtractedDependentData(BaseModel):
@@ -66,7 +153,7 @@ class ExtractedDependentData(BaseModel):
     suggested_group: Optional[str] = Field(
         None, 
         alias="suggestedGroup", 
-        description="Gợi ý nhóm đối tượng: CHILD_UNDER_18, CHILD_OVER_18_STUDENT, ELDERLY_PARENT, SPOUSE, OTHER"
+        description="Nhóm đối tượng được gợi ý khớp với target_group trong DB"
     )
     is_readable: bool = Field(
         True, 
@@ -83,6 +170,18 @@ class ExtractedDependentData(BaseModel):
         alias="confidenceScores", 
         description="Độ tin cậy trích xuất"
     )
+    rule_validation: Optional[RuleValidationResult] = Field(
+        None, 
+        alias="ruleValidation", 
+        description="Đánh giá tính hợp lệ theo cấu hình của Admin"
+    )
+
+    threshold_validation: Optional[ThresholdValidationResult] = Field(
+        None, 
+        alias="thresholdValidation", 
+        description="Kết quả kiểm tra ngưỡng động"
+    )
+
 
     # 2. Thông tin thân nhân (Dành cho Giấy khai sinh / Kết hôn / CT07 nếu quét)
     father_full_name: Optional[str] = Field(
@@ -112,10 +211,10 @@ class ExtractedDependentData(BaseModel):
     )
 
     # 3. Thông tin văn bản pháp lý khác
-    document_type: Optional[DocumentType] = Field(
+    document_type: Optional[str] = Field(
         None, 
         alias="documentType", 
-        description="Loại giấy tờ nhận diện được"
+        description="Mã loại giấy tờ khớp với doc_type trong DB (vd: CITIZEN_ID, BIRTH_CERTIFICATE,...) hoặc chuỗi tự do"
     )
     document_number: Optional[str] = Field(
         None, 
@@ -133,6 +232,7 @@ class ExtractedDependentData(BaseModel):
 DependentOcrData = ExtractedDependentData
 
 
+
 class OcrExtractionResponse(BaseModel):
     """Response chuẩn trả về cho .NET"""
     model_config = ConfigDict(populate_by_name=True)
@@ -142,3 +242,5 @@ class OcrExtractionResponse(BaseModel):
     message: str = Field("Trích xuất thông tin CCCD thành công.", alias="message")
     data: Optional[ExtractedDependentData] = Field(None, alias="data")
     errors: Optional[Any] = Field(None, alias="errors")
+
+

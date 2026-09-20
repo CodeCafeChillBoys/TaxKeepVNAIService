@@ -8,6 +8,8 @@ import aio_pika
 import httpx
 
 from app.services.ocr import DependentOcrService
+from app.infrastructure.database import get_db_context
+from app.repositories.system_config.system_config_repository import SystemConfigRepository
 from app.messaging.dependent_ocr.schemas import (
     OcrExtractRequestMessage,
     OcrExtractResponseMessage,
@@ -15,7 +17,7 @@ from app.messaging.dependent_ocr.schemas import (
 from app.messaging.dependent_ocr.producer import publish_ocr_response
 
 logger = logging.getLogger(__name__)
-ocr_service = DependentOcrService()
+
 
 
 async def _download_or_decode_bytes(file_base64: Optional[str], file_url: Optional[str], file_path: Optional[str]) -> bytes:
@@ -79,8 +81,17 @@ async def handle_ocr_extract_message(message: aio_pika.IncomingMessage) -> None:
                 )
                 files_to_process.append((back_bytes, mime_type))
 
-            # 3. Gọi Gemini OCR bóc tách dữ liệu
-            ocr_result = ocr_service.extract_document(files_to_process)
+            # 3. Gọi Gemini OCR bóc tách dữ liệu & đối chiếu rules kèm kiểm tra ngưỡng tự động từ DB
+            with get_db_context() as db:
+                config_repo = SystemConfigRepository(db)
+                service = DependentOcrService(repo=config_repo)
+                ocr_result = service.extract_document(
+                    files=files_to_process,
+                    target_group=request_msg.target_group,
+                    rules=request_msg.rules,
+                    applied_threshold=request_msg.applied_threshold
+                )
+
 
             # 4. Đóng gói phản hồi thành công
             success_response = OcrExtractResponseMessage(

@@ -49,6 +49,7 @@ pgvector>=0.3.0
 # ==========================================================
 # SDK chính thức của Google Gemini: tạo Vector Embeddings & sinh câu trả lời RAG
 google-genai>=1.0.0
+openai>=1.50.0
 
 # ==========================================================
 # Kiểm thử tự động (Testing)

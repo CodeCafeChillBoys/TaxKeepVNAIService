@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+from typing import Optional
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +27,10 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
 
+    # AI / OpenAI API Config (Dùng cho đọc chứng từ)
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
+
     # Upload & File Limits
     UPLOAD_DIR: str = "data/pdf"
     MAX_FILE_SIZE_MB: int = 20
@@ -39,6 +44,10 @@ class Settings(BaseSettings):
     
     RABBITMQ_OCR_REQUEST_QUEUE: str = "ocr.ai.request.queue"
     RABBITMQ_OCR_RESPONSE_QUEUE: str = "ocr.ai.response.queue"
+
+    RABBITMQ_EXPENSE_OCR_REQUEST_QUEUE: str = "expense.ocr.ai.request.queue"
+    RABBITMQ_EXPENSE_OCR_RESPONSE_QUEUE: str = "expense.ocr.ai.response.queue"
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

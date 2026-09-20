@@ -1,15 +1,16 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from sqlalchemy import text
+import asyncio
+
 from app.core.config import settings
 from app.infrastructure.database import engine
 from app.api.routes.tax_rule import tax_rule_routes
 from app.api.routes.url_rule import url_rule_routes
 from app.api.routes.ocr import dependent_ocr_routes
-
-
-import asyncio
+from app.api.routes.system_config import system_config_routes
 from app.messaging import start_rabbitmq_consumer, rabbitmq_client
 
 
@@ -56,11 +57,10 @@ app.add_middleware(
 app.include_router(tax_rule_routes.router)
 app.include_router(url_rule_routes.router)
 app.include_router(dependent_ocr_routes.router)
+app.include_router(system_config_routes.router)
 
-from fastapi.responses import RedirectResponse
 
 @app.get("/", include_in_schema=False)
 def root():
     """Tự động chuyển hướng từ trang chủ sang giao diện Swagger UI"""
     return RedirectResponse(url="/docs")
-
