@@ -18,8 +18,6 @@ class ExpenseOcrService:
         self.repo = repo
 
     async def extract_and_classify(
-
-
         self,
         file_bytes: bytes,
         mime_type: str,
@@ -70,7 +68,9 @@ class ExpenseOcrService:
         doc_type = doc_data.docTypeCode if doc_data else None
         if self.repo:
             if applied_threshold is None:
+                # kiểm tra xem loại chứng từ  có đứng ngưỡng vs admin quy định ko
                 applied_threshold = self.repo.get_system_threshold(category_code=doc_type)
+            # kiểm tra xem loại các fileds có đạt vs quy định mà admin đã cấu hình chưa 
             crucial_fields = self.repo.get_crucial_fields(category_code=doc_type)
         else:
             if applied_threshold is None:
@@ -78,13 +78,17 @@ class ExpenseOcrService:
             crucial_fields = {"total_amount", "seller_tax_code", "buyer_id_card", "invoice_number"}
 
         # 4. Tính điểm tin cậy tổng thể (overall_confidence)
+        # nếu trường hợp flieds có dữ liệu
         if doc_data.fields:
             scores = [f.confidenceScore for f in doc_data.fields]
+            # Duyệt qua từng filed sau đó cộng sau chia độ dài là tổng (overall_confidence)
             overall_confidence = round(sum(scores) / len(scores), 2)
         else:
-            overall_confidence = 0.95
+            overall_confidence = 0.0
+            validation_errors.append("Không trích xuất được trường thông tin nào từ tài liệu.")
 
         # 5. Tiến hành so sánh với ngưỡng và lọc các trường độ tin cậy thấp
+        # applied_threshold : ngưỡng mà admin và cài đặt ban đầu
         is_passed_threshold = overall_confidence >= applied_threshold
         low_confidence_fields = []
         has_crucial_low_confidence = False

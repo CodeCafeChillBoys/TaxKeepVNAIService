@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from app.enum.expense_document_enum import DocumentExtractionStatus, DefaultExpenseDocTypeCode
+from app.enum.expense_document_enum import DocumentExtractionStatus
 
 
 # 1. Schema cho từng danh mục Admin gửi sang
@@ -10,25 +10,6 @@ class AdminCategoryItem(BaseModel):
     description: str = Field(..., description="Mô tả đặc điểm để AI nhận diện")
 
 
-DEFAULT_EXPENSE_CATEGORIES = [
-    AdminCategoryItem(
-        code=DefaultExpenseDocTypeCode.MEDICAL_EXPENSE_INVOICE.value,
-        name="Chi phí y tế & Khám chữa bệnh",
-        description="Hóa đơn viện phí, bảng kê chi phí điều trị, phiếu thu tiền thuốc, khám bệnh tại bệnh viện, phòng khám"
-    ),
-    AdminCategoryItem(
-        code=DefaultExpenseDocTypeCode.TUITION_FEE_INVOICE.value,
-        name="Chi phí học phí & Giáo dục",
-        description="Hóa đơn, biên lai thu học phí chính quy, học phí bán trú của học sinh, sinh viên tại trường học hoặc trung tâm"
-    ),
-    AdminCategoryItem(
-        code=DefaultExpenseDocTypeCode.CHARITY_DONATION_RECEIPT.value,
-        name="Đóng góp từ thiện nhân đạo",
-        description="Biên nhận đóng góp cho các quỹ từ thiện, tổ chức nhân đạo, cứu trợ thiên tai hợp pháp"
-    )
-]
-
-
 # 2. Chi tiết từng trường kèm Bounding Box
 class BoundingBox(BaseModel):
     x: int = 0
@@ -36,11 +17,18 @@ class BoundingBox(BaseModel):
     w: int = 0
     h: int = 0
 
-#  Dùng để ocr tóc tách ra từng field
+
+# Dùng để ocr bóc tách ra từng field
 class ExtractedFieldDetail(BaseModel):
     fieldName: str
     extractedValue: Optional[str] = None
-    confidenceScore: float = 0.95
+    # Dùng Field(...) để đánh dấu là REQUIRED trong schema gửi cho Gemini
+    confidenceScore: float = Field(
+        ..., 
+        ge=0.0, 
+        le=1.0, 
+        description="Độ tin cậy từ 0.0 đến 1.0 dựa trên độ rõ nét thực tế của chữ/số trên ảnh (chữ rõ nét 0.9-1.0; chữ mờ, nhòe, bị che khuất thì < 0.7)"
+    )
     boundingBox: Optional[BoundingBox] = None
 
 
@@ -81,7 +69,7 @@ class GeminiOcrOutput(BaseModel):
     buyerTaxCode: Optional[str] = None
     buyerIdCard: Optional[str] = Field(None, description="Số CCCD/CMND (VD: 079304010828)")
     buyerAddress: Optional[str] = None
-    paymentMethod: Optional[str] = Field("QR", description="QR, Chuyển khoản, Tiền mặt")
+    paymentMethod: Optional[str] = Field(None, description="Hình thức thanh toán (QR, Chuyển khoản, Tiền mặt...)")
 
     # Tài chính
     totalAmount: float = Field(0.0, description="Tổng số tiền thanh toán")
@@ -135,7 +123,6 @@ class ProcessDocumentResponseData(BaseModel):
     validationErrors: List[str] = Field(default_factory=list)
     status: DocumentExtractionStatus = DocumentExtractionStatus.EXTRACTED
     createdAt: str
-
 
 
 class ProcessDocumentResponse(BaseModel):

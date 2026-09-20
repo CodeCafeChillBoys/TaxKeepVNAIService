@@ -12,8 +12,7 @@ from app.repositories.expense_ocr import ExpenseOcrRepository
 from app.repositories.system_config import SystemConfigRepository
 from app.schemas.expense_ocr.expense_ocr_schema import (
     AdminCategoryItem,
-    GeminiOcrOutput,
-    DEFAULT_EXPENSE_CATEGORIES
+    GeminiOcrOutput
 )
 from app.services.expense_ocr.expense_ocr_service import ExpenseOcrService
 from app.messaging.expense_ocr.producer import publish_expense_ocr_response
@@ -27,6 +26,7 @@ async def _get_file_bytes_and_mime(file_url: str = None, file_base64: str = None
     file_bytes = None
     mime_type = "image/jpeg"
 
+    # file dưới dạng chuỗi binary
     if file_base64:
         file_bytes = base64.b64decode(file_base64)
     elif file_url:
@@ -70,13 +70,10 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
         file_base64 = body.get("fileBase64") or body.get("FileBase64")
         original_filename = body.get("originalFilename") or body.get("OriginalFilename") or "invoice.jpg"
 
-        # 2. Xử lý danh mục: Nếu .NET không gửi hoặc gửi rỗng -> Tự động dùng DEFAULT_EXPENSE_CATEGORIES
+        # 2. Xử lý danh mục: Nhận danh mục động do .NET Backend truyền sang
         raw_categories = body.get("categories") or body.get("Categories") or []
-        if raw_categories:
-            categories = [AdminCategoryItem(**c) for c in raw_categories]
-        else:
-            categories = DEFAULT_EXPENSE_CATEGORIES
-
+        categories = [AdminCategoryItem(**c) for c in raw_categories]
+        
         # 3. Ngưỡng tin cậy (nếu .NET truyền vào; nếu không có thì Service tự lấy từ DB SYSTEM_CONFIGS)
         raw_threshold = (
             body.get("appliedThreshold") or body.get("AppliedThreshold") or 
@@ -122,14 +119,26 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                     field_details=doc.fields
                 )
 
-            # Xác định trạng thái nghiệp vụ chuẩn: EXTRACTED hay NEEDS_REVIEW
-            doc_status = DocumentExtractionStatus.EXTRACTED
-            if not result["is_passed_threshold"] or not result["is_year_valid"] or not result["is_doc_type_valid"]:
-                doc_status = DocumentExtractionStatus.NEEDS_REVIEW
+            # Xác định trạng thái nghiệp vụ:
+            # - Chỉ khi tài liệu hợp lệ (đúng loại chứng từ, đúng năm quyết toán) và đọc rõ ràng đạt ngưỡng -> EXTRACTED (để User Review/Confirm)
+            # - Nếu không đạt yêu cầu (sai năm, sai loại chứng từ, hoặc ảnh mờ không đạt ngưỡng) -> FAILED kèm thông báo bắt người dùng tải lại/nhập lại
+            is_valid = (
+                result["is_passed_threshold"]
+                and result["is_year_valid"]
+                and result["is_doc_type_valid"]
+            )
+
+            if is_valid:
+                doc_status = DocumentExtractionStatus.EXTRACTED
+                response_message = "Document processed and validated successfully."
+            else:
+                doc_status = DocumentExtractionStatus.FAILED
+                error_msg = "; ".join(result["validation_errors"]) if result.get("validation_errors") else "Chứng từ không đạt yêu cầu hoặc không đọc rõ dữ liệu."
+                response_message = f"Xử lý chứng từ thất bại: {error_msg}. Vui lòng kiểm tra, tải lại ảnh rõ nét hoặc nhập lại thủ công."
 
             # BƯỚC 4: Đóng gói JSON trả về cho .NET Backend
             response_payload = {
-              "message": "Document processed and validated successfully.",
+              "message": response_message,
               "data": {
                 "id": str(task_id),
                 "periodId": str(period_id) if period_id else None,
