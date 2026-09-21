@@ -342,7 +342,7 @@ Phân hệ xử lý dữ liệu và phân loại chứng từ thuế tích hợp
 | STT | Mã HTTP & Tên Kịch bản Nghiệp vụ | Phân tầng Phụ trách | Trạng thái Triển khai | Mã Lỗi (Error Code) |
 | :---: | :--- | :---: | :---: | :---: |
 | **1** | **404:** Document không tồn tại hoặc không thuộc user | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_DOCUMENT_NOT_FOUND` |
-| **2** | **400:** Document không ở trạng thái hợp lệ (`UPLOADED`) | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_INVALID_STATUS` |
+| **2** | **400:** Document không ở trạng thái hợp lệ (`UPLOADED`) | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_INVALID_STATUS` |
 | **3** | **422:** File hỏng / AI không thể mở hoặc parse dữ liệu | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_CORRUPTED_FILE` / `ERR_UNREADABLE_IMAGE` |
 | **4** | **401:** Token không hợp lệ, thiếu hoặc hết hạn | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_UNAUTHORIZED` |
 | **5** | **422:** Năm trên hóa đơn không khớp năm kê khai thuế | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_YEAR_MISMATCH` |
@@ -351,7 +351,7 @@ Phân hệ xử lý dữ liệu và phân loại chứng từ thuế tích hợp
 | **8** | **403:** Kỳ kê khai thuế đã nộp và bị khóa (`SUBMITTED`) | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_TAX_PERIOD_LOCKED` |
 | **9** | **422:** Chất lượng ảnh thấp dưới ngưỡng quy định | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_IMAGE_QUALITY_TOO_LOW` |
 | **10** | **422:** Tệp tin không phải là chứng từ thuế hợp lệ | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_NOT_TAX_DOCUMENT` |
-| **11** | **409:** Trùng số hóa đơn & MST người bán trong cùng kỳ | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_DUPLICATE_DOCUMENT` |
+| **11** | **409:** Trùng số hóa đơn & MST người bán trong cùng kỳ | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_DUPLICATE_DOCUMENT` |
 | **12** | **422:** Ngày lập hóa đơn không được ở tương lai | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_FUTURE_DATE` |
 | **13** | **409:** Trùng mã băm SHA-256 nội dung file nhị phân | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_DUPLICATE_FILE_HASH` |
 
@@ -474,47 +474,45 @@ Phân hệ xử lý dữ liệu và phân loại chứng từ thuế tích hợp
 * **401 Unauthorized:** Đã có qua JWT Bearer Middleware (`[Authorize]`).
 * **403 Tax Period Locked:** Đã có trong `TaxPeriodService.InitOrGetPeriodAsync` và `BatchUploadDocumentsAsync` (kiểm tra `TaxPeriodStatus.SUBMITTED`).
 
+##### 8. Kịch bản 2: Document không ở trạng thái hợp lệ (HTTP 400 - `ERR_INVALID_STATUS`)
+* **Vị trí xử lý:** `TaxPeriodService.cs` (`ConfirmDocumentReviewAsync` & `TriggerDocumentOcrAsync`) và `DocumentOcrConsumerBackgroundService.cs`.
+* **Cơ chế:** 
+  - Trong `ConfirmDocumentReviewAsync`: Chặn nếu tài liệu đã ở trạng thái `CONFIRMED` (`throw new BadRequestException(ErrorCodes.InvalidDocumentStatus, ErrorMessages.DocumentAlreadyVerified)`).
+  - Trong `TriggerDocumentOcrAsync`: Chặn nếu tài liệu không ở trạng thái `UPLOADED` (đã `EXTRACTED` hoặc `CONFIRMED`).
+  - Trong `DocumentOcrConsumerBackgroundService`: Bỏ qua cập nhật bóc tách nếu tài liệu đã được người dùng xác nhận (`CONFIRMED`).
+* **Response Payload:**
+```json
+{
+  "success": false,
+  "errorCode": "ERR_INVALID_STATUS",
+  "message": "Document has already been extracted or verified."
+}
+```
+
+##### 9. Kịch bản 11: Trùng số hóa đơn & MST người bán trong cùng kỳ tính thuế (HTTP 409 - `ERR_DUPLICATE_DOCUMENT`)
+* **Vị trí xử lý:** `TaxPeriodService.ConfirmDocumentReviewAsync`.
+* **Cơ chế:** Trước khi cập nhật và chuyển trạng thái sang `CONFIRMED`, hệ thống truy vấn CSDL kiểm tra xem trong cùng `periodId` đã tồn tại chứng từ khác (khác `documentId`) có cùng cặp `(SellerTaxCode, InvoiceNumber)` hay chưa. Nếu phát hiện trùng, ném mã lỗi 409 `ERR_DUPLICATE_DOCUMENT`.
+* **Response Payload:**
+```json
+{
+  "success": false,
+  "errorCode": "ERR_DUPLICATE_DOCUMENT",
+  "message": "Duplicate document: Invoice number 0012345 from seller 0101234567 already exists."
+}
+```
+
 ---
 
 #### 9.2. Chi tiết các Kịch bản CÒN THIẾU (Pending Implementation)
 
-##### 1. Kịch bản 2: Document không ở trạng thái hợp lệ (HTTP 400)
-* **Phân tầng:** Backend Core (.NET API).
-* **Mô tả:** Khi một chứng từ đã được AI bóc tách xong (`Status = EXTRACTED`) hoặc người dùng đã xác nhận (`Status = CONFIRMED`), nếu người dùng hoặc client gửi lệnh trigger bóc tách lại hoặc tải đè, hệ thống phải chặn lại.
-* **Cần bổ sung tại .NET:** Trong `DocumentService` hoặc `TaxPeriodService`, kiểm tra:
-  ```csharp
-  if (document.Status != "UPLOADED")
-  {
-      throw new BadRequestException(ErrorCodes.InvalidDocumentStatus, 
-          "Document has already been extracted or verified.");
-  }
-  ```
-
-##### 2. Kịch bản 7: Danh tính người mua không khớp NNT hoặc người phụ thuộc (HTTP 422)
+##### 1. Kịch bản 7: Danh tính người mua không khớp NNT hoặc người phụ thuộc (HTTP 422)
 * **Phân tầng:** Tích hợp giữa BE .NET & AI Service.
 * **Mô tả:** Trên hóa đơn viện phí / học phí, thông tin người mua / bệnh nhân (`buyerIdCard` hoặc `buyerName`) bắt buộc phải trùng khớp với Căn cước công dân / Họ tên của chính người nộp thuế HOẶC một trong các người phụ thuộc đã đăng ký trong kỳ.
 * **Hiện trạng & Cần bổ sung:** 
   * Hiện tại trong `expense_consumer.py`, cờ `isIdentityValid` đang được gán mặc định `True`.
   * **Cần bổ sung:** Phía .NET Backend khi gửi message vào `expense.ocr.ai.request.queue` cần đính kèm thông tin: `taxpayerProfile: { idCard, fullName }` và danh sách `dependents: [{ idCard, fullName }]`. Sau đó AI Service hoặc BE .NET thực hiện so khớp chéo chuỗi định danh.
 
-##### 3. Kịch bản 11: Trùng số hóa đơn & MST người bán trong cùng kỳ tính thuế (HTTP 409)
-* **Phân tầng:** Backend Core (.NET API & Database).
-* **Mô tả:** Trong cùng một kỳ tính thuế (`periodId`), không được phép tồn tại 2 chứng từ có cùng cặp `(sellerTaxCode, invoiceNumber)`.
-* **Cần bổ sung tại .NET:** Trong `ConfirmDocumentReviewAsync`:
-  ```csharp
-  var duplicate = await docRepo.FindAsync(d => 
-      d.PeriodId == periodId &&
-      d.Id != documentId &&
-      d.SellerTaxCode == dto.SellerTaxCode && 
-      d.InvoiceNumber == dto.InvoiceNumber);
-  if (duplicate.Any())
-  {
-      throw new ConflictException(ErrorCodes.DuplicateDocument, 
-          $"Duplicate document: Invoice number {dto.InvoiceNumber} from seller {dto.SellerTaxCode} already exists.");
-  }
-  ```
-
-##### 4. Kịch bản 13: Trùng mã băm SHA-256 nội dung file nhị phân (HTTP 409)
+##### 2. Kịch bản 13: Trùng mã băm SHA-256 nội dung file nhị phân (HTTP 409)
 * **Phân tầng:** Backend Core (.NET API - Tầng Upload).
 * **Mô tả:** Khi người nộp thuế upload nhiều hóa đơn, nếu vô tình chọn lại đúng file ảnh/PDF đã upload trước đó trong cùng kỳ, hệ thống phát hiện trùng mã băm SHA-256 nhị phân và từ chối ngay lập tức tại cổng upload.
 * **Cần bổ sung tại .NET:** Thêm cột `FileHash` (String 64) vào bảng `documents`. Khi xử lý `IFormFile`:
