@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from sqlalchemy import Integer, String, Text, Float, Boolean, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database import Base
 
@@ -32,6 +32,9 @@ class DependentRule(Base):
     is_studying: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     conditions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    required_documents: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(
+        JSONB, default=list, nullable=True
+    )
     status: Mapped[str] = mapped_column(String(50), default="Draft", nullable=False) # Draft, Active, Expired
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

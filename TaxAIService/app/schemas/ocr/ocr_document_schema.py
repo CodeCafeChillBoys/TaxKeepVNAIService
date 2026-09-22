@@ -1,4 +1,4 @@
-from typing import Optional, List, Any
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -180,6 +180,12 @@ class ExtractedDependentData(BaseModel):
         None, 
         alias="thresholdValidation", 
         description="Kết quả kiểm tra ngưỡng động"
+    )
+
+    required_documents: Optional[List[Dict[str, Any]]] = Field(
+        default_factory=list,
+        alias="requiredDocuments",
+        description="Danh sách các loại giấy tờ cần upload cho nhóm đối tượng này"
     )
 
 
