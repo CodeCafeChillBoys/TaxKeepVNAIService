@@ -45,12 +45,17 @@ class InvoiceLineItem(BaseModel):
 # 3. Kết quả Gemini trả về
 class GeminiOcrOutput(BaseModel):
     # Phân loại
+    isTaxDocument: bool = Field(
+        True,
+        description="True nếu ảnh là hóa đơn, biên lai, phiếu thu hoặc chứng từ tài chính; False nếu là ảnh phong cảnh, selfie, động vật, meme, văn bản không phải chứng từ tài chính thuế."
+    )
     docTypeCode: str = Field(
-        description="Mã code danh mục khớp nhất trong danh sách Admin cung cấp, hoặc 'UNSUPPORTED' nếu không thuộc danh mục nào"
+        description="Mã code danh mục khớp nhất trong danh sách Admin cung cấp, 'UNSUPPORTED' nếu là hóa đơn nhưng không thuộc danh mục, hoặc 'NOT_TAX_DOCUMENT' nếu hoàn toàn không phải hóa đơn/chứng từ"
     )
     classificationReason: Optional[str] = Field(
         None, description="Lý do AI chọn danh mục này hoặc lý do từ chối"
     )
+
 
     # Thông tin bên bán (Bệnh viện / Trường học / ...)
     sellerName: Optional[str] = Field(None, description="Tên đơn vị phát hành")
@@ -84,6 +89,12 @@ class GeminiOcrOutput(BaseModel):
 
     # Danh sách chi tiết từng trường để lưu AI_EXTRACTIONS_Value
     fields: List[ExtractedFieldDetail] = Field(default_factory=list)
+
+    # Danh sách các vấn đề quang học / chất lượng ảnh do AI nhận diện
+    qualityIssues: List[str] = Field(
+        default_factory=list,
+        description="Danh sách các lỗi chất lượng ảnh: 'IMAGE_BLURRY' (mờ/nhòe), 'EXCESSIVE_GLARE' (lóa sáng), 'CROPPED_EDGES' (mất góc), 'LOW_RESOLUTION' (độ phân giải kém)"
+    )
 
 
 # 4. Response Schemas trả về cho Backend .NET

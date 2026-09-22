@@ -24,18 +24,19 @@ logger = logging.getLogger(__name__)
 async def _resolve_file_bytes(req: TaxRuleExtractRequestMessage) -> bytes:
     """
     Trích xuất file bytes từ một trong 3 nguồn:
-    1. Base64 string
-    2. URL (HTTP/HTTPS qua httpx)
+    1. URL (HTTP/HTTPS qua httpx - Supabase Storage)
+    2. Base64 string (fallback)
     3. Đường dẫn file nội bộ (filePath)
     """
-    if req.file_base64:
-        return base64.b64decode(req.file_base64)
-
     if req.file_url:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        logger.info(f"Downloading tax document from URL: {req.file_url}")
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             resp = await client.get(req.file_url)
             resp.raise_for_status()
             return resp.content
+
+    if req.file_base64:
+        return base64.b64decode(req.file_base64)
 
     if req.file_path:
         if not os.path.exists(req.file_path):
@@ -43,7 +44,7 @@ async def _resolve_file_bytes(req: TaxRuleExtractRequestMessage) -> bytes:
         with open(req.file_path, "rb") as f:
             return f.read()
 
-    raise ValueError("Request must provide at least one of: fileBase64, fileUrl, or filePath")
+    raise ValueError("Request must provide at least one of: fileUrl, fileBase64, or filePath")
 
 
 async def handle_tax_extract_message(message: aio_pika.IncomingMessage) -> None:

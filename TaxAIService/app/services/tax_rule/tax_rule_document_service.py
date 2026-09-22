@@ -24,6 +24,7 @@ class TaxRuleDocumentService:
     ):
         self.repository = repository
         self.url_validation_service = url_validation_service
+        # check url_validation_service có true and có connect DB nếu chưa truyền UrlRuleRepository vào
         if not self.url_validation_service and hasattr(repository, "db"):
             from app.repositories.url_rule import UrlRuleRepository
             from app.services.url_rule import UrlValidationService

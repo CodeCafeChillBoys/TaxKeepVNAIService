@@ -1,4 +1,5 @@
 from typing import Optional
+from app.enum import DependentType, TaxRuleType, TaxRuleStatus
 
 
 def build_tax_rule_extraction_prompt(
@@ -12,6 +13,10 @@ def build_tax_rule_extraction_prompt(
     Xây dựng prompt chuyên sâu hướng dẫn Gemini LLM đọc, phân tích và trích xuất
     đầy đủ, chi tiết các quy tắc Luật Thuế Thu Nhập Cá Nhân theo chuẩn JSON Output.
     """
+    valid_dependent_types = ", ".join([dt.value for dt in DependentType])
+    valid_rule_types = ", ".join([rt.value for rt in TaxRuleType])
+    default_status = TaxRuleStatus.DRAFT.value
+
     prompt = f"""
 Bạn là một Chuyên gia Pháp chế cao cấp và Chuyên gia Phân tích Dữ liệu Thuế Thu Nhập Cá Nhân (PIT Legal & Tax Engine Specialist).
 Nhiệm vụ của bạn là đọc sâu, rà soát toàn diện từng điều, khoản, điểm và bảng phụ lục trong văn bản pháp luật được cung cấp, sau đó phân tích và trích xuất CHUYÊN BIỆT CÁC QUY TẮC THUẾ THU NHẬP CÁ NHÂN TỪ TIỀN LƯƠNG, TIỀN CÔNG (Personal Income Tax on Salary & Wages / Employment Income) có trong văn bản này phục vụ cho Công cụ Tính Thuế (Tax Calculation Engine).
@@ -67,10 +72,15 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
       - Đơn vị (unit): "VND/month".
       - Điều kiện (condition): "Áp dụng cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công".
    b. PIT_DEDUCTION_DEPENDENT: Mức giảm trừ cho mỗi người phụ thuộc.
-      - Giá trị (value): Số tiền VND/người/tháng theo luật (ví dụ: 4400000 hoặc mức mới như 6200000).
+      - Giá trị (value): Số tiền VND/người/tháng theo luật quy định (ví dụ: 4400000 hoặc mức cập nhật mới như 6200000).
       - Đơn vị (unit): "VND/person/month".
-      - Điều kiện (condition): BẮT BUỘC định dạng chuỗi JSON chi tiết tiêu chí xét duyệt người phụ thuộc theo luật:
-        {{"subject": "DEPENDENT", "eligibility": [{{"type": "CHILD", "name": "Con chưa thành niên", "maxAge": 18, "conditions": ["Con đẻ, con nuôi, con ngoài giá thú hợp pháp", "Dưới 18 tuổi"]}}, {{"type": "ADULT_CHILD", "name": "Con thành niên đang học hoặc khuyết tật", "maxAge": 24, "isStudying": true, "maxMonthlyIncome": 1000000, "conditions": ["Bị tàn tật/khuyết tật không có khả năng lao động HOẶC đang học ĐH, CĐ, THCN, học nghề có thu nhập <= 1 triệu đồng/tháng"]}}, {{"type": "SPOUSE", "name": "Vợ hoặc chồng", "maxMonthlyIncome": 1000000, "conditions": ["Trong độ tuổi lao động bị khuyết tật mất khả năng lao động HOẶC ngoài độ tuổi lao động không có thu nhập hoặc thu nhập bình quân <= 1 triệu đồng/tháng"]}}, {{"type": "PARENT", "name": "Cha đẻ, mẹ đẻ, cha mẹ vợ/chồng", "maxMonthlyIncome": 1000000, "conditions": ["Hết tuổi lao động HOẶC trong độ tuổi lao động bị khuyết tật không có khả năng lao động, có thu nhập bình quân <= 1 triệu đồng/tháng"]}}, {{"type": "OTHER", "name": "Cá nhân khác không nơi nương tựa", "maxMonthlyIncome": 1000000, "conditions": ["Người nộp thuế trực tiếp nuôi dưỡng, đáp ứng điều kiện mất sức lao động hoặc hết tuổi lao động và thu nhập <= 1 triệu đồng/tháng"]}}]}}
+      - Điều kiện (condition): Phân tích chi tiết các điều kiện xét duyệt giảm trừ người phụ thuộc và xuất chuỗi JSON theo cấu trúc chuẩn.
+        * Xác định đầy đủ các nhóm đối tượng người phụ thuộc theo quy định pháp luật (ví dụ: Con chưa thành niên [CHILD], Con thành niên đang học/khuyết tật [ADULT_CHILD], Vợ/chồng [SPOUSE], Cha mẹ [PARENT], Người phụ thuộc khác [OTHER]).
+        * Đối với danh mục giấy tờ cần nộp (requiredDocuments):
+          - Nếu văn bản có quy định cụ thể hồ sơ chứng minh: Trích xuất chính xác theo điều khoản của văn bản đó.
+          - Nếu văn bản là Luật khung (chưa quy định chi tiết hồ sơ chứng minh mà dẫn chiếu văn bản hướng dẫn): Hãy dựa trên kiến thức pháp luật quản lý thuế TNCN hiện hành của Việt Nam để đề xuất danh mục giấy tờ pháp lý cần thiết tương ứng với từng nhóm (giấy tờ chứng minh nhân thân, quan hệ huyết thống/hôn nhân/nuôi dưỡng, nghĩa vụ phụng dưỡng, xác nhận đang theo học hoặc mất khả năng lao động/khuyết tật).
+        * Cấu trúc JSON bắt buộc:
+        {{"subject": "DEPENDENT", "eligibility": [{{"type": "Mã nhóm chuẩn SNAKE_CASE in hoa ({valid_dependent_types})", "name": "Tên nhóm đối tượng theo đúng văn bản luật", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{{"docType": "Mã loại giấy tờ chuẩn hóa in hoa (BIRTH_CERTIFICATE, CITIZEN_ID, STUDENT_CARD, DISABILITY_CERTIFICATE, MARRIAGE_CERTIFICATE, RELATIONSHIP_CERTIFICATE, SUPPORT_COMMITMENT_FORM, RESIDENCE_CT07, OTHER)", "name": "Tên loại giấy tờ", "isMandatory": "true nếu bắt buộc nộp, false nếu là giấy tờ theo điều kiện/tùy chọn", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}}]}}]}}
    c. PIT_DEDUCTION_INSURANCE: Các khoản đóng bảo hiểm bắt buộc trừ vào thu nhập tiền lương (BHXH, BHYT, BHTN, bảo hiểm trách nhiệm nghề nghiệp).
       - Đơn vị (unit): "VND/month" hoặc "%" hoặc "actual".
    d. PIT_DEDUCTION_CHARITY: Các khoản đóng góp từ thiện, nhân đạo, khuyến học trừ vào thu nhập tiền lương, tiền công.
@@ -135,13 +145,13 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
     "taxYear": {tax_year},
     "effectiveFrom": "YYYY-MM-DD hoặc null (lấy từ ngày hiệu lực thi hành của văn bản)",
     "effectiveTo": "YYYY-MM-DD hoặc null",
-    "status": "Draft"
+    "status": "{default_status}"
   }},
   "taxRules": [
     {{
       "ruleCode": "Mã chuẩn SNAKE_CASE in hoa (ví dụ: PIT_DEDUCTION_PERSONAL, PIT_BRACKET_1, PIT_RATE_NON_RESIDENT_SALARY)",
       "ruleName": "Tên quy tắc ngắn gọn, rõ nghĩa bằng tiếng Việt hoặc tiếng Anh",
-      "ruleType": "Bắt buộc thuộc một trong 4 loại: DEDUCTION, BRACKET, RATE, EXEMPTION",
+      "ruleType": "Bắt buộc thuộc một trong các loại: {valid_rule_types}",
       "condition": "Mo ta chi tiet dieu kien ap dung hoac nguong thu nhap tinh thue. Voi PIT_DEDUCTION_DEPENDENT thi bat buoc xuat JSON eligibility nhu mau o tren, khong kem chu ben ngoai JSON.",
       "value": số thực đại diện cho giá trị tiền hoặc tỷ lệ thuế suất (ví dụ: 11000000, 15500000, 0.05, 0.1, 0.2) hoặc null nếu là quy tắc miễn thuế không có tỷ lệ cố định,
       "unit": "VND/month hoặc VND/person/month hoặc % hoặc null",
@@ -152,7 +162,7 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
       "clause": "Số khoản (ví dụ: 'Khoản 1' hoặc '1')",
       "point": "Điểm (ví dụ: 'Điểm a' hoặc 'a') hoặc null",
       "sourceUrl": "{source_url or ''}",
-      "status": "Draft"
+      "status": "{default_status}"
     }}
   ]
 }}

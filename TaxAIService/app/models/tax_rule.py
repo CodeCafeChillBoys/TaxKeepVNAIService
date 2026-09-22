@@ -5,6 +5,7 @@ from sqlalchemy import Integer, String, Text, Float, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database import Base
+from app.enum import TaxRuleStatus
 
 if TYPE_CHECKING:
     from app.models.tax_rule_set import TaxRuleSet
@@ -41,7 +42,7 @@ class TaxRule(Base):
     clause: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     point: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="Draft", nullable=False) # Draft, Active, Expired
+    status: Mapped[str] = mapped_column(String(50), default=TaxRuleStatus.DRAFT.value, nullable=False) # Draft, Active, Expired
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False

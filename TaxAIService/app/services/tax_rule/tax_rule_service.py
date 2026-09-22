@@ -5,6 +5,7 @@ from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRe
 from app.services.interfaces.tax_rule_service_interface import ITaxRuleService
 from app.services.tax_rule.tax_rule_document_service import TaxRuleDocumentService
 from app.mappers.tax_rule import format_tax_rule_data
+from app.enum import TaxRuleStatus
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleServiceError
 
 
@@ -103,10 +104,11 @@ class TaxRuleService(ITaxRuleService):
                 detail=TaxRuleErrorMessages.RULE_SET_NOT_FOUND
             )
 
+        # chuyển dữ liệu sang dạng dic
         data_dict = payload.model_dump(exclude_unset=True) if hasattr(payload, "model_dump") else dict(payload)
 
         curr_rule_set = existing_detail[0]
-        if curr_rule_set.status == "Active":
+        if curr_rule_set.status == TaxRuleStatus.ACTIVE.value:
             raise TaxRuleServiceError(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=TaxRuleErrorMessages.CANNOT_UPDATE_ACTIVE_RULE_SET
@@ -114,8 +116,11 @@ class TaxRuleService(ITaxRuleService):
 
         # Kiểm tra trùng lặp tax_year nếu có thay đổi
         new_tax_year = data_dict.get("tax_year")
+        # lấy new_tax_year check năm hiện tại AI đã trích xuất
         if new_tax_year is not None and new_tax_year != curr_rule_set.tax_year:
+            # check DB
             conflict_set = self.repository.get_rule_set_by_year(new_tax_year)
+            # nếu DB tồn tại khác taxRuleSet thì đã bị tồn tại trong cột khác
             if conflict_set and conflict_set.rule_set_id != rule_set_id:
                 raise TaxRuleServiceError(
                     status_code=status.HTTP_409_CONFLICT,
@@ -162,7 +167,7 @@ class TaxRuleService(ITaxRuleService):
         return {
             "message": "Tax rule set approved successfully.",
             "ruleSetId": str(approved_rule_set.rule_set_id),
-            "status": "Active",
+            "status": TaxRuleStatus.ACTIVE.value,
             "approvedBy": approved_rule_set.approved_by,
             "approvedAt": approved_rule_set.approved_at
         }

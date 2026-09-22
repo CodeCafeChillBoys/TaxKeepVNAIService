@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
+from app.enum import TaxRuleStatus
 
 
 def parse_condition(cond_val: Any) -> Any:
@@ -67,6 +68,7 @@ def format_tax_rule_data(
                 "isStudying": dep.is_studying,
                 "isDisabled": dep.is_disabled,
                 "conditions": parse_condition(dep.conditions),
+                "requiredDocuments": dep.required_documents or [],
                 "status": dep.status
             }
             for dep in dep_rules
@@ -92,7 +94,7 @@ def build_tax_rule_models(
         tax_year=tax_year,
         effective_from=rule_set_dict.get("effectiveFrom"),
         effective_to=rule_set_dict.get("effectiveTo"),
-        status="Draft"
+        status=TaxRuleStatus.DRAFT.value
     )
 
     new_rules: List[TaxRule] = []
@@ -124,7 +126,7 @@ def build_tax_rule_models(
             clause=str(item.get("clause")) if item.get("clause") is not None else None,
             point=str(item.get("point")) if item.get("point") is not None else None,
             source_url=item.get("sourceUrl") or source_url,
-            status="Draft"
+            status=TaxRuleStatus.DRAFT.value
         )
         new_rules.append(rule_obj)
 
@@ -154,6 +156,7 @@ def build_tax_rule_models(
                 is_dis = bool(elig.get("isDisabled", False))
                 conds = elig.get("conditions", [])
                 conds_str = json.dumps(conds, ensure_ascii=False) if isinstance(conds, (dict, list)) else str(conds)
+                required_docs = elig.get("requiredDocuments") or elig.get("required_documents") or []
 
                 dep_rule = DependentRule(
                     rule_id=rule_obj.rule_id,
@@ -164,7 +167,8 @@ def build_tax_rule_models(
                     is_studying=is_stud,
                     is_disabled=is_dis,
                     conditions=conds_str,
-                    status="Draft"
+                    required_documents=required_docs,
+                    status=TaxRuleStatus.DRAFT.value
                 )
                 rule_obj.dependent_rules.append(dep_rule)
                 dependent_rules_to_create.append(dep_rule)

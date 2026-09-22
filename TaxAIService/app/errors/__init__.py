@@ -11,6 +11,11 @@ from app.errors.embedding_errors import (
     EmbeddingErrorMessages,
     EmbeddingError,
 )
+from app.errors.expense_ocr_errors import (
+    ExpenseOcrError,
+    CorruptedFileError,
+    UnreadableDocumentError,
+)
 
 __all__ = [
     "TaxRuleErrorMessages",
@@ -20,4 +25,8 @@ __all__ = [
     "PDFProcessingError",
     "EmbeddingErrorMessages",
     "EmbeddingError",
+    "ExpenseOcrError",
+    "CorruptedFileError",
+    "UnreadableDocumentError",
 ]
+

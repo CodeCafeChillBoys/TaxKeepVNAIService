@@ -4,11 +4,11 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.messaging.schemas import (
+from app.messaging.tax_rule.schemas import (
     TaxRuleExtractRequestMessage,
     TaxRuleExtractResponseMessage,
 )
-from app.messaging.consumer import (
+from app.messaging.tax_rule.consumer import (
     _resolve_file_bytes,
     handle_tax_extract_message,
 )
@@ -71,6 +71,28 @@ async def test_resolve_file_bytes_base64():
 
 
 @pytest.mark.anyio
+async def test_resolve_file_bytes_file_url():
+    content = b"%PDF-supabase-downloaded"
+    req = TaxRuleExtractRequestMessage(
+        task_id=uuid.uuid4(),
+        file_name="test.pdf",
+        file_url="https://fake-supabase.co/storage/v1/object/public/taxkeep-documents/tax-rules/test.pdf",
+        tax_year=2026
+    )
+
+    mock_resp = MagicMock()
+    mock_resp.content = content
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_resp
+        resolved = await _resolve_file_bytes(req)
+        assert resolved == content
+        mock_get.assert_called_once()
+
+
+
+@pytest.mark.anyio
 async def test_resolve_file_bytes_missing_sources():
     req = TaxRuleExtractRequestMessage(
         task_id=uuid.uuid4(),
@@ -104,9 +126,9 @@ async def test_handle_tax_extract_message_success():
         yield mock_msg
     mock_msg.process = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(), __aexit__=AsyncMock()))
 
-    with patch("app.messaging.consumer.get_db_context") as mock_db_ctx, \
-         patch("app.messaging.consumer.TaxRuleService.process_tax_rule_document", new_callable=AsyncMock) as mock_service_call, \
-         patch("app.messaging.consumer.publish_extraction_response", new_callable=AsyncMock) as mock_publish:
+    with patch("app.messaging.tax_rule.consumer.get_db_context") as mock_db_ctx, \
+         patch("app.messaging.tax_rule.consumer.TaxRuleService.process_tax_rule_document", new_callable=AsyncMock) as mock_service_call, \
+         patch("app.messaging.tax_rule.consumer.publish_extraction_response", new_callable=AsyncMock) as mock_publish:
 
         mock_service_call.return_value = {
             "message": "Success",
