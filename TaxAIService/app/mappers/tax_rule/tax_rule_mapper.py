@@ -67,6 +67,7 @@ def format_tax_rule_data(
                 "isStudying": dep.is_studying,
                 "isDisabled": dep.is_disabled,
                 "conditions": parse_condition(dep.conditions),
+                "requiredDocuments": dep.required_documents or [],
                 "status": dep.status
             }
             for dep in dep_rules
@@ -154,6 +155,7 @@ def build_tax_rule_models(
                 is_dis = bool(elig.get("isDisabled", False))
                 conds = elig.get("conditions", [])
                 conds_str = json.dumps(conds, ensure_ascii=False) if isinstance(conds, (dict, list)) else str(conds)
+                required_docs = elig.get("requiredDocuments") or elig.get("required_documents") or []
 
                 dep_rule = DependentRule(
                     rule_id=rule_obj.rule_id,
@@ -164,6 +166,7 @@ def build_tax_rule_models(
                     is_studying=is_stud,
                     is_disabled=is_dis,
                     conditions=conds_str,
+                    required_documents=required_docs,
                     status="Draft"
                 )
                 rule_obj.dependent_rules.append(dep_rule)

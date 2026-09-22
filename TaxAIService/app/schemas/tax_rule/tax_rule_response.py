@@ -61,6 +61,11 @@ class DependentRuleResponse(BaseModel):
     # Có đang khuyết tật hay ko is_disabled
     is_disabled: bool = Field(False, alias="isDisabled")
     conditions: Optional[Union[str, List[str], Dict[str, Any]]] = Field(None, alias="conditions")
+    required_documents: Optional[List[Dict[str, Any]]] = Field(
+        default_factory=list, 
+        alias="requiredDocuments",
+        description="Danh sách các loại giấy tờ cần nộp của nhóm đối tượng này"
+    )
     status: str = Field("Draft", alias="status")
 
 
