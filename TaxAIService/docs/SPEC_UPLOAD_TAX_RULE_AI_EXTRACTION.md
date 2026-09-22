@@ -13,7 +13,9 @@
 2. [ĐẶC TẢ YÊU CẦU NGHIỆP VỤ & PHẠM VI (BUSINESS REQUIREMENTS & SCOPE)](#2-đặc-tả-yêu-cầu-nghiệp-vụ--phạm-vi)
 3. [KIẾN TRÚC HỆ THỐNG & NGUYÊN LÝ THIẾT KẾ (SYSTEM ARCHITECTURE)](#3-kiến-trúc-hệ-thống--nguyên-lý-thiết-kế)
 4. [ĐẶC TẢ CHI TIẾT CÁC TÍNH NĂNG ĐÃ TRIỂN KHAI (DETAILED FEATURES)](#4-đặc-tả-chi-tiết-các-tính-năng-đã-triển-khai)
+   * [4.6. Ma trận kiểm soát & Thẩm định toàn diện (Comprehensive Validation Matrix)](#46-ma-trận-kiểm-soát--thẩm-định-toàn-diện-comprehensive-validation--error-handling-matrix)
 5. [THIẾT KẾ DỮ LIỆU & QUAN HỆ THỰC THỂ (DATABASE & DATA MODELING)](#5-thiết-kế-dữ-liệu--quan-hệ-thực-thể)
+   * [5.3. Chuẩn hóa an toàn kiểu dữ liệu bằng hệ thống Enum (`app.enum`)](#53-chuẩn-hóa-an-toàn-kiểu-dữ-liệu-bằng-hệ-thống-enum-appenum)
 6. [KỸ THUẬT XỬ LÝ AI & PROMPT ENGINEERING PROTOCOL](#6-kỹ-thuật-xử-lý-ai--prompt-engineering-protocol)
 7. [ĐẶC TẢ GIAO DIỆN LẬP TRÌNH (API & MESSAGING SPECIFICATION)](#7-đặc-tả-giao-diện-lập-trình)
 8. [CHIẾN LƯỢC ĐẢM BẢO CHẤT LƯỢNG & KIỂM THỬ (TESTING & VERIFICATION)](#8-chiến-lược-đảm-bảo-chất-lượng--kiểm-thử)
@@ -152,6 +154,32 @@ Hệ thống phân loại quy tắc thuế thành 4 nhóm chính:
 * **Human-in-the-loop Editing:** Admin có thể gọi `GET /api/tax-rules/{id}` để rà soát toàn bộ chi tiết và `PUT /api/tax-rules/{id}` để cập nhật lại tên, năm, căn cứ pháp lý, giá trị nếu cần.
 * **Approve:** Khi Admin xác nhận bộ luật chính xác, gọi `POST /api/tax-rules/{id}/approve`, hệ thống cập nhật `status = Active`, ghi nhận `approved_by` và `approved_at`.
 
+#### 4.6. Ma trận kiểm soát & Thẩm định toàn diện (Comprehensive Validation & Error Handling Matrix)
+Toàn bộ luồng Upload, trích xuất AI, cập nhật và phê duyệt tuân thủ chặt chẽ mô hình thẩm định đa tầng (Multi-layered Defense Validation), bảo đảm an toàn dữ liệu, tính chính xác pháp lý và tính bất biến của bộ luật khi đã ban hành:
+
+| STT | Tầng thẩm định (Validation Layer) | Đối tượng / Trường kiểm tra | Điều kiện ràng buộc hợp lệ | Mã phản hồi HTTP / Exception | Thông báo lỗi chuẩn hóa (Standard Error Message) |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **HTTP Form-data** | `file` | Bắt buộc đính kèm tệp tin và tên tệp tin không được để trống | `400 Bad Request` | `{"message": "The file field is required."}` |
+| **2** | **HTTP Form-data** | `file.filename` | Định dạng mở rộng tệp tin bắt buộc phải là `.pdf` (không phân biệt hoa/thường) | `400 Bad Request` | `{"message": "The file must be a PDF."}` |
+| **3** | **HTTP Form-data** | `file_bytes` | Dung lượng tệp tin tải lên không vượt quá 20MB (`len(file_bytes) <= MAX_FILE_SIZE_MB * 1024 * 1024`) | `400 Bad Request` | `{"message": "The file size must not exceed 20 MB."}` |
+| **4** | **HTTP Form-data** | `taxYear` | Bắt buộc phải có giá trị (không rỗng, không whitespace) | `400 Bad Request` | `{"TaxYear": "The TaxYear field is required."}` |
+| **5** | **HTTP Form-data** | `taxYear` | Bắt buộc là số nguyên 4 chữ số hợp lệ nằm trong khoảng `[1900, 2100]` | `400 Bad Request` | `{"message": "Tax year must be a valid year."}` |
+| **6** | **HTTP Form-data** | `sourceUrl` (nếu có) | URL phải bắt đầu bằng `http://` hoặc `https://`. Tên miền gốc phải thuộc Danh sách Whitelist đang kích hoạt (`url_validation_rules`) | `400 Bad Request` | `{"SourceUrl": "The SourceUrl is not allowed by active URL validation rules."}` |
+| **7** | **HTTP Form-data** | `adminId` (nếu có) | Phải là chuỗi định dạng định danh toàn cầu UUID chuẩn (RFC 4122) | `400 Bad Request` | `{"message": "adminId must be a valid UUID."}` |
+| **8** | **PDF Physical Layer** | Cấu trúc tệp PDF | Tệp PDF nguyên vẹn, giải mã được qua `pymupdf.open()` | `400 Bad Request` | `"Cannot open PDF file: {detail}"` |
+| **9** | **PDF Physical Layer** | Nội dung trang PDF | Tổng số trang $> 0$ và văn bản có nội dung bóc tách được (`len(doc) > 0`) | `400 Bad Request` | `"PDF does not contain extractable text."` |
+| **10** | **Database Uniqueness** | Năm tính thuế (`tax_year`) | Bảng `tax_rule_sets` chưa tồn tại bản ghi nào có cùng `tax_year` (Ràng buộc Unique Constraint) | `409 Conflict` | `"A tax rule set for this tax year already exists."` |
+| **11** | **Database Uniqueness** | Mã quy tắc thuế (`ruleCode`) | Không được trùng bất kỳ mã `ruleCode` nào đã tồn tại trong CSDL (`check_existing_rule_codes`) | `409 Conflict` | `"The rule code already exists."` |
+| **12** | **AI Extraction Layer** | Cấu trúc dữ liệu AI | Gemini LLM phải phản hồi chuỗi JSON hợp lệ và trích xuất được ít nhất 1 quy tắc thuế | `400 Bad Request` | `"No tax rule information could be extracted from the document."` |
+| **13** | **AI Verification Layer** | Đối soát năm áp dụng (`verification`) | So khớp `extractedTaxYear` và `inputTaxYear`. **Non-blocking Policy:** Nếu lệch năm, sinh cảnh báo nhưng **vẫn lưu bản nháp** để Admin hiệu chỉnh | `200 OK` *(kèm Warning)* | `"Năm áp dụng trong văn bản ({doc_year}) không khớp với năm tính thuế nhập vào ({input_year}). Chi tiết: {reason}"` |
+| **14** | **Rule Lifecycle (Update)** | Tính bất biến khi duyệt (`status`) | **Quy tắc bất biến:** Nghiêm cấm chỉnh sửa (`PUT`) bất kỳ thông tin nào khi bộ quy tắc đã được phê duyệt (`status == "Active"`) | `400 Bad Request` | `"Cannot update tax rule set because it has already been approved and is active."` |
+| **15** | **Rule Lifecycle (Update)** | Đổi năm áp dụng khi sửa | Khi sửa `tax_year`, năm mới không được trùng với bất kỳ `TaxRuleSet` nào khác trong hệ thống | `409 Conflict` | `"A tax rule set for this tax year already exists."` |
+| **16** | **Rule Lifecycle (Update/Approve)** | Tồn tại của thực thể | Bộ quy tắc thuế theo ID (`rule_set_id`) phải tồn tại trong CSDL | `404 Not Found` | `"Tax rule set not found."` |
+| **17** | **RabbitMQ Messaging** | Nguồn cung cấp tệp tin | Bắt buộc phải có ít nhất 1 trong 3 nguồn: `file_base64`, `file_url` (HTTP 200, timeout 30s) hoặc `file_path` | `FAILED Queue Message` | `"No valid file source provided (require file_base64, file_url, or file_path)."` |
+| **18** | **Type Safety Enum** | Nhóm người phụ thuộc (`DependentType`) | Giá trị chuẩn hóa thuộc Enum: `CHILD`, `ADULT_CHILD`, `SPOUSE`, `PARENT`, `OTHER` | `422 Unprocessable` | Pydantic Schema Validation |
+| **19** | **Type Safety Enum** | Phân loại quy tắc (`TaxRuleType`) | Giá trị bắt buộc thuộc Enum: `DEDUCTION`, `BRACKET`, `RATE`, `EXEMPTION` | `422 Unprocessable` | Pydantic Schema Validation |
+| **20** | **Type Safety Enum** | Vòng đời trạng thái (`TaxRuleStatus`) | Giá trị bắt buộc thuộc Enum: `Draft`, `Active`, `Expired`, `Archived` | `422 Unprocessable` | Pydantic Schema Validation |
+
 ---
 
 ### 5. THIẾT KẾ DỮ LIỆU & QUAN HỆ THỰC THỂ
@@ -209,6 +237,7 @@ erDiagram
         boolean is_studying
         boolean is_disabled
         text conditions
+        jsonb required_documents
         string status
         datetime created_at
         datetime updated_at
@@ -232,7 +261,19 @@ erDiagram
 Trong các phiên bản ban đầu, `DependentRule` được gắn lỏng lẻo vào `TaxRuleSet`. Để đảm bảo tính chặt chẽ về mặt mô hình hóa dữ liệu quan hệ, nhánh này đã thực hiện migration chuẩn hóa:
 * `DependentRule` được liên kết khóa ngoại trực tiếp tới `TaxRule` (chính là quy tắc giảm trừ người phụ thuộc `PIT_DEDUCTION_DEPENDENT`).
 * Khi một quy tắc thuế bị xóa hoặc cập nhật, các tiêu chí xét duyệt người phụ thuộc liên quan sẽ được đồng bộ theo cơ chế `cascade="all, delete-orphan"`.
-* Hỗ trợ thuộc tính tương thích ngược `rule_set_id` thông qua quan hệ cha.
+* Bổ sung cột `required_documents (JSONB)` lưu trữ danh mục hồ sơ pháp lý chi tiết của từng nhóm đối tượng, phục vụ trực tiếp cho module AI OCR thẩm định chứng từ người phụ thuộc.
+
+#### 5.3. Chuẩn hóa an toàn kiểu dữ liệu bằng hệ thống Enum (`app.enum`)
+Toàn bộ các giá trị phân loại, trạng thái và đối tượng trong hệ thống được quy tụ về các lớp Enum chuẩn hóa kế thừa `(str, Enum)`, làm Nguồn Chân Lý Duy Nhất (Single Source of Truth) cho cả tầng Model, Schema Pydantic, Mapper và Prompt:
+* **`TaxRuleType`:** Phân loại quy tắc thuế: `DEDUCTION` (Giảm trừ), `BRACKET` (Bậc thuế lũy tiến), `RATE` (Thuế suất đặc thù), `EXEMPTION` (Miễn thuế).
+* **`DependentType`:** Nhóm đối tượng người phụ thuộc:
+  * `CHILD`: Con chưa thành niên (dưới 18 tuổi).
+  * `ADULT_CHILD`: Con thành niên đang theo học hoặc bị khuyết tật / mất khả năng lao động.
+  * `SPOUSE`: Vợ hoặc chồng không có khả năng lao động và không có thu nhập hoặc thu nhập dưới mức luật định.
+  * `PARENT`: Cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ kế, cha mẹ nuôi hợp pháp hết tuổi lao động hoặc mất khả năng lao động.
+  * `OTHER`: Cá nhân khác không nơi nương tựa mà người nộp thuế đang trực tiếp nuôi dưỡng.
+* **`TaxRuleStatus`:** Vòng đời trạng thái: `Draft` (Bản nháp), `Active` (Chính thức có hiệu lực), `Expired` (Hết hiệu lực), `Archived` (Đã lưu trữ).
+* **`DocumentType`:** Danh mục mã giấy tờ chứng minh chuẩn hóa: `BIRTH_CERTIFICATE`, `CITIZEN_ID`, `STUDENT_CARD`, `DISABILITY_CERTIFICATE`, `MARRIAGE_CERTIFICATE`, `RELATIONSHIP_CERTIFICATE`, `SUPPORT_COMMITMENT_FORM`, `RESIDENCE_CT07`, `OTHER`.
 
 ---
 
@@ -287,7 +328,7 @@ Nhiệt độ thấp (`temperature=0.1`) giúp triệt tiêu ảo giác (halluci
       "ruleCode": "PIT_DEDUCTION_DEPENDENT",
       "ruleName": "Mức giảm trừ người phụ thuộc",
       "ruleType": "DEDUCTION",
-      "condition": "{\"subject\": \"DEPENDENT\", \"eligibility\": [{\"type\": \"CHILD\", \"name\": \"Con chưa thành niên\", \"maxAge\": 18, \"conditions\": [\"Con đẻ, con nuôi hợp pháp\", \"Dưới 18 tuổi\"]}]}",
+      "condition": "{\"subject\": \"DEPENDENT\", \"eligibility\": [{\"type\": \"CHILD\", \"name\": \"Con chưa thành niên\", \"maxAge\": 18, \"conditions\": [\"Con đẻ, con nuôi hợp pháp\", \"Dưới 18 tuổi\"], \"requiredDocuments\": [{\"docType\": \"BIRTH_CERTIFICATE\", \"name\": \"Giấy khai sinh\", \"isMandatory\": true, \"description\": \"Bản chính hoặc bản sao trích lục hợp lệ\"}, {\"docType\": \"CITIZEN_ID\", \"name\": \"Thẻ Căn cước\", \"isMandatory\": false, \"description\": \"Trong trường hợp đã được cấp thẻ Căn cước\"}]}]}",
       "value": 6200000.0,
       "unit": "VND/person/month",
       "article": "Điều 19",
@@ -307,12 +348,12 @@ Nhiệt độ thấp (`temperature=0.1`) giúp triệt tiêu ảo giác (halluci
 
 | STT | Phương thức | Endpoint | Mô tả | Tham số chính | Trạng thái phản hồi |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | `POST` | `/api/tax-rules/documents/upload` | Tải lên PDF văn bản luật và trích xuất quy tắc thuế qua AI | `file` (PDF $\le$ 20MB), `taxYear` (int), `name` (str), `sourceUrl` (str), `adminId` (UUID) | `200 OK`, `400 Bad Request`, `409 Conflict` |
+| 1 | `POST` | `/api/tax-rules/documents/upload` | Tải lên PDF văn bản luật và trích xuất quy tắc thuế qua AI | `file` (PDF $\le$ 20MB), `taxYear` (int: 1900-2100), `name` (str), `sourceUrl` (Whitelist domain), `adminId` (UUID) | `200 OK`, `400 Bad Request` *(Lỗi file/kích thước/năm/whitelist URL/UUID)*, `409 Conflict` *(Trùng taxYear hoặc ruleCode)* |
 | 2 | `GET` | `/api/tax-rules` | Lấy danh sách tất cả các bộ quy tắc thuế trong CSDL | Không | `200 OK` |
-| 3 | `GET` | `/api/tax-rules/year/{taxYear}` | Lấy chi tiết bộ quy tắc thuế theo năm tính thuế | `taxYear` (path param) | `200 OK`, `404 Not Found` |
-| 4 | `GET` | `/api/tax-rules/{id}` | Lấy chi tiết bộ quy tắc thuế và người phụ thuộc theo ID | `id` (UUID path param) | `200 OK`, `404 Not Found` |
-| 5 | `PUT` | `/api/tax-rules/{id}` | Cập nhật/Hiệu chỉnh bộ quy tắc thuế và danh sách quy tắc | `id` (UUID), `TaxRuleUpdateRequest` (body) | `200 OK`, `400/409/404` |
-| 6 | `POST` | `/api/tax-rules/{id}/approve` | Phê duyệt bộ quy tắc thuế chuyển sang trạng thái Active | `id` (UUID), `admin_id` (body) | `200 OK`, `400/404` |
+| 3 | `GET` | `/api/tax-rules/year/{taxYear}` | Lấy chi tiết bộ quy tắc thuế theo năm tính thuế | `taxYear` (path param: int) | `200 OK`, `404 Not Found` *(Không tồn tại bộ luật)* |
+| 4 | `GET` | `/api/tax-rules/{id}` | Lấy chi tiết bộ quy tắc thuế và người phụ thuộc theo ID | `id` (UUID path param) | `200 OK`, `404 Not Found` *(Không tìm thấy ID)* |
+| 5 | `PUT` | `/api/tax-rules/{id}` | Cập nhật/Hiệu chỉnh bộ quy tắc thuế và danh sách quy tắc | `id` (UUID), `TaxRuleUpdateRequest` (body: Enum validated) | `200 OK`, `400 Bad Request` *(Bộ luật đã Active - Bất biến)*, `404 Not Found`, `409 Conflict` *(Trùng taxYear)*, `422 Unprocessable` *(Sai Enum)* |
+| 6 | `POST` | `/api/tax-rules/{id}/approve` | Phê duyệt bộ quy tắc thuế chuyển sang trạng thái Active | `id` (UUID), `admin_id` (body: UUID) | `200 OK`, `400 Bad Request` *(Đã duyệt trước đó)*, `404 Not Found` *(Không tìm thấy ID)* |
 
 #### 7.2. RESTful API Quản lý URL Whitelist (`/api/url-rules`)
 

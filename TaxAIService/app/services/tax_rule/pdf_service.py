@@ -1,46 +1,10 @@
 import os
-from typing import List, Dict, Any, Tuple
+from typing import Tuple
 import pymupdf
 from app.errors.pdf_errors import PDFProcessingError, PDFErrorMessages
 
 
 class PDFService:
-    @staticmethod
-    def extract_text_pages(file_path: str) -> List[Dict[str, Any]]:
-        """
-        Bóc tách text từng trang từ file PDF bằng PyMuPDF.
-        """
-        if not os.path.exists(file_path):
-            raise PDFProcessingError(detail=PDFErrorMessages.FILE_NOT_FOUND)
-        
-        try:
-            doc = pymupdf.open(file_path)
-        except Exception as e:
-            raise PDFProcessingError(detail=PDFErrorMessages.cannot_open_pdf(str(e)))
-
-        if len(doc) == 0:
-            doc.close()
-            raise PDFProcessingError(detail=PDFErrorMessages.NO_EXTRACTABLE_TEXT)
-
-        pages_data = []
-        for page_idx, page in enumerate(doc):
-            page_text = (page.get_text("text") or "").strip()
-            pages_data.append({
-                "page_number": page_idx + 1,
-                "text": page_text
-            })
-
-        doc.close()
-        return pages_data
-
-    @staticmethod
-    def extract_full_text(file_path: str) -> str:
-        pages = PDFService.extract_text_pages(file_path)
-        combined_text = []
-        for p in pages:
-            if p["text"]:
-                combined_text.append(f"--- [Trang {p['page_number']}] ---\n{p['text']}")
-        return "\n\n".join(combined_text)
 
     @staticmethod
     def prepare_pdf_for_ai(file_path: str, max_scan_pages: int = 30) -> Tuple[bool, str, bytes]:

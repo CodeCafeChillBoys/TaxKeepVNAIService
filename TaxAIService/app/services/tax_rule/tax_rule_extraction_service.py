@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
 from app.core.config import settings
+from app.enum import TaxRuleStatus
 from app.prompts.tax_rule import build_tax_rule_extraction_prompt
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleExtractionError
 
@@ -152,7 +153,7 @@ class TaxRuleExtractionService:
         if not rule_set.get("name"):
             rule_set["name"] = default_set_name
         rule_set["taxYear"] = tax_year
-        rule_set["status"] = "Draft"
+        rule_set["status"] = TaxRuleStatus.DRAFT.value
         data["taxRuleSet"] = rule_set
 
         return data

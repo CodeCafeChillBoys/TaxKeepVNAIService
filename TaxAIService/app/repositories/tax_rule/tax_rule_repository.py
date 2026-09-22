@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
+from app.enum import TaxRuleStatus
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 
 
@@ -14,7 +15,7 @@ class TaxRuleRepository(ITaxRuleRepository):
 
     def __init__(self, db: Session):
         self.db = db
-
+    # check id của taxRuleSetBy ID đã tồn tại chưa
     def get_by_id(self, id: Any) -> Optional[TaxRuleSet]:
         """Triển khai IRepository.get_by_id."""
         if isinstance(id, str):
@@ -24,12 +25,15 @@ class TaxRuleRepository(ITaxRuleRepository):
                 return None
         return self.get_rule_set_by_id(id)
 
+    # check year của rule_set đã tồn tại chưa
     def get_rule_set_by_year(self, tax_year: int) -> Optional[TaxRuleSet]:
         return self.db.query(TaxRuleSet).filter(TaxRuleSet.tax_year == tax_year).first()
 
+    # lấy lên hết rule set 
     def get_all_rule_sets(self) -> List[TaxRuleSet]:
         return self.db.query(TaxRuleSet).order_by(TaxRuleSet.tax_year.desc()).all()
 
+    # lấy lên ruleSet chi tiết theo year 
     def get_tax_rule_set_detail_by_year(
         self,
         tax_year: int
@@ -38,15 +42,17 @@ class TaxRuleRepository(ITaxRuleRepository):
         if not rule_set:
             return None
         return self.get_tax_rule_set_detail(rule_set.rule_set_id)
-
+    # check id rule set 
     def get_rule_set_by_id(self, rule_set_id: uuid.UUID) -> Optional[TaxRuleSet]:
         return self.db.query(TaxRuleSet).filter(TaxRuleSet.rule_set_id == rule_set_id).first()  
 
+    # check ruleCode tồn tài chưa 
     def check_existing_rule_codes(self, rule_codes: List[str]) -> bool:
         if not rule_codes:
             return False
         return self.db.query(TaxRule).filter(TaxRule.rule_code.in_(rule_codes)).first() is not None
 
+    # Tạo taxRuleSet bên trong sẽ tạo taxRule và dependent_rule
     def create_tax_rule_set(
         self,
         rule_set: TaxRuleSet,
@@ -71,28 +77,32 @@ class TaxRuleRepository(ITaxRuleRepository):
         except Exception:
             self.db.rollback()
             raise
-
+    
+    # phê duyệt bởi admin 
     def approve_tax_rule_set(
         self,
         rule_set_id: uuid.UUID,
         admin_id: Optional[uuid.UUID] = None
     ) -> Optional[TaxRuleSet]:
         try:
+            #  Check RuleSet tồn tại thì update nếu ko có none
             rule_set = self.get_rule_set_by_id(rule_set_id)
             if not rule_set:
                 return None
 
-            rule_set.status = "Active"
+            rule_set.status = TaxRuleStatus.ACTIVE.value
             rule_set.approved_by = admin_id
             rule_set.approved_at = datetime.now()
-            self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).update({"status": "Active"})
-
+            # query những dữ liệu trong taxRule có id = TaxRuleSetID update  Active
+            self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).update({"status": TaxRuleStatus.ACTIVE.value})
+            # lọc lên những taxRule có id = TaxRuleSetID
             rule_ids = [
                 r[0] for r in self.db.query(TaxRule.rule_id).filter(TaxRule.rule_set_id == rule_set_id).all()
             ]
+            # nếu ruleiD tồn tại thì lọc ruleID ben trong DependentRule update status Active
             if rule_ids:
                 self.db.query(DependentRule).filter(DependentRule.rule_id.in_(rule_ids)).update(
-                    {"status": "Active"}, synchronize_session=False
+                    {"status": TaxRuleStatus.ACTIVE.value}, synchronize_session=False
                 )
 
             self.db.commit()
@@ -102,20 +112,25 @@ class TaxRuleRepository(ITaxRuleRepository):
             self.db.rollback()
             raise
 
+    # lấy chi tiết taxRuleSet
     def get_tax_rule_set_detail(
         self,
         rule_set_id: uuid.UUID
     ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]:
+        # lấy lên ruleSetID 
         rule_set = self.get_rule_set_by_id(rule_set_id)
         if not rule_set:
             return None
-
+        # lấy tất cả rule và lọc với ruleSetId
         rules = self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).all()
+        # lấy ra tất cả RuleID
         rule_ids = [r.rule_id for r in rules]
         dep_rules = []
+        # check vs ruleId của DependentRule và lấy lên hết DependentRule
         if rule_ids:
             dep_rules = self.db.query(DependentRule).filter(DependentRule.rule_id.in_(rule_ids)).all()
         return rule_set, rules, dep_rules
+
 
     def update_tax_rule_set(
         self,
@@ -127,12 +142,13 @@ class TaxRuleRepository(ITaxRuleRepository):
         status: Optional[str] = None,
         tax_rules: Optional[List[dict]] = None,
         dependent_rules: Optional[List[dict]] = None
-    ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]:
+    ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]: #Tuple: Tuple trong Python là một kiểu dữ liệu dùng để chứa nhiều giá trị, khá giống list, nhưng không thể thay đổi sau khi tạo. 
         try:
+            #lấy lên ruleSetId kiểm tra
             rule_set = self.get_rule_set_by_id(rule_set_id)
             if not rule_set:
                 return None
-
+            # nếu tồn tại Update
             if name is not None:
                 rule_set.name = name
             if tax_year is not None:
@@ -145,8 +161,11 @@ class TaxRuleRepository(ITaxRuleRepository):
                 rule_set.status = status
 
             if tax_rules is not None:
+                # Check rule vs ruleSetId lấy lên hết
                 current_rules = self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).all()
+                # Lọc ruleCode lấy lên
                 existing_rules_by_code = {r.rule_code: r for r in current_rules if r.rule_code}
+                # lọc RuleId lấy lên
                 existing_rules_by_id = {str(r.rule_id): r for r in current_rules}
 
                 for r_data in tax_rules:
@@ -158,8 +177,10 @@ class TaxRuleRepository(ITaxRuleRepository):
                     cond_str = json.dumps(cond, ensure_ascii=False) if isinstance(cond, (dict, list)) else (str(cond) if cond is not None else None)
 
                     r = None
+                    # check ruleId và ruleID lấy bên trong exits có tồn tại ko
                     if rule_id_str and rule_id_str in existing_rules_by_id:
                         r = existing_rules_by_id[rule_id_str]
+                    # nếu ruleID ko tồn tại thì qua check code
                     elif code and code in existing_rules_by_code:
                         r = existing_rules_by_code[code]
 
@@ -209,19 +230,24 @@ class TaxRuleRepository(ITaxRuleRepository):
                             clause=r_data.get("clause"),
                             point=r_data.get("point"),
                             source_url=r_data.get("source_url"),
-                            status=r_data.get("status", "Draft")
+                            status=r_data.get("status", TaxRuleStatus.DRAFT.value)
                         )
                         self.db.add(new_r)
+                        # nếu ruleCode true
                         if new_r.rule_code:
                             existing_rules_by_code[new_r.rule_code] = new_r
                         existing_rules_by_id[str(new_r.rule_id)] = new_r
 
             if dependent_rules is not None:
+                # lấy lên Rule có ruleSetId = TaxSetRule
                 all_rules = self.db.query(TaxRule).filter(TaxRule.rule_set_id == rule_set_id).all()
+                # lọc tất id vào mảng
                 all_rule_ids = [r.rule_id for r in all_rules]
+                # tìm ruleCode có người phụ thuộc  sau đó bỏ vào mảng
                 dep_parent_rule = next((r for r in all_rules if r.rule_code == "PIT_DEDUCTION_DEPENDENT"), None)
+                # dep_parent_rule nếu có lấy lên RuleID nếu ko có lấy lên hết all_rules
                 default_parent_rule_id = dep_parent_rule.rule_id if dep_parent_rule else (all_rules[0].rule_id if all_rules else None)
-
+                # if all_rule_ids lấy lên DependentRule có ruleID bằng rule nếu ko trả về {}
                 existing_dep_rules = {str(d.id): d for d in self.db.query(DependentRule).filter(DependentRule.rule_id.in_(all_rule_ids)).all()} if all_rule_ids else {}
 
                 for d_data in dependent_rules:
@@ -259,7 +285,7 @@ class TaxRuleRepository(ITaxRuleRepository):
                             is_studying=d_data.get("is_studying", False),
                             is_disabled=d_data.get("is_disabled", False),
                             conditions=cond_str,
-                            status=d_data.get("status", "Draft")
+                            status=d_data.get("status", TaxRuleStatus.DRAFT.value)
                         )
                         self.db.add(new_dep)
                         existing_dep_rules[str(new_dep.id)] = new_dep

@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
+from app.enum import TaxRuleType, DependentType, TaxRuleStatus
 
 
 class TaxRuleItemResponse(BaseModel):
@@ -12,7 +13,7 @@ class TaxRuleItemResponse(BaseModel):
 
     rule_code: str = Field(..., alias="ruleCode", description="Mã quy tắc định danh duy nhất (vd: DED_PERSONAL_2026)")
     rule_name: str = Field(..., alias="ruleName", description="Tên mô tả quy tắc thuế")
-    rule_type: str = Field(..., alias="ruleType", description="Phân loại: DEDUCTION, BRACKET, RATE, EXEMPTION")
+    rule_type: TaxRuleType = Field(..., alias="ruleType", description="Phân loại: DEDUCTION, BRACKET, RATE, EXEMPTION")
     condition: Optional[Union[str, Dict[str, Any]]] = Field(None, alias="condition", description="Điều kiện áp dụng quy tắc (text hoặc JSON object)")
     value: Optional[float] = Field(None, alias="value", description="Giá trị số thực tế (tiền VNĐ, tỷ lệ %)")
     unit: Optional[str] = Field(None, alias="unit", description="Đơn vị tính: VND/thang, %, VND/nam...")
@@ -23,7 +24,7 @@ class TaxRuleItemResponse(BaseModel):
     clause: Optional[str] = Field(None, alias="clause", description="Khoản luật")
     point: Optional[str] = Field(None, alias="point", description="Điểm luật")
     source_url: Optional[str] = Field(None, alias="sourceUrl", description="URL văn bản pháp luật gốc")
-    status: str = Field("Draft", alias="status", description="Trạng thái quy tắc: Draft hoặc Active")
+    status: TaxRuleStatus = Field(TaxRuleStatus.DRAFT, alias="status", description="Trạng thái quy tắc: Draft hoặc Active")
 
 
 class TaxRuleSetResponse(BaseModel):
@@ -38,7 +39,7 @@ class TaxRuleSetResponse(BaseModel):
     tax_year: int = Field(..., alias="taxYear", description="Năm áp dụng luật thuế")
     effective_from: Optional[str] = Field(None, alias="effectiveFrom", description="Ngày bắt đầu áp dụng (YYYY-MM-DD)")
     effective_to: Optional[str] = Field(None, alias="effectiveTo", description="Ngày kết thúc áp dụng (YYYY-MM-DD)")
-    status: str = Field("Draft", alias="status", description="Trạng thái bộ luật: Draft hoặc Active")
+    status: TaxRuleStatus = Field(TaxRuleStatus.DRAFT, alias="status", description="Trạng thái bộ luật: Draft hoặc Active")
     approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="Mã định danh Admin phê duyệt bộ quy tắc")
     approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt bộ quy tắc")
 
@@ -52,7 +53,7 @@ class DependentRuleResponse(BaseModel):
     id: Optional[uuid.UUID] = Field(None, alias="id")
     rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId")
-    dependent_type: str = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
+    dependent_type: DependentType = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
     name: str = Field(..., alias="name")
     max_age: Optional[int] = Field(None, alias="maxAge")
     max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")
@@ -66,7 +67,7 @@ class DependentRuleResponse(BaseModel):
         alias="requiredDocuments",
         description="Danh sách các loại giấy tờ cần nộp của nhóm đối tượng này"
     )
-    status: str = Field("Draft", alias="status")
+    status: TaxRuleStatus = Field(TaxRuleStatus.DRAFT, alias="status")
 
 
 class TaxRuleExtractionDataResponse(BaseModel):
@@ -101,7 +102,7 @@ class TaxRuleApproveResponse(BaseModel):
 
     message: str = Field("Tax rule set approved successfully.", description="Thông báo phê duyệt thành công")
     rule_set_id: uuid.UUID = Field(..., alias="ruleSetId", description="ID của bộ quy tắc thuế đã duyệt")
-    status: str = Field("Active", description="Trạng thái sau khi duyệt")
+    status: TaxRuleStatus = Field(TaxRuleStatus.ACTIVE, description="Trạng thái sau khi duyệt")
     approved_by: Optional[uuid.UUID] = Field(None, alias="approvedBy", description="ID của Admin đã phê duyệt")
     approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt")
 
