@@ -147,6 +147,9 @@ class ExpenseOcrService:
             })
 
         # 7. Kiểm tra ngưỡng và bảo vệ trường cốt lõi (Crucial Fields)
+        # Check ngưỡng từng trường vừa tính lại bên trên công lại chia độ dài
+        # Nếu mà lớn hơn thì return data
+        # Nhỏ hơn tiến hành quăng lỗi
         is_passed_threshold = overall_confidence >= applied_threshold
         low_confidence_fields = []
         has_crucial_low_confidence = False
@@ -159,6 +162,7 @@ class ExpenseOcrService:
                     "confidenceScore": f.confidenceScore,
                     "threshold": applied_threshold
                 })
+                # nếu nhỏ hơn đánh dấu trường trường lạị
                 if f.fieldName in crucial_fields:
                     has_crucial_low_confidence = True
 
@@ -195,3 +199,5 @@ class ExpenseOcrService:
             "validation_errors": validation_errors,
             "raw_payload": json.loads(raw_json)
         }
+        
+        

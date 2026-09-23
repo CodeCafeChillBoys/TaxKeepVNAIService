@@ -25,9 +25,13 @@ async def publish_expense_ocr_response(
 
     # 1. Trích xuất task_id và status để phục vụ logging
     if isinstance(response_msg, BaseModel):
+        # ép nó về json
         data = response_msg.model_dump(mode="json")
+        # lấy data
         inner = getattr(response_msg, "data", None)
+        # lấy id
         task_id = getattr(inner, "id", "UNKNOWN") if inner else "UNKNOWN"
+        # lấy status
         doc_status = getattr(inner, "status", "UNKNOWN") if inner else "UNKNOWN"
     elif isinstance(response_msg, dict):
         data = response_msg
@@ -53,3 +57,4 @@ async def publish_expense_ocr_response(
     except Exception as e:
         logger.error(f"Failed to publish Expense OCR response for task {task_id}: {e}", exc_info=True)
         raise
+    

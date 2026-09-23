@@ -123,20 +123,9 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                     field_details=doc.fields
                 )
 
-            # Xác định trạng thái nghiệp vụ và các lỗi theo chuẩn Spec
+            # Xác định trạng thái nghiệp vụ: Lấy trực tiếp kết quả và message từ Service
             errors = result.get("validation_errors", [])
-            has_not_tax_doc_error = any(isinstance(err, dict) and err.get("code") == "ERR_NOT_TAX_DOCUMENT" for err in errors)
-            has_year_error = any(isinstance(err, dict) and err.get("code") == "ERR_YEAR_MISMATCH" for err in errors)
-            has_doc_type_error = any(isinstance(err, dict) and err.get("code") == "ERR_INVALID_DOC_TYPE" for err in errors)
-            has_future_date_error = any(isinstance(err, dict) and err.get("code") == "ERR_FUTURE_DATE" for err in errors)
-            has_quality_error = any(isinstance(err, dict) and err.get("code") == "ERR_IMAGE_QUALITY_TOO_LOW" for err in errors)
-
-            is_valid = (
-                result["is_passed_threshold"]
-                and result["is_year_valid"]
-                and result["is_doc_type_valid"]
-                and len(errors) == 0
-            )
+            is_valid = len(errors) == 0
 
             if is_valid:
                 doc_status = DocumentExtractionStatus.EXTRACTED
@@ -145,16 +134,12 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
             else:
                 doc_status = DocumentExtractionStatus.FAILED
                 status_code = 422
-                if has_not_tax_doc_error:
-                    response_message = "Uploaded file is not recognized as a valid tax document."
-                elif has_year_error:
-                    response_message = "Validation failed: Document date does not match the active filing tax year."
-                elif has_doc_type_error:
-                    response_message = "Validation failed: Document type is not eligible for Personal Income Tax deductions."
-                elif has_future_date_error:
-                    response_message = "Invoice date cannot be greater than the current date."
-                elif has_quality_error:
-                    response_message = "Image quality is too low for accurate tax document extraction. Please capture or upload a clearer document."
+                first_err = errors[0] if errors else None
+                if isinstance(first_err, dict) and "message" in first_err:
+                    response_message = first_err["message"]
+                elif first_err:
+                    response_message = str(first_err)
+                    # nếu ko có bất kì nội dung nào thì nhảy xuống đây
                 else:
                     response_message = "Validation failed for tax document."
 
