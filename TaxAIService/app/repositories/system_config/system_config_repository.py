@@ -63,6 +63,7 @@ class SystemConfigRepository(ISystemConfigRepository):
             logger.warning(f"Không thể đọc float từ key '{config_key}' ({e}). Dùng mặc định {default}.")
         return default
 
+    # Mục tiêu hàm này dùng để check ngưỡng mà admin đã cấu hình từng ngưỡng theo danh mục nếu ko có xài ngưỡng chung
     def get_system_threshold(self, category_code: Optional[str] = None, default: float = 0.80) -> float:
         """
         Lấy ngưỡng tin cậy theo thứ tự ưu tiên 3 tầng:
@@ -85,13 +86,16 @@ class SystemConfigRepository(ISystemConfigRepository):
         # Tầng 3: Giá trị mặc định trong code
         return default
 
+    # Mục tiêu dùng để kiểm tra các trường cốt lõi của cái loại danh mục đó
     def get_crucial_fields(self, category_code: Optional[str] = None) -> Set[str]:
         """
         Lấy danh sách các trường cốt lõi bắt buộc rõ nét.
         Hỗ trợ đọc key riêng theo category hoặc key chung CRUCIAL_EXTRACTION_FIELDS.
         """
+        # lấy lên các trường trong loại danh mục mà admin thêm vào
         target_key = f"CRUCIAL_FIELDS_{category_code.strip().upper()}" if category_code else "CRUCIAL_EXTRACTION_FIELDS"
         try:
+            # Check key với status true
             config_row = self.get_by_key(target_key, active_only=True)
             if not config_row and category_code:
                 # Nếu category chưa có, fallback về key chung
