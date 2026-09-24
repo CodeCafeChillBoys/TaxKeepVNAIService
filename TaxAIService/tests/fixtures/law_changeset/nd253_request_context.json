@@ -1,0 +1,453 @@
+{
+  "baseRevision": 4,
+  "documentNumberHint": null,
+  "sourceUrl": null,
+  "currentRules": [
+    {
+      "versionId": "00000000-0000-0000-0000-000000000101",
+      "ruleCode": "PIT_TAX_SCHEDULE",
+      "valueKind": "SCHEDULE",
+      "valueNumber": null,
+      "valueText": null,
+      "unit": "VND/year",
+      "condition": null,
+      "conditionText": null,
+      "valueJson": [
+        {
+          "toAnnual": 60000000,
+          "rate": 0.05
+        },
+        {
+          "toAnnual": 120000000,
+          "rate": 0.1
+        },
+        {
+          "toAnnual": 216000000,
+          "rate": 0.15
+        },
+        {
+          "toAnnual": 384000000,
+          "rate": 0.2
+        },
+        {
+          "toAnnual": 624000000,
+          "rate": 0.25
+        },
+        {
+          "toAnnual": 960000000,
+          "rate": 0.3
+        },
+        {
+          "toAnnual": null,
+          "rate": 0.35
+        }
+      ],
+      "applyFrom": "2009-01-01",
+      "applyTo": "2026-01-01",
+      "citation": {
+        "documentNumber": "103/VBHN-VPQH",
+        "article": "22",
+        "clause": null,
+        "point": null,
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000102",
+      "ruleCode": "PIT_TAX_SCHEDULE",
+      "valueKind": "SCHEDULE",
+      "valueNumber": null,
+      "valueText": null,
+      "unit": "VND/year",
+      "condition": null,
+      "conditionText": null,
+      "valueJson": [
+        {
+          "toAnnual": 120000000,
+          "rate": 0.05
+        },
+        {
+          "toAnnual": 360000000,
+          "rate": 0.1
+        },
+        {
+          "toAnnual": 720000000,
+          "rate": 0.2
+        },
+        {
+          "toAnnual": 1200000000,
+          "rate": 0.3
+        },
+        {
+          "toAnnual": null,
+          "rate": 0.35
+        }
+      ],
+      "applyFrom": "2026-01-01",
+      "applyTo": null,
+      "citation": {
+        "documentNumber": "112/VBHN-VPQH",
+        "article": "9",
+        "clause": null,
+        "point": null,
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000201",
+      "ruleCode": "PIT_DEDUCTION_PERSONAL",
+      "valueKind": "AMOUNT",
+      "valueNumber": 9000000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2013-07-01",
+      "applyTo": "2020-01-01",
+      "citation": {
+        "documentNumber": "103/VBHN-VPQH",
+        "article": "19",
+        "clause": "1",
+        "point": "a",
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000202",
+      "ruleCode": "PIT_DEDUCTION_PERSONAL",
+      "valueKind": "AMOUNT",
+      "valueNumber": 11000000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2020-01-01",
+      "applyTo": "2026-01-01",
+      "citation": {
+        "documentNumber": "954/2020/UBTVQH14",
+        "article": "1",
+        "clause": "1",
+        "point": null,
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000203",
+      "ruleCode": "PIT_DEDUCTION_PERSONAL",
+      "valueKind": "AMOUNT",
+      "valueNumber": 15500000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2026-01-01",
+      "applyTo": null,
+      "citation": {
+        "documentNumber": "112/VBHN-VPQH",
+        "article": "10",
+        "clause": "1",
+        "point": "a",
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000301",
+      "ruleCode": "PIT_DEDUCTION_DEPENDENT",
+      "valueKind": "AMOUNT",
+      "valueNumber": 3600000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/person/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2013-07-01",
+      "applyTo": "2020-01-01",
+      "citation": {
+        "documentNumber": "103/VBHN-VPQH",
+        "article": "19",
+        "clause": "1",
+        "point": "b",
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000302",
+      "ruleCode": "PIT_DEDUCTION_DEPENDENT",
+      "valueKind": "AMOUNT",
+      "valueNumber": 4400000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/person/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2020-01-01",
+      "applyTo": "2026-01-01",
+      "citation": {
+        "documentNumber": "954/2020/UBTVQH14",
+        "article": "1",
+        "clause": "2",
+        "point": null,
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000303",
+      "ruleCode": "PIT_DEDUCTION_DEPENDENT",
+      "valueKind": "AMOUNT",
+      "valueNumber": 6200000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/person/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2026-01-01",
+      "applyTo": null,
+      "citation": {
+        "documentNumber": "112/VBHN-VPQH",
+        "article": "10",
+        "clause": "1",
+        "point": "b",
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000401",
+      "ruleCode": "PIT_DEPENDENT_MAX_MONTHLY_INCOME",
+      "valueKind": "AMOUNT",
+      "valueNumber": 1000000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/month",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2013-07-01",
+      "applyTo": null,
+      "citation": {
+        "documentNumber": "111/2013/TT-BTC",
+        "article": "9",
+        "clause": "1",
+        "point": null,
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000501",
+      "ruleCode": "PIT_WITHHOLD_CASUAL_RATE",
+      "valueKind": "RATE",
+      "valueNumber": 0.1,
+      "valueJson": null,
+      "valueText": null,
+      "unit": null,
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2013-07-01",
+      "applyTo": null,
+      "citation": {
+        "documentNumber": "111/2013/TT-BTC",
+        "article": "25",
+        "clause": "1",
+        "point": "i",
+        "page": null
+      }
+    },
+    {
+      "versionId": "00000000-0000-0000-0000-000000000502",
+      "ruleCode": "PIT_WITHHOLD_CASUAL_MIN_PAYMENT",
+      "valueKind": "AMOUNT",
+      "valueNumber": 2000000,
+      "valueJson": null,
+      "valueText": null,
+      "unit": "VND/payment",
+      "condition": null,
+      "conditionText": null,
+      "applyFrom": "2013-07-01",
+      "applyTo": null,
+      "citation": {
+        "documentNumber": "111/2013/TT-BTC",
+        "article": "25",
+        "clause": "1",
+        "point": "i",
+        "page": null
+      }
+    }
+  ],
+  "ruleCatalog": [
+    {
+      "ruleCode": "PIT_TAX_SCHEDULE",
+      "ruleGroup": "SCHEDULE",
+      "valueKind": "SCHEDULE",
+      "defaultUnit": "VND/year",
+      "displayName": "Biểu thuế lũy tiến từng phần cho thu nhập từ tiền lương, tiền công của cá nhân cư trú, ngưỡng tính theo năm",
+      "description": "Biểu thuế lũy tiến từng phần cho thu nhập từ tiền lương, tiền công của cá nhân cư trú, ngưỡng tính theo năm"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_PERSONAL",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/month",
+      "displayName": "Mức giảm trừ gia cảnh cho bản thân người nộp thuế",
+      "description": "Mức giảm trừ gia cảnh cho bản thân người nộp thuế"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_DEPENDENT",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/person/month",
+      "displayName": "Mức giảm trừ cho mỗi người phụ thuộc",
+      "description": "Mức giảm trừ cho mỗi người phụ thuộc"
+    },
+    {
+      "ruleCode": "PIT_DEPENDENT_GROUPS",
+      "ruleGroup": "DEPENDENT",
+      "valueKind": "JSON",
+      "defaultUnit": null,
+      "displayName": "Các nhóm người phụ thuộc và điều kiện",
+      "description": "Các nhóm người phụ thuộc và điều kiện"
+    },
+    {
+      "ruleCode": "PIT_DEPENDENT_MAX_MONTHLY_INCOME",
+      "ruleGroup": "DEPENDENT",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/month",
+      "displayName": "Thu nhập bình quân tháng tối đa của người phụ thuộc",
+      "description": "Thu nhập bình quân tháng tối đa của người phụ thuộc"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_MANDATORY_INSURANCE",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "FLAG",
+      "defaultUnit": null,
+      "displayName": "Được trừ các khoản bảo hiểm bắt buộc theo số thực đóng",
+      "description": "Được trừ các khoản bảo hiểm bắt buộc theo số thực đóng"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_VOLUNTARY_INSURANCE_CAP",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/month",
+      "displayName": "Mức trần được trừ cho bảo hiểm hưu trí bổ sung, hưu trí tự nguyện, nhân thọ",
+      "description": "Mức trần được trừ cho bảo hiểm hưu trí bổ sung, hưu trí tự nguyện, nhân thọ"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_CHARITY",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "FLAG",
+      "defaultUnit": null,
+      "displayName": "Được trừ các khoản đóng góp từ thiện, nhân đạo, khuyến học theo chứng từ",
+      "description": "Được trừ các khoản đóng góp từ thiện, nhân đạo, khuyến học theo chứng từ"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_MEDICAL",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/year",
+      "displayName": "Mức trần giảm trừ chi phí khám, chữa bệnh của người nộp thuế và người phụ thuộc",
+      "description": "Mức trần giảm trừ chi phí khám, chữa bệnh của người nộp thuế và người phụ thuộc"
+    },
+    {
+      "ruleCode": "PIT_DEDUCTION_EDUCATION",
+      "ruleGroup": "DEDUCTION",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/year",
+      "displayName": "Mức trần giảm trừ chi phí giáo dục, đào tạo (học phí) của người nộp thuế và người phụ thuộc",
+      "description": "Mức trần giảm trừ chi phí giáo dục, đào tạo (học phí) của người nộp thuế và người phụ thuộc"
+    },
+    {
+      "ruleCode": "PIT_SETTLEMENT_SELF_REQUIRED_IF_MED_EDU",
+      "ruleGroup": "SETTLEMENT",
+      "valueKind": "FLAG",
+      "defaultUnit": null,
+      "displayName": "Có đề nghị giảm trừ y tế, giáo dục thì người nộp thuế phải tự quyết toán",
+      "description": "Có đề nghị giảm trừ y tế, giáo dục thì người nộp thuế phải tự quyết toán"
+    },
+    {
+      "ruleCode": "PIT_WITHHOLD_CASUAL_RATE",
+      "ruleGroup": "WITHHOLDING",
+      "valueKind": "RATE",
+      "defaultUnit": null,
+      "displayName": "Tỷ lệ khấu trừ với cá nhân cư trú không ký hợp đồng lao động hoặc ký hợp đồng dưới 3 tháng",
+      "description": "Tỷ lệ khấu trừ với cá nhân cư trú không ký hợp đồng lao động hoặc ký hợp đồng dưới 3 tháng"
+    },
+    {
+      "ruleCode": "PIT_WITHHOLD_CASUAL_MIN_PAYMENT",
+      "ruleGroup": "WITHHOLDING",
+      "valueKind": "AMOUNT",
+      "defaultUnit": "VND/payment",
+      "displayName": "Mức chi trả mỗi lần, từ mức này trở lên thì phải khấu trừ theo PIT_WITHHOLD_CASUAL_RATE",
+      "description": "Mức chi trả mỗi lần, từ mức này trở lên thì phải khấu trừ theo PIT_WITHHOLD_CASUAL_RATE"
+    },
+    {
+      "ruleCode": "PIT_RATE_NON_RESIDENT_SALARY",
+      "ruleGroup": "RATE",
+      "valueKind": "RATE",
+      "defaultUnit": null,
+      "displayName": "Thuế suất với tiền lương, tiền công của cá nhân không cư trú",
+      "description": "Thuế suất với tiền lương, tiền công của cá nhân không cư trú"
+    },
+    {
+      "ruleCode": "PIT_EXEMPTION_OVERTIME",
+      "ruleGroup": "EXEMPTION",
+      "valueKind": "TEXT",
+      "defaultUnit": null,
+      "displayName": "Miễn thuế phần tiền lương làm đêm, làm thêm giờ được trả cao hơn",
+      "description": "Miễn thuế phần tiền lương làm đêm, làm thêm giờ được trả cao hơn"
+    },
+    {
+      "ruleCode": "PIT_EXEMPTION_RETIREMENT_PENSION",
+      "ruleGroup": "EXEMPTION",
+      "valueKind": "TEXT",
+      "defaultUnit": null,
+      "displayName": "Miễn thuế tiền lương hưu do Quỹ bảo hiểm xã hội chi trả",
+      "description": "Miễn thuế tiền lương hưu do Quỹ bảo hiểm xã hội chi trả"
+    },
+    {
+      "ruleCode": "PIT_EXEMPTION_INSURANCE_COMPENSATION",
+      "ruleGroup": "EXEMPTION",
+      "valueKind": "TEXT",
+      "defaultUnit": null,
+      "displayName": "Miễn thuế tiền bồi thường bảo hiểm, trợ cấp tai nạn lao động, bệnh nghề nghiệp",
+      "description": "Miễn thuế tiền bồi thường bảo hiểm, trợ cấp tai nạn lao động, bệnh nghề nghiệp"
+    }
+  ],
+  "knownDocuments": [
+    {
+      "documentNumber": "103/VBHN-VPQH",
+      "documentType": "VBHN",
+      "title": "Văn bản hợp nhất Luật Thuế thu nhập cá nhân (cũ)",
+      "legalStatus": "HET_HIEU_LUC"
+    },
+    {
+      "documentNumber": "04/2007/QH12",
+      "documentType": "LUAT",
+      "title": null,
+      "legalStatus": "HET_HIEU_LUC"
+    },
+    {
+      "documentNumber": "954/2020/UBTVQH14",
+      "documentType": "NGHI_QUYET",
+      "title": "Nghị quyết điều chỉnh mức giảm trừ gia cảnh",
+      "legalStatus": "CON_HIEU_LUC"
+    },
+    {
+      "documentNumber": "111/2013/TT-BTC",
+      "documentType": "THONG_TU",
+      "title": "Thông tư hướng dẫn Luật Thuế thu nhập cá nhân",
+      "legalStatus": "CON_HIEU_LUC"
+    },
+    {
+      "documentNumber": "112/VBHN-VPQH",
+      "documentType": "VBHN",
+      "title": "Văn bản hợp nhất Luật Thuế thu nhập cá nhân",
+      "legalStatus": "CON_HIEU_LUC"
+    },
+    {
+      "documentNumber": "109/2025/QH15",
+      "documentType": "LUAT",
+      "title": "Luật Thuế thu nhập cá nhân",
+      "legalStatus": "CON_HIEU_LUC"
+    }
+  ]
+}

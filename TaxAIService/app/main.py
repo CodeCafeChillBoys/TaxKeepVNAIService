@@ -59,6 +59,11 @@ app.include_router(url_rule_routes.router)
 app.include_router(dependent_ocr_routes.router)
 app.include_router(system_config_routes.router)
 
+if settings.LAW_CHANGESET_SYNC_ENDPOINT_ENABLED:
+    from app.api.routes.law_changeset import law_changeset_routes
+    app.include_router(law_changeset_routes.router)
+
+
 
 @app.get("/", include_in_schema=False)
 def root():

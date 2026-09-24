@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     RABBITMQ_EXPENSE_OCR_REQUEST_QUEUE: str = "expense.ocr.ai.request.queue"
     RABBITMQ_EXPENSE_OCR_RESPONSE_QUEUE: str = "expense.ocr.ai.response.queue"
 
+    # Law Changeset Extraction Config
+    RABBITMQ_LAW_CHANGESET_REQUEST_QUEUE: str = "law.changeset.request.queue"
+    RABBITMQ_LAW_CHANGESET_RESPONSE_QUEUE: str = "law.changeset.response.queue"
+    LAW_CHANGESET_MODEL: Optional[str] = None
+    LAW_CHANGESET_MAX_FILE_MB: int = 50
+    LAW_CHANGESET_INLINE_MAX_MB: int = 18
+    LAW_CHANGESET_MAX_PAGES_PER_CALL: int = 900
+    LAW_CHANGESET_TEXT_MAX_CHARS_PER_CALL: int = 600000
+    LAW_CHANGESET_CALL_TIMEOUT_SECONDS: int = 240
+    LAW_CHANGESET_TOTAL_DEADLINE_SECONDS: int = 720
+    LAW_CHANGESET_SYNC_ENDPOINT_ENABLED: bool = False
+
 
     model_config = SettingsConfigDict(
         env_file=".env",
