@@ -100,6 +100,16 @@ class ThresholdValidationResult(BaseModel):
 
 
 
+class RequiredDocument(BaseModel):
+    """Cấu trúc giấy tờ cần nộp, tương thích với Gemini Developer API schema."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    doc_type: Optional[str] = Field(None, alias="docType")
+    name: Optional[str] = Field(None, alias="name")
+    is_mandatory: Optional[bool] = Field(None, alias="isMandatory")
+    description: Optional[str] = Field(None, alias="description")
+
+
 class ExtractedDependentData(BaseModel):
     """Toàn bộ thông tin bóc tách chi tiết từ CCCD hoặc giấy tờ người phụ thuộc"""
     model_config = ConfigDict(populate_by_name=True)
@@ -182,7 +192,7 @@ class ExtractedDependentData(BaseModel):
         description="Kết quả kiểm tra ngưỡng động"
     )
 
-    required_documents: Optional[List[Dict[str, Any]]] = Field(
+    required_documents: Optional[List[RequiredDocument]] = Field(
         default_factory=list,
         alias="requiredDocuments",
         description="Danh sách các loại giấy tờ cần upload cho nhóm đối tượng này"
