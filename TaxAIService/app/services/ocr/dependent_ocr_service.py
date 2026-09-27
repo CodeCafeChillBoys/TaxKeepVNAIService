@@ -26,6 +26,7 @@ def evaluate_dynamic_threshold(
     Công thức: Tổng điểm các cột chia cho số lượng cột hiện có (tổng / độ dài).
 
     """
+    # chuyển cách confidence_score sang kiểu dic    
     scores_dict = confidence_scores.model_dump(exclude_none=True, by_alias=True)
     # Loại bỏ trường overall để không bị tính trùng vào mẫu số
     scores_dict.pop("overall", None)

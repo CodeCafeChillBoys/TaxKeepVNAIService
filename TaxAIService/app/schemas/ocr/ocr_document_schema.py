@@ -11,7 +11,7 @@ class DependentRuleItem(BaseModel):
     is_mandatory: bool = Field(True, alias="isMandatory", description="Bắt buộc hay không")
     description: Optional[str] = Field(None, alias="description", description="Tiêu chí/hướng dẫn của Admin")
 
-
+    
 class RuleValidationResult(BaseModel):
     """Kết quả AI đối chiếu giấy tờ thực tế với Rule của Admin"""
     model_config = ConfigDict(populate_by_name=True)
