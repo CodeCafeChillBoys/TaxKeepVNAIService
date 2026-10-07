@@ -7,6 +7,7 @@ from app.messaging.rabbitmq_client import rabbitmq_client
 from app.messaging.tax_rule.consumer import handle_tax_extract_message
 from app.messaging.dependent_ocr.consumer import handle_ocr_extract_message
 from app.messaging.expense_ocr.expense_consumer import handle_expense_ocr_job
+from app.messaging.income_ocr.income_consumer import handle_income_ocr_job
 
 logger = logging.getLogger(__name__)
 
@@ -58,14 +59,24 @@ async def start_rabbitmq_consumer() -> None:
                 settings.RABBITMQ_EXPENSE_OCR_RESPONSE_QUEUE, 
                 durable=True
             )
+            income_ocr_request_queue = await channel.declare_queue(
+                settings.RABBITMQ_INCOME_REQUEST_QUEUE, 
+                durable=True
+            )
+            await channel.declare_queue(
+                settings.RABBITMQ_INCOME_RESPONSE_QUEUE, 
+                durable=True
+            )
 
             logger.info(f"Consumer listening on Tax Queue: '{settings.RABBITMQ_TAX_REQUEST_QUEUE}'")
             logger.info(f"Consumer listening on OCR Queue: '{settings.RABBITMQ_OCR_REQUEST_QUEUE}'")
             logger.info(f"Consumer listening on Expense OCR Queue: '{settings.RABBITMQ_EXPENSE_OCR_REQUEST_QUEUE}'")
-
+            logger.info(f"Consumer listening on Income OCR Queue: '{settings.RABBITMQ_INCOME_REQUEST_QUEUE}'")
+            
             await tax_request_queue.consume(handle_tax_extract_message)
             await ocr_request_queue.consume(handle_ocr_extract_message)
             await expense_ocr_request_queue.consume(handle_expense_ocr_job)
+            await income_ocr_request_queue.consume(handle_income_ocr_job)
 
 
             # Giữ kết nối hoạt động
