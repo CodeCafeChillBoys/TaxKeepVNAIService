@@ -1,329 +1,267 @@
-# TÀI LIỆU ĐẶC TẢ KỸ THUẬT & KIẾN TRÚC PHÂN HỆ
-## MODULE: OCR GIẤY TỜ NGƯỜI PHỤ THUỘC & CƠ CHẾ ĐỐI SOÁT NGƯỠNG ĐỘNG (DEPENDENT DOCUMENT OCR & DYNAMIC THRESHOLD VALIDATION)
+# TÀI LIỆU ĐẶC TẢ NGHIỆP VỤ PHÂN HỆ
+## MODULE: OCR GIẤY TỜ NGƯỜI PHỤ THUỘC & ĐỐI SOÁT NGƯỠNG ĐỘNG (DEPENDENT DOCUMENT OCR & DYNAMIC THRESHOLD VALIDATION)
 **Nhánh phát triển:** `feature/implementation_DependentDocumentOcr`  
 **Dự án:** TaxKeep VN - Dịch vụ Trí tuệ Nhân tạo Hỗ trợ Thuế TNCN (TaxAIService)  
-**Ngày Bắt Đầu đặc tả:** 15/09/2026  
-**Ngày hoàn thiện đặc tả:** 20/09/2026  
-**Trạng thái:** Sẵn sàng nghiệm thu / Đã kiểm thử & tích hợp với Backend .NET  
+**Ngày hoàn thiện đặc tả:** 28/09/2026  
+**Trạng thái:** Đặc tả nghiệp vụ mức Conceptual (Chuyên sâu OCR) / Sẵn sàng Review  
 
 ---
 
-### MỤC LỤC
-1. [TỔNG QUAN BÀI TOÁN & BỐI CẢNH (PROBLEM STATEMENT)](#1-tổng-quan-bài-toán--bối-cảnh)
-2. [KIẾN TRÚC TÍCH HỢP HỆ THỐNG (SYSTEM INTEGRATION ARCHITECTURE)](#2-kiến-trúc-tích-hợp-hệ-thống)
-3. [ĐẶC TẢ CHI TIẾT TÍNH NĂNG OCR GIẤY TỜ (OCR ENGINE SPECIFICATION)](#3-đặc-tả-chi-tiết-tính-năng-ocr-giấy-tờ)
-4. [CƠ CHẾ BÓC TÁCH & ĐỐI SOÁT NGƯỠNG ĐỘNG (DYNAMIC THRESHOLD VALIDATION)](#4-cơ-chế-bóc-tách--đối-soát-ngưỡng-động)
-5. [CƠ CHẾ THẨM ĐỊNH QUY TẮC ĐỘNG TỪ ADMIN (DYNAMIC RULE COMPLIANCE)](#5-cơ-chế-thẩm-định-quy-tắc-động-từ-admin)
-6. [HỆ THỐNG QUẢN LÝ CẤU HÌNH HỆ THỐNG ĐỘNG (SYSTEM CONFIG SUBSYSTEM)](#6-hệ-thống-quản-lý-cấu-hình-hệ-thống-động)
-7. [ĐẶC TẢ GIAO DIỆN HÀNG ĐỢI RABBITMQ & REST API](#7-đặc-tả-giao-diện-hàng-đợi-rabbitmq--rest-api)
-8. [QUY TRÌNH KIỂM SOÁT ẢO GIÁC & AN TOÀN DỮ LIỆU (ANTI-HALLUCINATION)](#8-quy-trình-kiểm-soát-ảo-giác--an-toàn-dữ-liệu)
-9. [KẾT LUẬN & Ý NGHĨA KỸ THUẬT ĐỐI VỚI ĐỒ ÁN](#9-kết-luận--ý-nghĩa-kỹ-thuật)
+## 1. TỔNG QUAN PHÂN HỆ
+
+Phân hệ **OCR Giấy tờ Người phụ thuộc & Đối soát ngưỡng động** là thành phần xử lý trí tuệ nhân tạo thị giác (Computer Vision / Multimodal OCR) chuyên trách của dịch vụ `TaxAIService`. Phân hệ có nhiệm vụ tiếp nhận hình ảnh/tệp scan các loại giấy tờ pháp lý chứng minh người phụ thuộc, tự động nhận diện phân loại mẫu văn bản, trích xuất quang học toàn bộ các trường thông tin nhân thân, và chấm điểm độ tin cậy độc lập cho từng trường dữ liệu.
+
+Điểm cốt lõi của phân hệ là cơ chế **Đối soát ngưỡng tin cậy động (Dynamic Threshold Evaluation)**: thay vì cố định một con số tin cậy cứng trong mã nguồn, hệ thống cho phép đối chiếu điểm số của từng trường với các ngưỡng an toàn do Quản trị viên thiết lập động. Điều này giúp phát hiện chính xác các trường hợp tài liệu bị mờ, lóa sáng, che khuất hoặc chụp sai lệch, đảm bảo dữ liệu đưa vào hệ thống luôn đạt độ chính xác cao nhất.
 
 ---
 
-### 1. TỔNG QUAN BÀI TOÁN & BỐI CẢNH
+## 2. DANH SÁCH CÁC ĐẶC TẢ NGHIỆP VỤ CỐT LÕI (CHUYÊN PHẦN OCR)
 
-#### 1.1. Thách thức trong Đăng ký Giảm trừ Gia cảnh Thuế TNCN
-Khi người nộp thuế (Taxpayer) đăng ký người phụ thuộc để được giảm trừ thuế TNCN, họ bắt buộc phải cung cấp hồ sơ chứng minh quan hệ và điều kiện hợp pháp theo Thông tư 111/2013/TT-BTC:
-* **Con chưa thành niên / thành niên:** Căn cước công dân (CCCD), Giấy khai sinh, Thẻ sinh viên hoặc Giấy xác nhận của trường đại học.
-* **Người thân khuyết tật / không có khả năng lao động:** Giấy xác nhận khuyết tật, Giấy ra viện/hồ sơ bệnh án.
-* **Cha mẹ / Vợ chồng:** CCCD, Giấy chứng nhận kết hôn, Giấy xác nhận cư trú CT07, Bản cam kết nghĩa vụ nuôi dưỡng Mẫu 07/XN-NPT.
-
-#### 1.2. Hạn chế của phương pháp truyền thống
-1. **OCR truyền thống (Tesseract / EasyOCR):** Nhận diện ký tự quang học thô thường xuyên bị lỗi khi ảnh chụp xiên, bóng đổ, lóa đèn flash trên thẻ nhựa CCCD; không có khả năng hiểu ngữ nghĩa của văn bản hành chính Việt Nam.
-2. **Hardcode ngưỡng phê duyệt:** Đa phần hệ thống lập trình cứng một con số (ví dụ: confidence > 0.8 thì nhận, dưới thì từ chối). Điều này khiến hệ thống mất linh hoạt khi chính sách hoặc môi trường thực tế thay đổi.
-3. **Thiếu đánh giá chi tiết từng trường (Field-level Confidence):** Nếu một ảnh chụp rất nét toàn bộ nhưng duy nhất số CCCD bị lóa sáng, nếu chỉ có điểm tổng quan (Overall Score) thì hệ thống có thể bỏ lọt lỗi nghiêm trọng này.
-
-#### 1.3. Mục tiêu phân hệ trên nhánh `feature/implementation_DependentDocumentOcr`
-Xây dựng pipeline OCR thông minh sử dụng **Gemini Multimodal Vision** kết hợp với **Hệ thống đối soát ngưỡng động (Dynamic Threshold Evaluation)** lấy trực tiếp từ Database, cho phép:
-* Phía Backend Core (.NET) gửi ảnh (1 ảnh hoặc 2 ảnh mặt trước/mặt sau) sang qua RabbitMQ / REST API.
-* AI bóc tách toàn bộ thông tin định danh và đánh giá độ tin cậy độc lập cho từng trường dữ liệu.
-* Tính toán tự động điểm trung bình trên các trường hiện có và so khớp với ngưỡng quy định của Admin trong CSDL (`system_configs`).
-* Tự động cảnh báo và chỉ đích danh các trường không đạt chuẩn để người dùng chụp lại hoặc chuyển sang luồng hậu kiểm của cán bộ thuế (Human-in-the-loop).
+1. [Đặc tả 1: Tiếp nhận và tiền xử lý hình ảnh chứng từ OCR](#đặc-tả-1-tiếp-nhận-và-tiền-xử-lý-hình-ảnh-chứng-từ-ocr)
+2. [Đặc tả 2: Tự động nhận diện và phân loại mẫu giấy tờ](#đặc-tả-2-tự-động-nhận-diện-và-phân-loại-mẫu-giấy-tờ)
+3. [Đặc tả 3: Bóc tách quang học các trường dữ liệu định danh & chấm điểm tin cậy](#đặc-tả-3-bóc-tách-quang-học-các-trường-dữ-liệu-định-danh--chấm-điểm-tin-cậy)
+4. [Đặc tả 4: Thẩm định ngưỡng tin cậy OCR động & cảnh báo lỗi hình ảnh](#đặc-tả-4-thẩm-định-ngưỡng-tin-cậy-ocr-động--cảnh-báo-lỗi-hình-ảnh)
+5. [Đặc tả 5: Quản trị quy tắc bóc tách và cấu hình ngưỡng tin cậy OCR](#đặc-tả-5-quản-trị-quy-tắc-bóc-tách-và-cấu-hình-ngưỡng-tin-cậy-ocr)
 
 ---
 
-### 2. KIẾN TRÚC TÍCH HỢP HỆ THỐNG
+### ĐẶC TẢ 1: TIẾP NHẬN VÀ TIỀN XỬ LÝ HÌNH ẢNH CHỨNG TỪ OCR
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        TaxKeepVN Core (.NET BE)                        │
-│                                                                        │
-│  [Taxpayer Service]      [Rule Repository]      [RabbitMQ Publisher]   │
-│  Hồ sơ người phụ thuộc   dependent_document_rules  Gửi ảnh & TaskID    │
-└─────────────────────────────────────┬──────────────────────────────────┘
-                                      │
-              RabbitMQ Queue: `ocr.ai.request.queue`
-                                      │
-                                      ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                         TaxAIService (Python)                          │
-│                                                                        │
-│  [RabbitMQ Consumer]                                                   │
-│  - Giải mã ảnh (Base64 / URL httpx / Local path)                       │
-│  - Hỗ trợ nạp 2 mặt ảnh (CCCD trước + sau)                             │
-│                                      │                                 │
-│                                      ▼                                 │
-│  [DependentOcrService] ◄──── [SystemConfigRepository]                  │
-│  - Tạo Dynamic Prompt từ rules       - Đọc AI_CONFIDENCE_THRESHOLD     │
-│  - Gọi Gemini Vision (temp=0.0)      - Đọc THRESHOLD_<CATEGORY>        │
-│  - Structured JSON Schema            - Quản lý cấu hình kiểu dữ liệu   │
-│                                      │                                 │
-│                                      ▼                                 │
-│  [Dynamic Threshold Engine]                                            │
-│  - Tính trung bình: sum(fields) / len(fields)                          │
-│  - Lọc trường < applied_threshold (lowConfidenceFields)                │
-│  - Tạo warningMessage chi tiết                                         │
-│                                      │                                 │
-│                                      ▼                                 │
-│  [RabbitMQ Producer] ──────► `ocr.ai.response.queue`                   │
-└────────────────────────────────────────────────────────────────────────┘
-```
+#### 1. Tên chức năng
+Tiếp nhận và tiền xử lý hình ảnh chứng từ OCR (Image Ingestion & Preprocessing for OCR).
 
----
+#### 2. Mục đích
+Tiếp nhận các tệp hình ảnh hoặc tệp scan giấy tờ người phụ thuộc (hỗ trợ cả ảnh đơn hoặc cặp ảnh 2 mặt), kiểm tra tính toàn vẹn kỹ thuật của tệp hình ảnh và chuẩn hóa góc quay, độ phân giải trước khi đưa vào mô hình nhận dạng quang học.
 
-### 3. ĐẶC TẢ CHI TIẾT TÍNH NĂNG OCR GIẤY TỜ
+#### 3. Actor
+- Hệ thống gọi dịch vụ (Client / Core Backend)
+- Dịch vụ tiền xử lý hình ảnh OCR (System Preprocessor)
 
-#### 3.1. Hỗ trợ đa dạng thể thức giấy tờ và đầu vào
-* **Cấu hình xử lý đa ảnh:** Hỗ trợ tiếp nhận đồng thời 2 mặt giấy tờ (ví dụ: Mặt trước và Mặt sau của thẻ CCCD gắn chip).
-* **Định danh giấy tờ (Document Taxonomy):**
-  * `CITIZEN_ID`: Căn cước công dân / CMND (CCCD_FRONT, CCCD_BACK, CCCD_BOTH).
-  * `BIRTH_CERTIFICATE`: Giấy khai sinh (Bản chính hoặc trích lục).
-  * `STUDENT_CARD`: Thẻ học sinh, sinh viên, giấy xác nhận của cơ sở đào tạo.
-  * `DISABILITY_CERTIFICATE`: Giấy xác nhận mức độ khuyết tật.
-  * `MARRIAGE_CERTIFICATE`: Giấy chứng nhận kết hôn.
-  * `RELATIONSHIP_CERTIFICATE`: Giấy tờ chứng minh quan hệ thân nhân.
-  * `SUPPORT_COMMITMENT_FORM`: Bản cam kết nghĩa vụ nuôi dưỡng (Mẫu 07/XN-NPT).
-  * `RESIDENCE_CT07`: Giấy xác nhận thông tin về cư trú (Mẫu CT07).
-  * `OTHER`: Giấy tờ hợp lệ khác.
+#### 4. Điều kiện trước
+- Tệp hình ảnh hoặc tệp PDF được gửi đến dịch vụ OCR qua giao diện xử lý (tải trực tiếp hoặc qua cơ chế hàng đợi bất đồng bộ).
 
-#### 3.2. Cấu trúc dữ liệu bóc tách (`ExtractedDependentData`)
-1. **Thông tin định danh cá nhân:**
-   * `citizenId`: Số CCCD/CMND (chuẩn hóa 12 hoặc 9 chữ số dạng chuỗi, bảo toàn số 0 ở đầu).
-   * `fullName`: Họ và tên viết IN HOA CÓ DẤU (ví dụ: NGUYỄN VĂN AN).
-   * `birthDate`: Ngày tháng năm sinh định dạng chuẩn quốc tế `YYYY-MM-DD`.
-   * `gender`: Giới tính (`MALE` / `FEMALE`).
-   * `nationality`: Quốc tịch (mặc định "Việt Nam").
-   * `originPlace`: Quê quán ghi trên thẻ.
-   * `residencePlace`: Nơi thường trú ghi trên thẻ.
-   * `issueDate`: Ngày cấp giấy tờ (`YYYY-MM-DD`).
-   * `expiryDate`: Ngày hết hạn thẻ CCCD (`YYYY-MM-DD`).
-2. **Thông tin nhân thân (Hỗ trợ giấy khai sinh, kết hôn, CT07):**
-   * `fatherFullName`, `fatherIdNumber`: Thông tin người cha.
-   * `motherFullName`, `motherIdNumber`: Thông tin người mẹ.
-   * `spouseFullName`: Thông tin người phối ngẫu (vợ/chồng).
-3. **Thông tin văn bản hành chính:**
-   * `documentType`: Mã phân loại giấy tờ nhận diện được.
-   * `documentNumber`: Số hiệu văn bản / số vào sổ hộ tịch.
-   * `issuingAuthority`: Cơ quan cấp (ví dụ: Cục Cảnh sát QLHC về TTXH, UBND...).
+#### 5. Luồng chính
+1. Hệ thống tiếp nhận yêu cầu xử lý OCR kèm tệp chứng từ:
+   - *Trường hợp ảnh đơn:* 1 tệp ảnh hoặc PDF (Giấy khai sinh, Giấy xác nhận thông tin cư trú CT07, Thẻ sinh viên, Giấy xác nhận khuyết tật...).
+   - *Trường hợp ảnh cặp:* 2 tệp ảnh tương ứng Mặt trước và Mặt sau của thẻ Căn cước công dân (CCCD).
+2. Hệ thống thực hiện kiểm tra kỹ thuật sơ bộ:
+   - Kiểm tra định dạng tệp (JPEG, PNG, WebP, PDF).
+   - Kiểm tra dung lượng tệp (trong ngưỡng quy định, ví dụ <= 10MB/ảnh).
+   - Kiểm tra độ phân giải tối thiểu để đảm bảo ký tự có thể đọc được (tối thiểu 720p).
+3. Hệ thống tiến hành chuẩn hóa hình ảnh:
+   - Tự động phát hiện hướng đặt văn bản và xoay thẳng ảnh về góc 0° chuẩn (Orientation Correction).
+   - Tự động cân bằng độ sáng, độ tương phản và khử nhiễu nhẹ nếu ảnh bị tối.
+4. Đóng gói luồng hình ảnh đã chuẩn hóa và chuyển sang phân hệ phân loại mẫu giấy tờ.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Tệp bị hỏng hoặc sai định dạng:** Tệp không thể giải mã thành ảnh (corrupted file) hoặc không đúng định dạng cho phép -> Hệ thống trả về mã lỗi: `INVALID_IMAGE_FORMAT` kèm thông báo chi tiết.
+- **Dung lượng vượt quá giới hạn:** Tệp vượt quá dung lượng cho phép -> Hệ thống từ chối xử lý và yêu cầu giảm độ phân giải xuống mức phù hợp.
+- **Ảnh quá mờ / đen hoàn toàn:** Hệ thống kiểm tra sơ bộ phát hiện độ sắc nét quá thấp (Blur score dưới sàn tối thiểu) -> Trả về cảnh báo ảnh không đủ điều kiện xử lý OCR ngay tại tầng tiền xử lý.
+
+#### 7. Kết quả sau khi thực hiện
+- Hình ảnh chứng từ được chuẩn hóa sạch, đúng chiều đọc và sẵn sàng cho công đoạn nhận dạng ký tự quang học.
+
+#### 8. Business Rules
+- Khi xử lý thẻ CCCD, nếu phía client cung cấp 2 ảnh (mặt trước và mặt sau), hệ thống phải gom nhóm và xử lý đồng thời trong cùng một ngữ cảnh bóc tách để liên kết thông tin 2 mặt.
+- Tiền xử lý không được làm biến dạng tỷ lệ khung hình (Aspect Ratio) hoặc làm suy giảm chất lượng các chi tiết vi mô của ký tự.
+
+#### 9. Điểm chưa thống nhất
+- Cơ chế hỗ trợ định dạng ảnh chụp từ điện thoại iPhone (tệp đuôi `.HEIC`): Có tự động chuyển đổi sang JPEG trên hệ thống hay bắt buộc phía client phải chuyển đổi trước khi gửi?
 
 ---
 
-### 4. CƠ CHẾ BÓC TÁCH & ĐỐI SOÁT NGƯỠNG ĐỘNG (DYNAMIC THRESHOLD VALIDATION)
+### ĐẶC TẢ 2: TỰ ĐỘNG NHẬN DIỆN VÀ PHÂN LOẠI MẪU GIẤY TỜ
 
-Đây là điểm cải tiến kỹ thuật trọng tâm của nhánh phát triển này.
+#### 1. Tên chức năng
+Tự động nhận diện và phân loại mẫu giấy tờ (Automated Document Classification for OCR).
 
-#### 4.1. Đánh giá độ tin cậy từng trường (Field-level Confidence Scores)
-Mô hình Gemini đánh giá độc lập xác suất chính xác từ $0.0$ đến $1.0$ cho từng trường dữ liệu bóc tách được:
-```json
-{
-  "confidenceScores": {
-    "citizenId": 0.98,
-    "fullName": 0.95,
-    "birthDate": 0.99,
-    "gender": 1.0,
-    "nationality": 1.0,
-    "originPlace": 0.90,
-    "residencePlace": 0.92,
-    "expiryDate": 0.95,
-    "issueDate": 0.88,
-    "documentType": 0.95
-  }
-}
-```
-*Trường hợp một trường dữ liệu không xuất hiện trên tài liệu (ví dụ: CCCD không có thông tin cha/mẹ), trường đó nhận giá trị `null` và điểm tin cậy tương ứng là `null`.*
+#### 2. Mục đích
+Ứng dụng thị giác máy tính để tự động nhận biết cấu trúc, bố cục thị giác và tiêu đề văn bản nhằm phân loại chính xác giấy tờ thuộc mẫu biểu nào, từ đó áp dụng khuôn mẫu bóc tách ký tự phù hợp nhất.
 
-#### 4.2. Thuật toán tính toán điểm tin cậy trung bình tự động
-Hàm `evaluate_dynamic_threshold(confidence_scores, applied_threshold)` thực hiện tính toán:
-1. **Lọc dữ liệu:** Loại bỏ toàn bộ các trường có giá trị `None` (chỉ xét các trường thực tế có trên giấy tờ).
-2. **Loại trừ trường `overall`:** Ngăn chặn việc trường tổng thể tính trùng vào mẫu số.
-3. **Công thức toán học:**
-   $$\text{Overall Confidence} = \text{round}\left(\frac{\sum_{i=1}^{N} \text{Score}_i}{N}, 2\right)$$
-   *(Trong đó $N$ là tổng số lượng các trường dữ liệu hiện diện trên ảnh).*
+#### 3. Actor
+- Dịch vụ phân loại AI (Classification Engine)
+- Hệ thống (System)
 
-#### 4.3. Quy trình đối soát ngưỡng 3 tầng (3-Tier Applied Threshold)
-Hệ thống tuyệt đối không dùng số cứng (hardcode) trong code. Ngưỡng được truy xuất tự động từ bảng `system_configs` theo thứ tự ưu tiên:
-1. **Tầng 1 (Danh mục cụ thể):** Truy vấn `THRESHOLD_<CATEGORY_CODE>` (ví dụ: `THRESHOLD_CITIZEN_ID`, `THRESHOLD_BIRTH_CERTIFICATE`).
-2. **Tầng 2 (Toàn hệ thống):** Truy vấn khóa `AI_CONFIDENCE_THRESHOLD` (ví dụ Admin cấu hình `0.85`).
-3. **Tầng 3 (Fallback an toàn):** Giá trị mặc định `0.80`.
+#### 4. Điều kiện trước
+- Hình ảnh chứng từ đã hoàn thành công đoạn tiền xử lý.
 
-#### 4.4. Phân tích kết quả kiểm tra ngưỡng (`ThresholdValidationResult`)
-* `appliedThreshold`: Ngưỡng tin cậy áp dụng thực tế (ví dụ: 0.85).
-* `overallConfidence`: Điểm tin cậy trung bình tính toán được (ví dụ: 0.82).
-* `isPassedThreshold`: `true` nếu $\text{overallConfidence} \ge \text{appliedThreshold}$, ngược lại `false`.
-* `lowConfidenceFields`: Tự động duyệt và trả về danh sách tên các trường có điểm nhỏ hơn ngưỡng:
-  $$\text{LowFields} = \{ \text{field}_i \mid \text{Score}_i < \text{appliedThreshold} \}$$
-* `warningMessage`: Tự động tổng hợp thông điệp cảnh báo rõ ràng gửi về client:
-  > *"Độ tin cậy trích xuất (0.82) thấp hơn ngưỡng quy định (0.85). Các trường không đạt yêu cầu: [issueDate, residencePlace]. Vui lòng kiểm tra lại hoặc chụp ảnh rõ nét hơn."*
+#### 5. Luồng chính
+1. Hệ thống quét bố cục tổng thể, các dấu hiệu đặc trưng (quốc huy, hoa văn bảo an, con dấu, tiêu đề quốc hiệu):
+2. Hệ thống phân loại chứng từ vào một trong các loại danh mục tài liệu được hỗ trợ:
+   - `CCCD_CHIP_FRONT` / `CCCD_CHIP_BACK`: Thẻ Căn cước công dân gắn chip (mặt trước / mặt sau).
+   - `CCCD_12_FRONT` / `CCCD_12_BACK`: Thẻ Căn cước công dân 12 số không chip / CMND.
+   - `BIRTH_CERTIFICATE`: Giấy khai sinh (bản chính, bản sao trích lục).
+   - `CT07_RESIDENCE_CERTIFICATE`: Giấy xác nhận thông tin về cư trú (Mẫu CT07).
+   - `STUDENT_CARD_OR_CERTIFICATE`: Thẻ học sinh / sinh viên hoặc Giấy xác nhận của cơ sở đào tạo.
+   - `DISABILITY_CERTIFICATE`: Giấy xác nhận mức độ khuyết tật hoặc hồ sơ bệnh án.
+3. Hệ thống trả về mã định danh loại tài liệu (`docTypeCode`) kèm chỉ số tin cậy phân loại (Classification Confidence).
+4. Hệ thống nạp bộ quy tắc bóc tách trường tương ứng với loại tài liệu vừa nhận diện để phục vụ bước bóc tách tiếp theo.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Tài liệu không thuộc danh mục hỗ trợ:** Ảnh tải lên là chứng từ khác (ví dụ: bằng lái xe, hóa đơn, hộ chiếu, ảnh chụp ngẫu nhiên) -> Hệ thống tự động gán nhãn `UNSUPPORTED_DOCUMENT` kèm lý do nhận diện và dừng tiến trình bóc tách.
+- **Tài liệu bị che khuất tiêu đề và con dấu:** Không đủ đặc trưng để phân biệt giữa Giấy khai sinh và văn bản hành chính thông thường -> Gán nhãn `UNKNOWN_DOCUMENT` và chuyển cảnh báo chất lượng hình ảnh về cho client.
+
+#### 7. Kết quả sau khi thực hiện
+- Xác định chính xác loại văn bản của từng tệp ảnh, sẵn sàng kích hoạt đúng khuôn mẫu bóc tách ký tự cho từng trường tương ứng.
+
+#### 8. Business Rules
+- Nếu người dùng nộp CCCD mà chỉ gửi 1 ảnh mặt sau, hệ thống phải phân loại rõ là "Mặt sau CCCD" và thông báo cần bổ sung mặt trước mới đủ bộ trường thông tin cơ bản.
+- Tỷ lệ tin cậy phân loại mẫu giấy tờ phải đạt trên 0.85; nếu dưới mức này, tài liệu bị coi là không xác định được danh tính mẫu.
+
+#### 9. Điểm chưa thống nhất
+- Phân biệt giữa Giấy khai sinh viết tay cũ (trước năm 2000) và Giấy khai sinh in vi tính hiện đại: Có cần chia thành 2 mã loại bóc tách riêng biệt hay dùng chung một bộ trích xuất?
 
 ---
 
-### 5. CƠ CHẾ THẨM ĐỊNH QUY TẮC ĐỘNG TỪ ADMIN (DYNAMIC RULE COMPLIANCE)
+### ĐẶC TẢ 3: BÓC TÁCH QUANG HỌC CÁC TRƯỜNG DỮ LIỆU ĐỊNH DANH & CHẤM ĐIỂM TIN CẬY
 
-Khi Backend .NET gửi yêu cầu OCR, có thể đính kèm danh sách quy tắc kiểm tra từ bảng `dependent_document_rules`.
+#### 1. Tên chức năng
+Bóc tách quang học các trường dữ liệu định danh & chấm điểm tin cậy (Field-level Data Extraction & Confidence Scoring).
 
-#### 5.1. Cấu trúc Rule đính kèm
-```json
-[
-  {
-    "docType": "CITIZEN_ID",
-    "isMandatory": true,
-    "description": "CCCD còn hạn sử dụng, không mờ số, đầy đủ 2 mặt"
-  },
-  {
-    "docType": "STUDENT_CARD",
-    "isMandatory": false,
-    "description": "Thẻ sinh viên có niên khóa còn hiệu lực trong năm tính thuế"
-  }
-]
-```
+#### 2. Mục đích
+Trích xuất toàn bộ các ký tự chữ và số trên từng vùng thông tin của giấy tờ, chuyển đổi hình ảnh thành dữ liệu có cấu trúc, đồng thời tính toán điểm tin cậy độc lập (Field Confidence Score) từ 0.0 đến 1.0 cho từng trường.
 
-#### 5.2. Kết quả AI đối soát (`RuleValidationResult`)
-AI đóng vai trò chuyên gia pháp lý rà soát tài liệu theo mô tả của Admin:
-* `isMatchedRule`: `true` nếu loại giấy tờ trong ảnh thuộc danh mục Admin yêu cầu.
-* `matchedDocType`: Trả về chính xác mã `docType` được khớp.
-* `isCompliantWithDescription`: `true` nếu tài liệu thỏa mãn các điều kiện ghi trong `description` (ví dụ: còn hạn, có mộc đỏ...).
-* `notes`: Lời nhận xét khách quan của AI hỗ trợ cán bộ thuế duyệt hồ sơ.
+#### 3. Actor
+- Động cơ OCR đa phương thức (Multimodal OCR Engine)
+- Hệ thống (System)
 
----
+#### 4. Điều kiện trước
+- Tài liệu đã được phân loại thành công vào một mẫu giấy tờ cụ thể.
 
-### 6. HỆ THỐNG QUẢN LÝ CẤU HÌNH HỆ THỐNG ĐỘNG (SYSTEM CONFIG SUBSYSTEM)
+#### 5. Luồng chính
+1. Hệ thống kích hoạt bộ trích xuất dữ liệu tương ứng với loại giấy tờ đã nhận diện.
+2. Hệ thống bóc tách các trường dữ liệu định danh chi tiết:
+   - **Đối với Thẻ Căn cước công dân (CCCD):**
+     - Số Căn cước công dân / Số định danh (12 chữ số).
+     - Họ và tên (chữ hoa có dấu).
+     - Ngày tháng năm sinh (định dạng chuẩn `DD/MM/YYYY`).
+     - Giới tính, Quốc tịch, Quê quán, Nơi thường trú.
+     - Ngày cấp, Ngày hết hạn giá trị, Đặc điểm nhân dạng (mặt sau).
+   - **Đối với Giấy khai sinh:**
+     - Số văn bản, Số quyển trích lục.
+     - Họ tên người được khai sinh, Ngày tháng năm sinh, Giới tính, Dân tộc.
+     - Nơi sinh / Nơi đăng ký khai sinh.
+     - Họ tên, năm sinh, số định danh của Cha và Mẹ.
+   - **Đối với Giấy xác nhận cư trú (CT07):**
+     - Họ tên chủ hộ, Thông tin các thành viên trong gia đình kèm số định danh và mối quan hệ với chủ hộ.
+   - **Đối với Thẻ sinh viên / Giấy xác nhận trường:**
+     - Tên cơ sở đào tạo, Họ tên học sinh/sinh viên, Mã số sinh viên, Niên khóa đào tạo.
+3. Đối với từng trường thông tin bóc tách được, Hệ thống đo lường và chấm **Điểm tin cậy độc lập (Confidence Score)** từ 0.0 đến 1.0:
+   - Điểm số phản ánh mức độ rõ nét của nét chữ, độ tự tin của mô hình thị giác và mức độ chuẩn mực ngữ nghĩa tiếng Việt của từ bóc tách.
+4. Đóng gói kết quả bóc tách thành danh sách các cặp giá trị: `[Tên trường, Giá trị ký tự, Điểm tin cậy]`.
 
-Để phục vụ bài toán ngưỡng động và các tham số vận hành AI, nhánh này bổ sung hệ thống cấu hình động hoàn chỉnh:
+#### 6. Luồng thay thế / Ngoại lệ
+- **Ký tự bị lóa đèn flash hoặc vết ố:** Ví dụ 3 số cuối của dãy số CCCD bị ánh đèn flash che phủ -> Hệ thống trích xuất phần chữ số đọc được, phần bị lóa đánh dấu ký tự không đọc được (`?`) và hạ điểm tin cậy của trường đó xuống mức thấp (ví dụ 0.3 - 0.5).
+- **Chữ viết tay cổ bị nhòe:** Trên giấy khai sinh cũ, họ tên hoặc ngày sinh bị ố vàng, nét mực phai -> Bóc tách giá trị phỏng đoán kèm cờ cảnh báo chữ viết tay độ tin cậy thấp.
 
-#### 6.1. Bảng cơ sở dữ liệu `system_configs`
-* `config_id` (UUID PK): Khóa chính.
-* `config_key` (String 100 UNIQUE): Khóa định danh (ví dụ: `AI_CONFIDENCE_THRESHOLD`, `CRUCIAL_EXTRACTION_FIELDS`).
-* `config_value` (Text): Giá trị cấu hình lưu dưới dạng chuỗi.
-* `data_type` (Enum): Kiểu dữ liệu (`STRING`, `INT`, `FLOAT`, `BOOLEAN`, `JSON`, `LIST_STRING`).
-* `description` (Text): Diễn giải ý nghĩa cấu hình.
-* `is_active` (Boolean): Trạng thái kích hoạt.
-* `is_deleted` (Boolean): Hỗ trợ Xóa mềm (Soft Delete).
-* `created_at`, `updated_at`: Dấu vết thời gian.
+#### 7. Kết quả sau khi thực hiện
+- Bộ dữ liệu định danh hoàn chỉnh dưới dạng số hóa có cấu trúc.
+- Mỗi trường dữ liệu đều có thước đo định lượng về chất lượng nhận dạng, phục vụ cho việc đối soát tự động.
 
-#### 6.2. Cơ chế tự động nhận diện & kiểm tra kiểu dữ liệu (`system_config_service.py`)
-* Hệ thống tự động suy đoán kiểu dữ liệu khi Admin nhập giá trị:
-  * `0.85` hoặc `0,85` $\rightarrow$ Tự động chuẩn hóa và lưu kiểu `FLOAT`.
-  * `true`/`false` $\rightarrow$ Lưu kiểu `BOOLEAN`.
-  * Chuỗi JSON hợp lệ $\rightarrow$ Lưu kiểu `JSON`.
-* Bắt lỗi chặt chẽ: Ngăn chặn Admin nhập chuỗi văn bản vào cấu hình số float hoặc nhập sai cú pháp JSON.
+#### 8. Business Rules
+- **Nguyên tắc chống ảo giác (Anti-Hallucination):** Mô hình OCR tuyệt đối không được tự ý bịa thêm ký tự hoặc tự động sửa số CCCD nếu hình ảnh thực tế không hiển thị ký tự đó; nếu không rõ, bắt buộc phải trả về điểm tin cậy thấp.
+- Định dạng ngày tháng năm trích xuất phải được chuẩn hóa về định dạng chuẩn quốc tế hoặc cấu trúc ngày hợp lệ.
 
----
-
-### 7. ĐẶC TẢ GIAO DIỆN HÀNG ĐỢI RABBITMQ & REST API
-
-#### 7.1. Message Queue Interface (RabbitMQ)
-* **Hàng đợi tiếp nhận:** `ocr.ai.request.queue` (Durable = True)
-* **Hàng đợi phản hồi:** `ocr.ai.response.queue` (Durable = True)
-
-##### Cấu trúc Request Message từ .NET BE:
-```json
-{
-  "taskId": "7b8e19c0-9d8a-4c22-b5e1-8f3b20e11892",
-  "userId": "93a1f812-78d1-419b-a012-38d7120a1e05",
-  "fileName": "cccd_mat_truoc.jpg",
-  "fileBase64": null,
-  "fileUrl": "https://storage.taxkeep.vn/dependents/cccd_front.jpg",
-  "filePath": null,
-  "backFileBase64": null,
-  "backFileUrl": "https://storage.taxkeep.vn/dependents/cccd_back.jpg",
-  "targetGroup": "CHILD",
-  "appliedThreshold": 0.85,
-  "rules": [
-    {
-      "docType": "CITIZEN_ID",
-      "isMandatory": true,
-      "description": "CCCD còn hạn sử dụng, rõ số"
-    }
-  ]
-}
-```
-
-##### Cấu trúc Response Message trả về cho .NET BE:
-```json
-{
-  "taskId": "7b8e19c0-9d8a-4c22-b5e1-8f3b20e11892",
-  "userId": "93a1f812-78d1-419b-a012-38d7120a1e05",
-  "success": true,
-  "statusCode": 200,
-  "message": "Trích xuất thông tin CCCD thành công.",
-  "data": {
-    "citizenId": "079201008899",
-    "fullName": "NGUYỄN VĂN AN",
-    "birthDate": "2010-05-15",
-    "gender": "MALE",
-    "nationality": "Việt Nam",
-    "originPlace": "Hải Phòng",
-    "residencePlace": "Số 123 Đường Nguyễn Huệ, Quận 1, TP.HCM",
-    "expiryDate": "2035-05-15",
-    "issueDate": "2021-10-10",
-    "isReadable": true,
-    "unreadableReason": null,
-    "confidenceScores": {
-      "overall": 0.95,
-      "citizenId": 0.99,
-      "fullName": 0.98,
-      "birthDate": 0.99,
-      "gender": 1.0,
-      "nationality": 1.0,
-      "originPlace": 0.92,
-      "residencePlace": 0.91,
-      "expiryDate": 0.95,
-      "issueDate": 0.82
-    },
-    "thresholdValidation": {
-      "appliedThreshold": 0.85,
-      "overallConfidence": 0.95,
-      "isPassedThreshold": true,
-      "lowConfidenceFields": ["issueDate"],
-      "warningMessage": null
-    },
-    "ruleValidation": {
-      "isMatchedRule": true,
-      "matchedDocType": "CITIZEN_ID",
-      "isCompliantWithDescription": true,
-      "notes": "Ảnh rõ nét, đầy đủ 2 mặt, thẻ còn hạn đến năm 2035."
-    }
-  },
-  "errors": null
-}
-```
-
-#### 7.2. RESTful API Endpoint (`/api/ocr/dependent-document`)
-* **Phương thức:** `POST`
-* **Content-Type:** `multipart/form-data`
-* **Tham số:**
-  * `frontFile` (UploadFile, bắt buộc): Ảnh mặt trước.
-  * `backFile` (UploadFile, tùy chọn): Ảnh mặt sau.
-  * `targetGroup` (Form string, tùy chọn): Nhóm đối tượng.
-  * `rulesJson` (Form string, tùy chọn): Danh sách quy tắc JSON.
-  * `appliedThreshold` (Form float, tùy chọn): Ngưỡng tin cậy ghi đè.
+#### 9. Điểm chưa thống nhất
+- Có cần trích xuất và trả về tọa độ khung bao trực quan (Bounding Box) của từng trường chữ trên ảnh để client vẽ khung bôi sáng hay không?
 
 ---
 
-### 8. QUY TRÌNH KIỂM SOÁT ẢO GIÁC & AN TOÀN DỮ LIỆU (ANTI-HALLUCINATION)
+### ĐẶC TẢ 4: THẨM ĐỊNH NGƯỠNG TIN CẬY OCR ĐỘNG & CẢNH BÁO LỖI HÌNH ẢNH
 
-1. **Cấu hình nhiệt độ bằng 0 (`temperature=0.0`):**
-   * Trong tác vụ OCR hành chính, bất kỳ sự "sáng tạo" nào của AI đều là lỗi nghiêm trọng. Việc thiết lập `temperature=0.0` buộc mô hình chọn token có xác suất cao nhất, đảm bảo tính tất định và bóc tách trung thực dữ liệu nhìn thấy.
-2. **Cơ chế phát hiện ảnh suy thoái (`isReadable` & `unreadableReason`):**
-   * Nếu ảnh bị mờ nhòe, che khuất góc, lóa đèn flash không đọc được số CCCD: AI được chỉ thị bắt buộc trả về `isReadable = false` và nêu rõ lý do tại `unreadableReason`, tuyệt đối không được tự suy đoán số định danh.
-3. **Cơ chế Human-in-the-loop tự động kích hoạt:**
-   * Khi `isPassedThreshold = false`, hệ thống không tự ý từ chối vĩnh viễn mà đánh dấu cờ cảnh báo kèm danh sách `lowConfidenceFields`. Backend .NET sẽ dựa vào cờ này để điều hướng hiển thị giao diện cho người nộp thuế kiểm tra và sửa lại các ô thông tin bị nghi ngờ.
+#### 1. Tên chức năng
+Thẩm định ngưỡng tin cậy OCR động & cảnh báo lỗi hình ảnh (Dynamic OCR Threshold Auditing & Image Quality Warning).
+
+#### 2. Mục đích
+So sánh kết quả điểm tin cậy OCR với các ngưỡng an toàn được cấu hình động từ cơ sở dữ liệu, kiểm tra các trường thông tin cốt lõi (Crucial Fields), tự động đưa ra kết luận: Kết quả OCR đạt chuẩn, cần cảnh báo chụp lại, hay từ chối tiếp nhận.
+
+#### 3. Actor
+- Động cơ đối soát ngưỡng (Threshold Validation Engine)
+- Hệ thống gọi dịch vụ (Client / Core System)
+
+#### 4. Điều kiện trước
+- Đã có dữ liệu bóc tách và bảng điểm tin cậy từng trường từ công đoạn OCR.
+- Đã nạp cấu hình ngưỡng tin cậy tương ứng với loại giấy tờ từ cơ sở dữ liệu.
+
+#### 5. Luồng chính
+1. Hệ thống truy xuất cấu hình ngưỡng áp dụng cho loại tài liệu đang xử lý:
+   - Ngưỡng tin cậy OCR tổng thể (`OVERALL_THRESHOLD`, ví dụ: 0.85).
+   - Danh sách các trường cốt lõi bắt buộc (`CRUCIAL_FIELDS`, ví dụ: Số CCCD, Họ tên, Ngày sinh).
+   - Ngưỡng tin cậy tối thiểu cho từng trường cốt lõi (ví dụ: Số CCCD >= 0.90, Họ tên >= 0.85).
+2. Hệ thống thực hiện tính toán và kiểm tra 2 bước:
+   - **Bước 1 - Kiểm tra điểm trung bình:** Tính điểm tin cậy trung bình của toàn bộ các trường bóc tách được và so sánh với `OVERALL_THRESHOLD`.
+   - **Bước 2 - Rà soát trường cốt lõi:** Kiểm tra độc lập từng trường trong danh sách `CRUCIAL_FIELDS`. Điểm của trường cốt lõi phải đồng thời vượt qua ngưỡng sàn riêng biệt.
+3. Đánh giá trạng thái kết quả OCR:
+   - *Trường hợp Đạt chuẩn (OCR Passed):* Cả điểm trung bình và toàn bộ trường cốt lõi đều đạt ngưỡng -> Trả về trạng thái `SUCCESS`, cung cấp đầy đủ dữ liệu bóc tách.
+4. Đóng gói kết quả phản hồi gửi lại cho hệ thống gọi.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Ảnh mờ toàn phần (Điểm trung bình dưới ngưỡng):** Toàn bộ ảnh bị nhòe nét hoặc chụp rung tay -> Hệ thống trả về trạng thái `FAILED_THRESHOLD_OVERALL`, kèm thông điệp: "Ảnh chụp quá mờ, không đảm bảo độ rõ nét để đọc văn bản. Vui lòng chụp lại".
+- **Cháy sáng / Lóa cục bộ ở trường cốt lõi:** Tổng thể ảnh rất rõ nhưng riêng trường Số CCCD bị lóa sáng (điểm tin cậy < 0.90) -> Hệ thống trả về trạng thái `WARNING_CRUCIAL_FIELD_LOW_CONFIDENCE`, chỉ đích danh: "Trường Số CCCD bị chói sáng hoặc mờ nét" để client thông báo chính xác cho người dùng kiểm tra lại vùng đó.
+- **Trường cốt lõi bị khuyết thiếu (Missing Field):** Ảnh chụp bị cắt góc làm mất hẳn vị trí của trường Họ tên hoặc Số CCCD -> Trả về lỗi `MISSING_CRUCIAL_FIELD`.
+
+#### 7. Kết quả sau khi thực hiện
+- Đưa ra kết luận minh bạch về chất lượng OCR của tài liệu.
+- Ngăn chặn triệt để tình trạng dữ liệu OCR rác, mờ hoặc sai lệch lọt vào các khâu xử lý tiếp theo của ứng dụng.
+
+#### 8. Business Rules
+- **Quyền phủ quyết của Trường cốt lõi (Crucial Field Veto):** Dù điểm tin cậy trung bình của tài liệu đạt mức rất cao (ví dụ 0.92) nhưng nếu chỉ một trường cốt lõi duy nhất (như Số CCCD) bị điểm thấp dưới ngưỡng sàn quy định, toàn bộ kết quả OCR vẫn bị đánh dấu là không đạt chuẩn an toàn.
+- Toàn bộ ngưỡng so sánh phải được nạp động từ CSDL, không cố định cứng trong mã nguồn.
+
+#### 9. Điểm chưa thống nhất
+- Khi kết quả bị cảnh báo điểm thấp, hệ thống OCR nên chỉ trả về mã lỗi cảnh báo hay vẫn trả kèm theo chuỗi ký tự đã bóc tách được để client linh hoạt hiển thị cho người dùng tự sửa?
 
 ---
 
-### 9. KẾT LUẬN & Ý NGHĨA KỸ THUẬT ĐỐI VỚI ĐỒ ÁN
+### ĐẶC TẢ 5: QUẢN TRỊ QUY TẮC BÓC TÁCH VÀ CẤU HÌNH NGƯỠNG TIN CẬY OCR
 
-1. **Tính hoàn thiện kỹ thuật cao:** Phân hệ không dừng lại ở mức "gọi API bóc tách ảnh đơn giản", mà đã thiết kế một giải pháp kỹ thuật trọn vẹn từ tiếp nhận bất đồng bộ (RabbitMQ), bóc tách 2 mặt ảnh, đánh giá độ tin cậy đa trường, tới thẩm định ngưỡng động từ cơ sở dữ liệu.
-2. **Giải quyết bài toán phi tập trung & cấu hình linh hoạt:** Nhờ có bảng `system_configs` và module đối soát ngưỡng động, quản trị viên có thể điều chỉnh độ khắt khe của hệ thống OCR trong thời gian thực mà không cần dừng dịch vụ hay deploy lại mã nguồn.
-3. **Độ tin cậy pháp lý vững chắc:** Mô hình phối hợp giữa `confidenceScores` từng trường và `rules` nghiệp vụ đảm bảo hồ sơ người phụ thuộc đáp ứng đầy đủ tính chính xác trước khi đưa vào công thức tính thuế TNCN.
+#### 1. Tên chức năng
+Quản trị quy tắc bóc tách và cấu hình ngưỡng tin cậy OCR (OCR Rules & Threshold Configuration Management).
+
+#### 2. Mục đích
+Cung cấp công cụ cho Quản trị viên (Admin) tùy biến danh sách các trường bóc tách, định nghĩa danh sách các trường cốt lõi cho từng loại giấy tờ và tinh chỉnh các ngưỡng tin cậy OCR theo thời gian thực mà không cần sửa code hay triển khai lại dịch vụ.
+
+#### 3. Actor
+- Quản trị viên hệ thống (Admin)
+- Dịch vụ quản lý cấu hình (Config Subsystem)
+
+#### 4. Điều kiện trước
+- Admin đăng nhập bằng tài khoản có quyền cấu hình hệ thống AI.
+
+#### 5. Luồng chính
+1. Admin truy cập màn hình "Quản trị Ngưỡng & Quy tắc OCR Giấy tờ".
+2. Hệ thống hiển thị danh mục các loại giấy tờ hỗ trợ (CCCD chip, CCCD cũ, Giấy khai sinh, CT07...).
+3. Admin chọn một loại giấy tờ để xem và điều chỉnh:
+   - Cài đặt ngưỡng tin cậy tổng thể (ví dụ: điều chỉnh từ 0.80 lên 0.85).
+   - Đánh dấu hoặc bỏ đánh dấu một trường có phải là "Trường cốt lõi" (Crucial Field) hay không.
+   - Thiết lập ngưỡng điểm sàn riêng cho từng trường cốt lõi.
+   - Thêm/bớt các trường thông tin cần mô hình OCR trích xuất.
+4. Admin nhấn nút "Lưu và Áp dụng cấu hình".
+5. Hệ thống kiểm tra tính hợp lệ của các thông số (ngưỡng từ 0.0 đến 1.0, danh sách trường hợp lệ), lưu phiên bản mới vào cơ sở dữ liệu và làm mới bộ nhớ đệm (Cache).
+6. Quy tắc và ngưỡng mới được kích hoạt áp dụng ngay lập tức cho các yêu cầu OCR tiếp theo.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Giá trị ngưỡng không hợp lệ:** Admin nhập giá trị vượt ngoài khoảng [0.0, 1.0] (ví dụ nhập 85 thay vì 0.85) -> Hệ thống báo lỗi và từ chối cập nhật.
+- **Để trống trường cốt lõi:** Admin bỏ chọn toàn bộ trường cốt lõi của loại giấy tờ CCCD -> Hệ thống cảnh báo bắt buộc phải có ít nhất trường Số CCCD và Họ tên là trường cốt lõi để đảm bảo an toàn định danh.
+
+#### 7. Kết quả sau khi thực hiện
+- Quản trị viên hoàn toàn chủ động trong việc siết chặt (khi cần tăng độ chính xác) hoặc nới lỏng (khi cần hỗ trợ các thiết bị camera chụp kém) ngưỡng chất lượng của mô hình OCR.
+
+#### 8. Business Rules
+- Việc cập nhật cấu hình ngưỡng chỉ áp dụng cho các lượt gọi OCR phát sinh sau thời điểm lưu, không làm thay đổi trạng thái đối soát của các kết quả OCR đã lưu trong lịch sử.
+- Mọi thao tác chỉnh sửa ngưỡng phải được ghi nhận lịch sử kiểm toán (Audit Log) gồm: Tài khoản Admin thực hiện, giá trị ngưỡng cũ, giá trị ngưỡng mới, thời điểm cập nhật.
+
+#### 9. Điểm chưa thống nhất
+- Cơ chế phân tách ngưỡng theo môi trường: Có hỗ trợ cài đặt bộ ngưỡng riêng cho môi trường Kiểm thử (Staging) và môi trường Vận hành thực tế (Production) trên cùng một giao diện hay không?
+
+---
+
+## 3. BẢNG TỔNG HỢP VÀ ÁNH XẠ TRẠNG THÁI OCR
+
+| STT | Tên đặc tả nghiệp vụ OCR | Trọng tâm kỹ thuật xử lý | Trạng thái luồng xử lý OCR |
+| :--- | :--- | :--- | :--- |
+| **1** | Tiếp nhận & tiền xử lý hình ảnh | Kiểm tra tệp, xoay thẳng & khử nhiễu ảnh | Tiếp nhận -> Ảnh đã chuẩn hóa / Lỗi tệp |
+| **2** | Nhận diện & phân loại mẫu giấy tờ | Xác định cấu trúc mẫu tài liệu (CCCD, Khai sinh...) | Xác định `docTypeCode` / `UNSUPPORTED` |
+| **3** | Bóc tách quang học & chấm điểm | Số hóa văn bản & tính điểm tin cậy từng trường | Trích xuất hoàn tất kèm bảng Confidence Score |
+| **4** | Thẩm định ngưỡng tin cậy OCR động | Đối soát ngưỡng trung bình & kiểm tra trường cốt lõi | Đạt chuẩn (`SUCCESS`) / Cảnh báo mờ (`WARNING`) |
+| **5** | Quản trị quy tắc & cấu hình ngưỡng | Thiết lập tham số sàn chất lượng thời gian thực | Cấu hình lưu phiên bản mới, áp dụng tức thời |

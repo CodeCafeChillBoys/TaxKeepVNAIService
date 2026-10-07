@@ -1,540 +1,312 @@
-# TÀI LIỆU ĐẶC TẢ KỸ THUẬT & KIẾN TRÚC PHÂN HỆ
-## MODULE: OCR HÓA ĐƠN CHI PHÍ & HỆ THỐNG QUẢN TRỊ CẤU HÌNH ĐỘNG (EXPENSE OCR PIPELINE & DYNAMIC SYSTEM CONFIGURATIONS)
+# TÀI LIỆU ĐẶC TẢ NGHIỆP VỤ PHÂN HỆ
+## MODULE: KHAI BÁO HÓA ĐƠN CHI PHÍ HỢP LỆ & QUẢN TRỊ CẤU HÌNH HỆ THỐNG ĐỘNG (EXPENSE OCR & DYNAMIC SYSTEM CONFIGURATIONS)
 **Nhánh phát triển:** `feature/implementation_expenseOcrAndSystemConfigs`  
 **Dự án:** TaxKeep VN - Dịch vụ Trí tuệ Nhân tạo Hỗ trợ Thuế TNCN (TaxAIService)  
-**Ngày hoàn thiện đặc tả:** 20/09/2026  
-**Trạng thái:** Sẵn sàng nghiệm thu / Đã kiểm thử & tích hợp hoàn chỉnh với Backend .NET  
+**Ngày hoàn thiện đặc tả:** 28/09/2026  
+**Trạng thái:** Đặc tả nghiệp vụ mức Conceptual / Sẵn sàng Review & Thống nhất  
 
 ---
 
-### MỤC LỤC
-1. [TỔNG QUAN BÀI TOÁN & BỐI CẢNH NGHIỆP VỤ (PROBLEM STATEMENT)](#1-tổng-quan-bài-toán--bối-cảnh-nghiệp-vụ)
-2. [KIẾN TRÚC TỔNG THỂ & LUỒNG TÍCH HỢP HỆ THỐNG (SYSTEM ARCHITECTURE)](#2-kiến-trúc-tổng-thể--luồng-tích-hợp-hệ-thống)
-3. [ĐẶC TẢ PHÂN HỆ OCR HÓA ĐƠN CHI PHÍ (EXPENSE OCR PIPELINE)](#3-đặc-tả-phân-hệ-ocr-hóa-đơn-chi-phí)
-4. [CƠ CHẾ BÓC TÁCH BẢNG HÀNG HÓA & BOUNDING BOX (LINE ITEMS & VISUAL BOXES)](#4-cơ-chế-bóc-tách-bảng-hàng-hóa--bounding-box)
-5. [HỆ THỐNG QUẢN TRỊ CẤU HÌNH ĐỘNG (DYNAMIC SYSTEM CONFIG SUBSYSTEM)](#5-hệ-thống-quản-trị-cấu-hình-động)
-6. [CƠ CHẾ ĐỐI SOÁT NGƯỠNG 3 TẦNG & KIỂM TRA TRƯỜNG CỐT LÕI (CRUCIAL FIELDS)](#6-cơ-chế-đối-soát-ngưỡng-3-tầng--kiểm-tra-trường-cốt-lõi)
-7. [THIẾT KẾ CƠ SỞ DỮ LIỆU & LƯU TRỮ VẾT BÓC TÁCH (AUDIT TRAIL PERSISTENCE)](#7-thiết-kế-cơ-sở-dữ-liệu--lưu-trữ-vết-bóc-tách)
-8. [ĐẶC TẢ GIAO DIỆN HÀNG ĐỢI RABBITMQ & REST API](#8-đặc-tả-giao-diện-hàng-đợi-rabbitmq--rest-api)
-9. [MA TRẬN ĐỐI SOÁT 13 KỊCH BẢN VALIDATION & ĐẶC TẢ LỖI (VALIDATION MATRIX)](#9-ma-trận-đối-soát-13-kịch-bản-validation--đặc-tả-lỗi)
-10. [KẾT LUẬN & GIÁ TRỊ ĐÓNG GÓP CHO ĐỒ ÁN CAPSTONE](#10-kết-luận--giá-trị-đóng-góp-cho-đồ-án-capstone)
+## 1. TỔNG QUAN PHÂN HỆ
 
+Trong hệ thống thuế thu nhập cá nhân và quản trị chi tiêu cá nhân TaxKeep VN, người nộp thuế có quyền kê khai các khoản chi phí hợp lệ được trừ khi tính thuế hoặc phục vụ việc quản lý ngân sách cá nhân/hộ kinh doanh, bao gồm: viện phí y tế khám chữa bệnh, biên lai học phí đào tạo, chứng từ đóng góp từ thiện nhân đạo, và phí bảo hiểm nhân thọ/hưu trí tự nguyện.
+
+Phân hệ **Khai báo hóa đơn chi phí hợp lệ & Quản trị cấu hình hệ thống động** cung cấp giải pháp bóc tách tự động toàn diện từ tệp hóa đơn (ảnh chụp hoặc tệp điện tử PDF), nhận dạng danh mục hàng hóa chi tiết theo từng dòng (Line Items), thẩm định ngưỡng an toàn 3 tầng, đối soát tính cân đối tài chính và niên độ tính thuế. Toàn bộ chính sách kiểm soát và ngưỡng tin cậy được quản trị động bởi Quản trị viên, không bị phụ thuộc vào việc sửa đổi mã nguồn phần mềm.
 
 ---
 
-### 1. TỔNG QUAN BÀI TOÁN & BỐI CẢNH NGHIỆP VỤ
+## 2. DANH SÁCH CÁC ĐẶC TẢ NGHIỆP VỤ CỐT LÕI
 
-#### 1.1. Bối cảnh Nghiệp vụ Kê khai Chi phí Hợp lý
-Trong hệ thống Thuế Thu nhập Cá nhân và quản trị tài chính cá nhân TaxKeep VN, người nộp thuế có quyền kê khai các khoản chi phí hợp lý được trừ (hoặc phục vụ quản lý chi tiêu tài chính) như:
-* Hóa đơn viện phí, thuốc men, điều trị y tế (`MEDICAL_EXPENSE_INVOICE`).
-* Biên lai, hóa đơn học phí của con em hoặc bản thân (`EDUCATION_FEE_INVOICE`).
-* Chứng từ đóng góp từ thiện, nhân đạo, khuyến học (`CHARITY_DONATION_RECEIPT`).
-* Phí bảo hiểm nhân thọ, bảo hiểm hưu trí tự nguyện (`INSURANCE_PREMIUM_RECEIPT`).
-
-#### 1.2. Những Thách thức Kỹ thuật
-1. **Tính đa dạng & không đồng nhất của chứng từ:** Hóa đơn tại Việt Nam lưu hành dưới dạng hóa đơn điện tử (PDF/ảnh), hóa đơn tự in có bảng chi tiết hàng chục dòng thuốc hoặc viện phí, phiếu thu viết tay.
-2. **Nguy cơ tài liệu không hợp lệ / rác:** Người dùng có thể vô tình hoặc cố ý tải lên hóa đơn ăn uống, cà phê, vé xem phim, ảnh rác không liên quan đến chi phí được khấu trừ thuế.
-3. **Bài toán bảng chi tiết (Line Items):** Cần bóc tách chính xác danh sách chi tiết hàng hóa/dịch vụ (STT, tên mặt hàng, số lượng, đơn vị, đơn giá, thành tiền) thay vì chỉ đọc mỗi tổng số tiền.
-4. **Cấu hình tĩnh (Hardcoded Configurations):** Việc quy định ngưỡng tin cậy (threshold) hay danh sách các trường bắt buộc nếu fix cứng trong mã nguồn sẽ khiến hệ thống thiếu linh hoạt khi chính sách hoặc môi trường kiểm soát rủi ro thay đổi.
-
-#### 1.3. Mục tiêu Triển khai trên nhánh `feature/implementation_expenseOcrAndSystemConfigs`
-* Xây dựng pipeline OCR tự động phân loại chứng từ theo danh mục động của Admin, bóc tách đầy đủ thông tin hóa đơn và bảng danh mục hàng hóa chi tiết.
-* Xây dựng phân hệ quản trị cấu hình hệ thống động (`system_configs`) với khả năng tự suy đoán kiểu dữ liệu, hỗ trợ Soft Delete và API quản trị thời gian thực.
-* Thiết lập cơ chế thẩm định ngưỡng tin cậy 3 tầng linh hoạt kết hợp cơ chế bảo vệ trường cốt lõi (`crucial_fields`).
-* Lưu trữ toàn vẹn vết bóc tách (Audit Trail) xuống CSDL gồm bảng cha `ai_extractions` và bảng con `ai_extractions_value` phục vụ đối soát và hiệu chỉnh Human-in-the-loop.
+1. [Đặc tả 1: Tiếp nhận và phân loại chứng từ chi phí](#đặc-tả-1-tiếp-nhận-và-phân-loại-chứng-từ-chi-phí)
+2. [Đặc tả 2: Bóc tách thông tin hóa đơn và bảng chi tiết hàng hóa/dịch vụ](#đặc-tả-2-bóc-tách-thông-tin-hóa-đơn-và-bảng-chi-tiết-hàng-hóadịch-vụ)
+3. [Đặc tả 3: Thẩm định ngưỡng tin cậy 3 tầng và bảo vệ trường cốt lõi](#đặc-tả-3-thẩm-định-ngưỡng-tin-cậy-3-tầng-và-bảo-vệ-trường-cốt-lõi)
+4. [Đặc tả 4: Đối soát niên độ tính thuế và tính nhất quán tài chính](#đặc-tả-4-đối-soát-niên-độ-tính-thuế-và-tính-nhất-quán-tài-chính)
+5. [Đặc tả 5: Hiệu chỉnh đối chiếu trực quan và xác nhận ghi nhận chi phí](#đặc-tả-5-hiệu-chỉnh-đối-chiếu-trực-quan-và-xác-nhận-ghi-nhận-chi-phí)
+6. [Đặc tả 6: Quản trị cấu hình hệ thống & chính sách chi phí động](#đặc-tả-6-quản-trị-cấu-hình-hệ-thống--chính-sách-chi-phí-động)
 
 ---
 
-### 2. KIẾN TRÚC TỔNG THỂ & LUỒNG TÍCH HỢP HỆ THỐNG
+### ĐẶC TẢ 1: TIẾP NHẬN VÀ PHÂN LOẠI CHỨNG TỪ CHI PHÍ
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        TaxKeepVN Core (.NET BE)                         │
-│                                                                         │
-│  [Expense Controller] ──► [RabbitMQ Publisher]                         │
-│                           - Queue: `expense.ocr.ai.request.queue`       │
-│                           - Đính kèm: Categories, targetYear, fileUrl   │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         TaxAIService (Python)                           │
-│                                                                         │
-│  [Expense Consumer Worker]                                              │
-│  - Tải file từ Cloud/Base64 qua httpx                                   │
-│  - Phân tích định dạng MIME                                             │
-│                                    │                                    │
-│                                    ▼                                    │
-│  [ExpenseOcrService] ◄──── [SystemConfigRepository]                     │
-│  - Dynamic Prompt Generation       - Đọc THRESHOLD_<CATEGORY>           │
-│  - Gemini Multimodal Vision        - Đọc AI_CONFIDENCE_THRESHOLD        │
-│  - Structured JSON Output          - Đọc CRUCIAL_FIELDS_<CATEGORY>      │
-│                                    │                                    │
-│                                    ▼                                    │
-│  [Validation & Threshold Engine]                                        │
-│  - Kiểm tra docTypeCode vs Categories (Reject if UNSUPPORTED)           │
-│  - Kiểm tra extractedYear == targetYear                                 │
-│  - Tính overall_confidence & rà soát crucial_fields                     │
-│                                    │                                    │
-│                                    ▼                                    │
-│  [ExpenseOcrRepository] ──► [PostgreSQL: ai_extractions & value]        │
-│  - Lưu toàn bộ kết quả bóc tách, bounding box, confidence scores        │
-│                                    │                                    │
-│                                    ▼                                    │
-│  [RabbitMQ Producer] ──────► `expense.ocr.ai.response.queue`            │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+#### 1. Tên chức năng
+Tiếp nhận và phân loại chứng từ chi phí (Expense Document Ingestion & Classification).
 
----
+#### 2. Mục đích
+Tiếp nhận tài liệu chi phí do người nộp thuế tải lên, tự động xác định chứng từ thuộc danh mục chi phí hợp lệ nào (hoặc từ chối các loại chứng từ rác/không thuộc diện được khấu trừ thuế).
 
-### 3. ĐẶC TẢ PHÂN HỆ OCR HÓA ĐƠN CHI PHÍ
+#### 3. Actor
+- Người nộp thuế (User)
+- Hệ thống phân loại AI (System)
 
-#### 3.1. Phân loại Động theo Danh mục của Admin (Dynamic Classification)
-Không giới hạn cố định loại chứng từ, Backend .NET truyền danh sách danh mục hiện hành (`AdminCategoryItem`) sang AI:
-```python
-def build_expense_ocr_prompt(categories: list[AdminCategoryItem]) -> str:
-    cat_text = "\n".join([
-        f"- Mã '{c.code}': {c.name}. Đặc điểm nhận diện: {c.description}"
-        for c in categories
-    ])
-```
-* **Mã `UNSUPPORTED`:** Nếu tài liệu là hóa đơn ăn uống, cà phê, vé xem phim hoặc ảnh rác, AI tự động gán `docTypeCode = "UNSUPPORTED"` kèm lý do chi tiết tại `classificationReason`.
+#### 4. Điều kiện trước
+- User đã đăng nhập và truy cập vào mục "Kê khai chi phí giảm trừ / Chi tiêu".
+- Hệ thống đã nạp danh mục các loại chi phí hợp lệ từ cấu hình quản trị.
 
-#### 3.2. Cấu trúc Dữ liệu Bóc tách Tổng quát (`GeminiOcrOutput`)
-1. **Thông tin Bên bán (Bệnh viện / Cơ sở đào tạo / Nhà cung cấp):**
-   * `sellerName`: Tên đơn vị phát hành hóa đơn.
-   * `sellerTaxCode`: Mã số thuế bên bán (rất quan trọng để tra cứu tính hợp lệ).
-   * `sellerAddress`, `sellerPhone`.
-2. **Thông tin Hóa đơn & Tra cứu:**
-   * `invoiceSeries`: Ký hiệu mẫu hóa đơn (ví dụ: `2C26TBH`).
-   * `invoiceNumber`: Số hóa đơn (ví dụ: `82621`).
-   * `invoiceDate`: Ngày lập hóa đơn dạng `YYYY-MM-DD`.
-   * `extractedYear`: Năm trích xuất từ ngày lập (dùng để đối soát với năm quyết toán).
-   * `lookupUrl`, `lookupCode`: Đường dẫn và mã tra cứu hóa đơn điện tử.
-3. **Thông tin Bên mua (Bệnh nhân / Học sinh / Người nộp thuế):**
-   * `buyerName`: Họ tên người mua / bệnh nhân / học sinh.
-   * `buyerIdCard`: Số CCCD/CMND.
-   * `buyerAddress`, `buyerTaxCode`, `paymentMethod`.
-4. **Thông tin Tài chính:**
-   * `totalAmount`: Tổng số tiền thanh toán dạng số thực (`float`).
-   * `totalAmountInWords`: Số tiền viết bằng chữ.
+#### 5. Luồng chính
+1. User nhấn nút "Tải lên hóa đơn chi phí", chọn tệp hình ảnh (JPEG, PNG) hoặc tệp hóa đơn điện tử PDF.
+2. User có thể chọn trước danh mục dự kiến (ví dụ: Viện phí, Học phí) hoặc để chế độ "Hệ thống tự động nhận diện".
+3. Hệ thống tiếp nhận tệp và phân tích nội dung hình ảnh/văn bản để xác định bản chất của chứng từ:
+   - *Hóa đơn y tế, viện phí, thuốc men (`MEDICAL_EXPENSE_INVOICE`).*
+   - *Biên lai / Hóa đơn học phí, đào tạo (`EDUCATION_FEE_INVOICE`).*
+   - *Chứng từ đóng góp từ thiện, nhân đạo, khuyến học (`CHARITY_DONATION_RECEIPT`).*
+   - *Biên lai phí bảo hiểm nhân thọ / hưu trí tự nguyện (`INSURANCE_PREMIUM_RECEIPT`).*
+4. Hệ thống kiểm tra xem chứng từ có thuộc danh mục được phép khấu trừ theo quy định hiện hành hay không.
+5. Nếu thuộc danh mục hợp lệ, Hệ thống gán mã loại tài liệu tương ứng kèm lý do nhận diện và chuyển sang luồng bóc tách dữ liệu chi tiết.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Tài liệu không thuộc diện hỗ trợ / Chứng từ sinh hoạt cá nhân thông thường:** Tài liệu tải lên là hóa đơn ăn uống nhà hàng, cà phê, vé xem phim, hóa đơn siêu thị mua sắm tiêu dùng, hoặc ảnh phong cảnh không liên quan -> Hệ thống tự động phân loại thành **"Tài liệu không hỗ trợ" (`UNSUPPORTED`)**, hiển thị thông báo giải thích rõ lý do chứng từ này không thuộc diện được khấu trừ thuế TNCN và dừng quy trình.
+- **Tệp bị mờ toàn phần hoặc hỏng định dạng:** Hệ thống thông báo tệp không thể nhận diện được nội dung và yêu cầu User tải lên tệp mới rõ nét hơn.
+
+#### 7. Kết quả sau khi thực hiện
+- Tài liệu được phân loại chính xác vào danh mục chi phí tương ứng, sẵn sàng cho bước bóc tách dữ liệu.
+- Các tài liệu rác hoặc không hợp lệ bị loại bỏ ngay từ đầu, giảm thiểu tải xử lý cho hệ thống và thời gian của người dùng.
+
+#### 8. Business Rules
+- Chỉ các khoản chi phí thuộc danh mục pháp luật thuế TNCN cho phép giảm trừ hoặc thuộc danh mục quản lý tài chính được cấu hình bởi Quản trị viên mới được chấp nhận tiếp tục xử lý.
+- Mọi trường hợp phân loại `UNSUPPORTED` phải kèm theo diễn giải ngắn gọn bằng tiếng Việt để người dùng hiểu vì sao chứng từ bị từ chối.
+
+#### 9. Điểm chưa thống nhất
+- Người dùng có được quyền ghi đè (Override) danh mục nếu cho rằng AI phân loại nhầm danh mục chi phí hay không?
 
 ---
 
-### 4. CƠ CHẾ BÓC TÁCH BẢNG HÀNG HÓA & BOUNDING BOX
+### ĐẶC TẢ 2: BÓC TÁCH THÔNG TIN HÓA ĐƠN VÀ BẢNG CHI TIẾT HÀNG HÓA/DỊCH VỤ
 
-#### 4.1. Bóc tách Bảng Chi tiết Hàng hóa / Viện phí (`InvoiceLineItem`)
-Phân hệ trích xuất toàn bộ bảng dịch vụ vào mảng `items`:
-```json
-{
-  "items": [
-    {
-      "itemOrder": 1,
-      "itemName": "Khám chuyên khoa Nhi",
-      "unit": "Lần",
-      "quantity": 1.0,
-      "unitPrice": 250000.0,
-      "totalPrice": 250000.0
-    },
-    {
-      "itemOrder": 2,
-      "itemName": "Thuốc Amoxicillin 500mg",
-      "unit": "Hộp",
-      "quantity": 2.0,
-      "unitPrice": 85000.0,
-      "totalPrice": 170000.0
-    }
-  ]
-}
-```
+#### 1. Tên chức năng
+Bóc tách thông tin hóa đơn và bảng chi tiết hàng hóa/dịch vụ (Invoice Metadata & Line Items Extraction).
 
-#### 4.2. Tọa độ Trực quan (Bounding Box) & Điểm Tin cậy Trường
-Để hỗ trợ giao diện Frontend vẽ khung sáng làm nổi bật vị trí chữ được đọc trên hóa đơn, mỗi trường trong danh sách `fields` trả về:
-* `fieldName`: Tên trường dữ liệu.
-* `extractedValue`: Giá trị văn bản đọc được.
-* `confidenceScore`: Độ tin cậy ($0.0 \rightarrow 1.0$).
-* `boundingBox`: Tọa độ hình chữ nhật `{"x": int, "y": int, "w": int, "h": int}` trên ảnh gốc.
+#### 2. Mục đích
+Tự động trích xuất toàn bộ thông tin hành chính, pháp lý, tài chính của hóa đơn và bóc tách chính xác từng dòng hàng hóa/dịch vụ trong bảng chi tiết kèm tọa độ nhận diện trực quan.
 
----
+#### 3. Actor
+- Hệ thống AI bóc tách (System AI Service)
+- Người nộp thuế (User)
 
-### 5. HỆ THỐNG QUẢN TRỊ CẤU HÌNH ĐỘNG (DYNAMIC SYSTEM CONFIG SUBSYSTEM)
+#### 4. Điều kiện trước
+- Chứng từ đã được phân loại thành công vào một danh mục hợp lệ.
 
-#### 5.1. Mô hình Dữ liệu Bảng `system_configs`
-```mermaid
-classDiagram
-    class SystemConfig {
-        +string config_key PK
-        +string config_value
-        +string data_type
-        +string description
-        +UUID admin_id
-        +boolean is_active
-        +boolean is_deleted
-        +datetime deleted_at
-        +datetime created_at
-        +datetime updated_at
-    }
-```
+#### 5. Luồng chính
+1. Hệ thống thực hiện bóc tách khối **Thông tin đơn vị phát hành (Bên bán / Bệnh viện / Nhà trường):**
+   - Tên cơ sở/đơn vị phát hành.
+   - Mã số thuế (MST) của bên bán.
+   - Địa chỉ và số điện thoại liên hệ.
+2. Hệ thống bóc tách khối **Thông tin định danh hóa đơn:**
+   - Ký hiệu mẫu số và ký hiệu hóa đơn (Series).
+   - Số hóa đơn (Invoice Number).
+   - Ngày, tháng, năm lập hóa đơn.
+   - Đường link tra cứu và mã tra cứu hóa đơn điện tử (nếu là hóa đơn điện tử).
+3. Hệ thống bóc tách khối **Thông tin khách hàng / người thụ hưởng (Bên mua):**
+   - Họ tên người mua hàng / bệnh nhân / học sinh.
+   - Mã định danh cá nhân / CCCD / Mã số thuế cá nhân.
+   - Địa chỉ thường trú/liên hệ.
+4. Hệ thống bóc tách khối **Thông tin tài chính tổng hợp:**
+   - Tổng tiền chưa thuế, tiền thuế GTGT (nếu có), và tổng số tiền thanh toán thực tế (bằng số và bằng chữ).
+5. Hệ thống trích xuất **Bảng danh mục chi tiết hàng hóa / dịch vụ (Line Items):**
+   - Số thứ tự từng dòng.
+   - Tên danh mục dịch vụ / hàng hóa / tên thuốc / khoản phí đào tạo.
+   - Đơn vị tính, số lượng, đơn giá và thành tiền của từng dòng.
+6. Hệ thống tính toán điểm tin cậy độc lập (Field-level Confidence) và ghi nhận tọa độ khung bao trực quan (Bounding Box) cho các trường thông tin chính để hỗ trợ hiển thị đối chiếu.
 
-#### 5.2. Thuật toán Tự động Suy đoán Kiểu Dữ liệu (`_detect_data_type`)
-Admin có thể tạo cấu hình mới mà không cần chọn thủ công kiểu dữ liệu; hệ thống tự động suy đoán:
-* `true`, `false` $\rightarrow$ `ConfigDataType.BOOLEAN`.
-* Số nguyên nguyên thủy $\rightarrow$ `ConfigDataType.INT`.
-* Số có phần thập phân (`0.85` hoặc `0,85`) $\rightarrow$ `ConfigDataType.FLOAT` (tự động chuẩn hóa dấu phẩy thành dấu chấm).
-* Chuỗi bắt đầu và kết thúc bằng `{...}` hoặc `[...]` $\rightarrow$ `ConfigDataType.JSON`.
-* Chuỗi chứa dấu phẩy $\rightarrow$ `ConfigDataType.LIST_STRING`.
-* Còn lại $\rightarrow$ `ConfigDataType.STRING`.
+#### 6. Luồng thay thế / Ngoại lệ
+- **Hóa đơn không có bảng chi tiết (Hóa đơn tóm tắt/Phiếu thu một khoản gộp):** Hệ thống chỉ bóc tách tổng số tiền và nội dung diễn giải chung, đánh dấu danh mục bảng hàng hóa là dạng đơn lẻ (Single item).
+- **Hóa đơn dài nhiều trang:** Hệ thống tổng hợp dữ liệu qua các trang, nối các dòng hàng hóa chi tiết thành một danh sách duy nhất và kiểm tra khớp tổng tiền ở trang cuối cùng.
 
-#### 5.3. Cơ chế Xóa mềm (Soft Delete)
-Khi Admin xóa cấu hình qua `DELETE /api/system-configs/{key}`, hệ thống không xóa vật lý mà cập nhật `is_deleted = True` và `deleted_at = func.now()`. Điều này đảm bảo tính toàn vẹn dữ liệu cho các lần bóc tách lịch sử.
+#### 7. Kết quả sau khi thực hiện
+- Toàn bộ nội dung hóa đơn và bảng kê chi tiết được chuyển đổi thành dữ liệu có cấu trúc hoàn chỉnh.
+- Tọa độ hiển thị được lưu lại để phục vụ tính năng soi sáng vị trí thông tin trên ảnh gốc khi người dùng kiểm tra.
+
+#### 8. Business Rules
+- Bắt buộc phải bóc tách đầy đủ Mã số thuế bên bán và Số hóa đơn đối với các loại hóa đơn điện tử để làm căn cứ tra cứu tính pháp lý trên cổng Tổng cục Thuế.
+- Tổng thành tiền của từng dòng hàng hóa sau khi cộng lại phải khớp với tổng tiền thanh toán trên hóa đơn (cho phép sai số làm tròn số học tối đa 1.000 VNĐ).
+
+#### 9. Điểm chưa thống nhất
+- Quy định bóc tách tên thuốc/viện phí: Có cần ánh xạ tên thuốc bóc tách được với Danh mục thuốc bảo hiểm y tế của Bộ Y tế hay chỉ lưu tên thuần văn bản?
 
 ---
 
-### 6. CƠ CHẾ ĐỐI SOÁT NGƯỠNG 3 TẦNG & KIỂM TRA TRƯỜNG CỐT LÕI
+### ĐẶC TẢ 3: THẨM ĐỊNH NGƯỠNG TIN CẬY 3 TẦNG VÀ BẢO VỆ TRƯỜNG CỐT LÕI
 
-#### 6.1. Quy trình Phân giải Ngưỡng Tin cậy (Threshold Resolution)
-Ngưỡng tin cậy áp dụng (`applied_threshold`) được phân giải tự động theo 3 tầng:
-1. **Tầng 1 (Ngưỡng riêng theo danh mục):** Ví dụ Admin cấu hình `THRESHOLD_MEDICAL_EXPENSE_INVOICE = 0.85`. Khi xử lý hóa đơn y tế, hệ thống ưu tiên áp dụng ngưỡng này.
-2. **Tầng 2 (Ngưỡng chung toàn hệ thống):** Nếu danh mục không có ngưỡng riêng, hệ thống đọc khóa `AI_CONFIDENCE_THRESHOLD`.
-3. **Tầng 3 (Mặc định dự phòng):** Nếu không tìm thấy khóa nào trong CSDL, hệ thống sử dụng giá trị an toàn `0.80`.
+#### 1. Tên chức năng
+Thẩm định ngưỡng tin cậy 3 tầng và bảo vệ trường cốt lõi (3-Tier Confidence Auditing & Crucial Fields Protection).
 
-#### 6.2. Thuật toán Tính Điểm Tin cậy Tổng thể (`overall_confidence`)
-$$\text{Overall Confidence} = \text{round}\left(\frac{\sum_{i=1}^{M} \text{FieldConfidence}_i}{M}, 2\right)$$
-*(Với $M$ là tổng số lượng các trường dữ liệu bóc tách được trong mảng `fields`).*
+#### 2. Mục đích
+Thiết lập cơ chế kiểm soát chất lượng dữ liệu đa tầng nghiêm ngặt, đảm bảo các trường dữ liệu ảnh hưởng trực tiếp đến nghĩa vụ thuế không bị nhận diện sai lệch.
 
-#### 6.3. Cơ chế Bảo vệ Trường Cốt lõi (Crucial Fields Enforcement)
-* Hệ thống truy vấn danh sách trường cốt lõi từ khóa `CRUCIAL_FIELDS_<CATEGORY>` hoặc `CRUCIAL_EXTRACTION_FIELDS` (mặc định gồm: `total_amount`, `seller_tax_code`, `buyer_id_card`, `invoice_number`).
-* **Quy tắc an toàn nghiêm ngặt:** Kể cả khi `overall_confidence >= applied_threshold`, nhưng nếu **chỉ cần 1 trường cốt lõi** có `confidenceScore < applied_threshold`:
-  $$\text{has\_crucial\_low\_confidence} = \text{True} \implies \text{is\_passed\_threshold} = \text{False}$$
-* Hệ thống lập tức đánh dấu không đạt ngưỡng và yêu cầu xác nhận thủ công (Human-in-the-loop) để ngăn chặn rủi ro gian lận tiền thuế hoặc sai lệch mã số thuế.
+#### 3. Actor
+- Động cơ đối soát dữ liệu (Validation Engine)
+- Hệ thống (System)
 
----
+#### 4. Điều kiện trước
+- Dữ liệu hóa đơn đã được bóc tách và có điểm tin cậy cho từng trường.
+- Hệ thống đã nạp bộ tham số cấu hình ngưỡng và danh mục trường cốt lõi tương ứng từ CSDL.
 
-### 7. THIẾT KẾ CƠ SỞ DỮ LIỆU & LƯU TRỮ VẾT BÓC TÁCH
+#### 5. Luồng chính
+Hệ thống tiến hành thẩm định qua 3 tầng độc lập:
+1. **Tầng 1 - Thẩm định loại tài liệu (Document Type Gate):**
+   - Kiểm tra mã loại tài liệu có nằm trong danh mục hỗ trợ hay không. Nếu là `UNSUPPORTED`, lập tức dừng quy trình và từ chối xử lý.
+2. **Tầng 2 - Thẩm định ngưỡng tin cậy tổng thể (Overall Confidence Gate):**
+   - Tính toán điểm tin cậy trung bình của toàn bộ các trường trên hóa đơn.
+   - So sánh với ngưỡng điểm tổng quan được cấu hình riêng cho danh mục đó (ví dụ: ngưỡng hóa đơn y tế là 0.82, biên lai đóng góp từ thiện là 0.85).
+3. **Tầng 3 - Thẩm định độc lập các trường cốt lõi (Crucial Fields Gate):**
+   - Truy xuất danh sách các trường bắt buộc sống còn của loại hóa đơn đang xét (ví dụ: Số hóa đơn, Tổng tiền thanh toán, Ngày lập hóa đơn, Mã số thuế bên bán).
+   - Kiểm tra từng trường cốt lõi: Điểm tin cậy của trường đó phải lớn hơn hoặc bằng ngưỡng sàn riêng biệt (ví dụ: Tổng tiền >= 0.90, Số hóa đơn >= 0.88).
+4. Nếu cả 3 tầng thẩm định đều vượt qua:
+   - Gán trạng thái hồ sơ chi phí là **"Thẩm định đạt chuẩn" (Passed / Auto-Approved)**.
+   - Cho phép người dùng chuyển tiếp sang bước hoàn tất kê khai.
 
-#### 7.1. Sơ đồ Thực thể Quan hệ (ERD)
+#### 6. Luồng thay thế / Ngoại lệ
+- **Vi phạm Tầng 2 (Điểm tổng thể thấp do ảnh mờ đều):** Hệ thống đánh cờ cảnh báo **"Cần rà soát tổng thể"** và hiển thị khuyến nghị chụp lại ảnh.
+- **Vi phạm Tầng 3 (Tổng thể tốt nhưng có một trường cốt lõi bị nghi ngờ):** Ví dụ ảnh rất nét nhưng con số tổng tiền bị vết mực che khuất -> Hệ thống gắn cờ cảnh báo đích danh: "Trường Tổng tiền không đạt ngưỡng an toàn", đồng thời bôi đỏ vị trí trường này trên giao diện người dùng.
 
-```mermaid
-erDiagram
-    SYSTEM_CONFIGS
-    AI_EXTRACTIONS ||--o{ AI_EXTRACTIONS_VALUE : "chứa chi tiết (cascade delete)"
+#### 7. Kết quả sau khi thực hiện
+- Phân loại rõ ràng hóa đơn nào đủ điều kiện tự động chấp thuận, hóa đơn nào bắt buộc phải có sự xác nhận của con người trước khi dùng tính thuế.
 
-    SYSTEM_CONFIGS {
-        string config_key PK
-        string config_value
-        string data_type
-        string description
-        uuid admin_id
-        boolean is_active
-        boolean is_deleted
-        datetime deleted_at
-        datetime created_at
-        datetime updated_at
-    }
+#### 8. Business Rules
+- Bất kỳ hồ sơ nào vi phạm quy tắc tại Tầng 3 (Trường cốt lõi bị điểm thấp hoặc bị trống) tuyệt đối không được phép tự động phê duyệt tính giảm trừ thuế.
+- Danh mục các trường cốt lõi phải được cấu hình tách biệt cho từng loại chi phí (ví dụ: Hóa đơn y tế bắt buộc có tên bệnh nhân, nhưng biên lai đóng góp từ thiện bắt buộc có tên tổ chức nhận quyên góp).
 
-    AI_EXTRACTIONS {
-        uuid id PK
-        uuid document_id
-        numeric overall_confidence
-        numeric applied_threshold
-        boolean is_passed_threshold
-        jsonb raw_payload
-        datetime created_at
-    }
-
-    AI_EXTRACTIONS_VALUE {
-        bigint id PK
-        uuid extraction_id FK
-        string field_name
-        text extracted_value
-        text user_corrected_value
-        numeric confidence_score
-        jsonb bounding_box
-    }
-```
-
-#### 7.2. Ý nghĩa Kiến trúc của 2 Bảng `ai_extractions` & `ai_extractions_value`
-* **`ai_extractions` (Bảng cha):** Lưu vết tổng thể của phiên bóc tách: ID tài liệu, điểm tổng quan, ngưỡng áp dụng, cờ đạt ngưỡng và toàn bộ JSON thô do Gemini sinh ra (`raw_payload`).
-* **`ai_extractions_value` (Bảng con):** Lưu chi tiết từng trường bóc tách, tọa độ Bounding Box, điểm tin cậy và đặc biệt là cột `user_corrected_value`. Khi người dùng sửa lại thông tin sai trên giao diện, giá trị mới được lưu vào cột này, tạo tập dữ liệu quý giá phục vụ đánh giá mô hình và fine-tuning trong tương lai.
+#### 9. Điểm chưa thống nhất
+- Quy định ngưỡng điểm tối thiểu để cho phép người dùng tự sửa trên giao diện (ví dụ nếu điểm quá thấp < 0.40 thì bắt buộc chụp lại hoàn toàn chứ không cho sửa tay).
 
 ---
 
-### 8. ĐẶC TẢ GIAO DIỆN HÀNG ĐỢI RABBITMQ & REST API
+### ĐẶC TẢ 4: ĐỐI SOÁT NIÊN ĐỘ TÍNH THUẾ VÀ TÍNH NHẤT QUÁN TÀI CHÍNH
 
-#### 8.1. Hàng đợi RabbitMQ (`expense.ocr.ai.request.queue` & `response.queue`)
+#### 1. Tên chức năng
+Đối soát niên độ tính thuế và tính nhất quán tài chính (Tax Year Matching & Financial Consistency Auditing).
 
-##### Request Message từ Backend .NET:
-```json
-{
-  "taskId": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-  "periodId": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
-  "userId": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
-  "targetYear": 2026,
-  "fileUrl": "https://storage.taxkeep.vn/expenses/vienphi_2026.jpg",
-  "originalFilename": "vienphi_2026.jpg",
-  "categories": [
-    {
-      "code": "MEDICAL_EXPENSE_INVOICE",
-      "name": "Hóa đơn viện phí y tế",
-      "description": "Hóa đơn khám chữa bệnh, viện phí, tiền thuốc tại bệnh viện/phòng khám"
-    }
-  ],
-  "appliedThreshold": 0.85
-}
-```
+#### 2. Mục đích
+Ngăn chặn gian lận hoặc nhầm lẫn khi người nộp thuế sử dụng hóa đơn của các năm trước hoặc hóa đơn bị tẩy xóa số tiền để đưa vào kỳ quyết toán thuế hiện tại.
 
-##### Response Message trả về Backend .NET:
-```json
-{
-  "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-  "periodId": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
-  "userId": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
-  "docTypeCode": "MEDICAL_EXPENSE_INVOICE",
-  "fileUrl": "https://storage.taxkeep.vn/expenses/vienphi_2026.jpg",
-  "originalFilename": "vienphi_2026.jpg",
-  "invoiceSeries": "2C26TBH",
-  "invoiceNumber": "0082621",
-  "invoiceDate": "2026-03-15",
-  "extractedYear": 2026,
-  "sellerName": "BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM",
-  "sellerTaxCode": "0302221111",
-  "buyerName": "NGUYỄN VĂN AN",
-  "totalAmount": 1250000.0,
-  "totalAmountInWords": "Một triệu hai trăm năm mươi nghìn đồng",
-  "items": [
-    {
-      "itemOrder": 1,
-      "itemName": "Khám bệnh chuyên khoa",
-      "unit": "Lần",
-      "quantity": 1.0,
-      "unitPrice": 250000.0,
-      "totalPrice": 250000.0
-    }
-  ],
-  "validationStatus": {
-    "isYearValid": true,
-    "isDocTypeValid": true,
-    "isIdentityValid": true
-  },
-  "validationErrors": [],
-  "status": "EXTRACTED",
-  "createdAt": "2026-09-20T15:30:00Z"
-}
-```
+#### 3. Actor
+- Hệ thống (System)
+- Người nộp thuế (User)
 
-#### 8.2. RESTful API Quản trị Cấu hình Hệ thống (`/api/system-configs`)
+#### 4. Điều kiện trước
+- Hóa đơn đã bóc tách thành công thông tin ngày lập và các số liệu tài chính.
+- User đang thao tác trong một kỳ quyết toán thuế xác định (ví dụ: Kỳ tính thuế năm 2026).
 
-| STT | Phương thức | Endpoint | Mô tả | Quyền |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | `GET` | `/api/system-configs` | Lấy danh sách cấu hình hệ thống (hỗ trợ lọc `active_only`) | Admin |
-| 2 | `POST` | `/api/system-configs` | Tạo cấu hình / ngưỡng mới (tự suy đoán kiểu dữ liệu) | Admin |
-| 3 | `GET` | `/api/system-configs/{key}` | Xem chi tiết cấu hình theo khóa | Admin |
-| 4 | `PUT` | `/api/system-configs/{key}` | Cập nhật giá trị, kiểu dữ liệu hoặc bật/tắt cấu hình | Admin |
-| 5 | `DELETE` | `/api/system-configs/{key}` | Xóa mềm cấu hình hệ thống | Admin |
-| 6 | `GET` | `/api/system-configs/threshold/test-resolve` | Kiểm tra trực quan xem danh mục cụ thể sẽ áp dụng ngưỡng nào | Admin/Tester |
+#### 5. Luồng chính
+1. Hệ thống trích xuất năm phát hành hóa đơn (`extractedYear`) từ trường ngày lập hóa đơn.
+2. Hệ thống so sánh `extractedYear` với năm tính thuế mục tiêu mà User đang kê khai (`targetYear`):
+   - *Trường hợp trùng khớp:* Ghi nhận cờ `isTaxYearMatched = True`.
+3. Hệ thống thực hiện kiểm toán tính cân đối số học trên hóa đơn:
+   - Tính tổng tiền của toàn bộ các dòng hàng hóa chi tiết: `Tổng_tính_toán = Σ (Số lượng × Đơn giá)`.
+   - Đối chiếu `Tổng_tính_toán` với trường `Tổng tiền chưa thuế` và `Tổng tiền thanh toán` trên hóa đơn.
+   - Kiểm tra tính hợp lý của tỷ lệ thuế GTGT (nếu có).
+4. Nếu niên độ khớp và số liệu cân đối:
+   - Hệ thống đánh dấu chứng từ đạt tính toàn vẹn tài chính.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Sai lệch năm quyết toán (Mismatch Tax Year):** Ví dụ User kê khai thuế năm 2026 nhưng tải lên hóa đơn xuất ngày 15/12/2024 -> Hệ thống không chặn đứng hoàn toàn mà chuyển trạng thái sang **"Cảnh báo sai lệch niên độ"**, hiển thị thông báo rõ ràng cho User: "Hóa đơn được phát hành trong năm 2024, không thuộc kỳ tính thuế 2026".
+- **Không nhất quán về số học (Số tiền không khớp):** Tổng thành tiền của các dòng hàng hóa lệch đáng kể so với tổng tiền ghi ở chân hóa đơn -> Hệ thống cảnh báo nguy cơ hóa đơn bị cắt dán, tẩy xóa hoặc bóc tách thiếu dòng để User rà soát lại.
+
+#### 7. Kết quả sau khi thực hiện
+- Phát hiện sớm các lỗi sai niên độ hóa đơn vốn là nguyên nhân phổ biến khiến hồ sơ quyết toán thuế bị cơ quan thuế loại trừ và xử phạt chậm nộp.
+- Đảm bảo số liệu chi phí đưa vào công thức tính thuế hoàn toàn chính xác.
+
+#### 8. Business Rules
+- Chi phí chỉ được coi là hợp lệ để giảm trừ thuế TNCN khi hóa đơn được phát hành trong đúng niên độ tính thuế theo quy định của Luật Thuế (từ ngày 01/01 đến hết ngày 31/12 của năm tính thuế đó).
+- Trường hợp hóa đơn có sai lệch niên độ, hệ thống vẫn lưu lại dữ liệu nháp nhưng bắt buộc User phải xác nhận lại mục đích kê khai trước khi gửi hồ sơ chính thức.
+
+#### 9. Điểm chưa thống nhất
+- Cơ chế xử lý hóa đơn xuất vào đầu năm sau nhưng chi trả cho dịch vụ của năm trước (ví dụ viện phí thanh toán đợt Tết dương lịch): Có cho phép áp dụng ngoại lệ tính theo thời điểm thanh toán thực tế không?
 
 ---
 
-### 9. MA TRẬN ĐỐI SOÁT 13 KỊCH BẢN VALIDATION & ĐẶC TẢ LỖI (VALIDATION MATRIX)
+### ĐẶC TẢ 5: HIỆU CHỈNH ĐỐI CHIẾU TRỰC QUAN VÀ XÁC NHẬN GHI NHẬN CHI PHÍ
 
-Phân hệ xử lý dữ liệu và phân loại chứng từ thuế tích hợp chặt chẽ giữa **AI Service (Python/Gemini)** và **Backend Core (.NET)**. Dưới đây là bảng ma trận đối soát chi tiết 13 kịch bản lỗi, phân định rõ trách nhiệm xử lý và hiện trạng hoàn thành tính đến thời điểm hiện tại:
+#### 1. Tên chức năng
+Hiệu chỉnh đối chiếu trực quan và xác nhận ghi nhận chi phí (Visual Comparison, Human Adjustment & Expense Confirmation).
 
-| STT | Mã HTTP & Tên Kịch bản Nghiệp vụ | Phân tầng Phụ trách | Trạng thái Triển khai | Mã Lỗi (Error Code) |
-| :---: | :--- | :---: | :---: | :---: |
-| **1** | **404:** Document không tồn tại hoặc không thuộc user | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_DOCUMENT_NOT_FOUND` |
-| **2** | **400:** Document không ở trạng thái hợp lệ (`UPLOADED`) | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_INVALID_STATUS` |
-| **3** | **422:** File hỏng / AI không thể mở hoặc parse dữ liệu | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_CORRUPTED_FILE` / `ERR_UNREADABLE_IMAGE` |
-| **4** | **401:** Token không hợp lệ, thiếu hoặc hết hạn | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_UNAUTHORIZED` |
-| **5** | **422:** Năm trên hóa đơn không khớp năm kê khai thuế | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_YEAR_MISMATCH` |
-| **6** | **422:** Loại chứng từ không đủ điều kiện giảm trừ thuế | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_INVALID_DOC_TYPE` |
-| **7** | **422:** Danh tính người mua không khớp NNT hoặc thân nhân | **BE .NET & AI** | ❌ **CÒN THIẾU (PENDING)** | `ERR_IDENTITY_MISMATCH` |
-| **8** | **403:** Kỳ kê khai thuế đã nộp và bị khóa (`SUBMITTED`) | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_TAX_PERIOD_LOCKED` |
-| **9** | **422:** Chất lượng ảnh thấp dưới ngưỡng quy định | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_IMAGE_QUALITY_TOO_LOW` |
-| **10** | **422:** Tệp tin không phải là chứng từ thuế hợp lệ | **AI Service** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_NOT_TAX_DOCUMENT` |
-| **11** | **409:** Trùng số hóa đơn & MST người bán trong cùng kỳ | **Backend .NET** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_DUPLICATE_DOCUMENT` |
-| **12** | **422:** Ngày lập hóa đơn không được ở tương lai | **AI Service & BE** | ✅ **ĐÃ HOÀN THÀNH** | `ERR_FUTURE_DATE` |
-| **13** | **409:** Trùng mã băm SHA-256 nội dung file nhị phân | **Backend .NET** | ❌ **CÒN THIẾU (PENDING)** | `ERR_DUPLICATE_FILE_HASH` |
+#### 2. Mục đích
+Cung cấp màn hình làm việc trực quan cho phép người nộp thuế dễ dàng so sánh kết quả AI bóc tách với ảnh gốc hóa đơn, tự tay chỉnh sửa các trường bị cảnh báo và chính thức xác nhận đưa vào sổ chi phí.
 
----
+#### 3. Actor
+- Người nộp thuế (User)
+- Hệ thống (System)
 
-#### 9.1. Chi tiết các Kịch bản ĐÃ HOÀN THÀNH (100% Implemented)
+#### 4. Điều kiện trước
+- Hóa đơn đã hoàn thành các bước bóc tách và đối soát tự động.
 
-##### 1. Kịch bản 3: Tệp tin bị hỏng hoặc AI không thể đọc dữ liệu (HTTP 422)
-* **Vị trí xử lý:** `app/errors/expense_ocr_errors.py` & `app/services/expense_ocr/expense_ocr_service.py`.
-* **Cơ chế:** Phân tách tách bạch giữa lỗi tệp tin hỏng (`CorruptedFileError`) khi giải mã Base64/tải URL thất bại hoặc rỗng bytes, với lỗi ảnh mờ/lóa sáng không nhận diện được chữ (`UnreadableDocumentError`).
-* **Response Payload:**
-```json
-{
-  "statusCode": 422,
-  "message": "AI Engine could not parse the document. The image quality may be too blurry or illegible.",
-  "errors": [
-    {
-      "code": "ERR_UNREADABLE_IMAGE",
-      "field": "file",
-      "message": "AI Engine could not parse the document. The image quality may be too blurry or illegible."
-    }
-  ]
-}
-```
+#### 5. Luồng chính
+1. Hệ thống hiển thị giao diện đối chiếu song song:
+   - Bên trái (hoặc phía trên): Bản xem trước ảnh gốc hóa đơn.
+   - Bên phải (hoặc phía dưới): Biểu mẫu các trường dữ liệu bóc tách được phân nhóm khoa học (Bên bán, Bên mua, Chi tiết chi phí, Tổng tiền).
+2. Khi User nhấn chuột hoặc chạm vào bất kỳ ô nhập liệu nào trên biểu mẫu, Hệ thống tự động di chuyển khung nhìn và làm sáng (Highlight Bounding Box) vị trí của thông tin đó trên ảnh gốc.
+3. Các trường bị cảnh báo do điểm tin cậy thấp hoặc có nghi ngờ sai lệch được đánh dấu bằng màu viền cam/đỏ để thu hút sự chú ý của User.
+4. User kiểm tra số liệu, thực hiện chỉnh sửa lại các ký tự bị sai (nếu có).
+5. User kiểm tra tổng tiền và nhấn "Xác nhận và Lưu chi phí".
+6. Hệ thống ghi nhận dữ liệu chính thức, lưu trữ lịch sử chỉnh sửa (Audit Trail: giá trị ban đầu do AI trích xuất vs giá trị người dùng hiệu chỉnh) và cập nhật số tiền vào bảng tính thuế tạm tính của User.
 
-##### 2. Kịch bản 5: Năm trên hóa đơn không khớp năm kê khai thuế (HTTP 422)
-* **Vị trí xử lý:** `app/services/expense_ocr/expense_ocr_service.py` & `expense_consumer.py`.
-* **Cơ chế:** AI trích xuất `extractedYear` từ `invoiceDate` và so sánh với `targetYear`. Nếu lệch, gán mã lỗi chuẩn `ERR_YEAR_MISMATCH`.
-* **Response Payload:**
-```json
-{
-  "statusCode": 422,
-  "message": "Validation failed: Document date does not match the active filing tax year.",
-  "errors": [
-    {
-      "code": "ERR_YEAR_MISMATCH",
-      "field": "extractedYear",
-      "message": "Document is dated in 2025 but filing year is 2026."
-    }
-  ]
-}
-```
+#### 6. Luồng thay thế / Ngoại lệ
+- **User phát hiện ảnh chụp bị nhầm người hoặc hóa đơn không còn giá trị:** User nhấn nút "Hủy bỏ và Xóa hóa đơn" -> Hệ thống xóa bỏ phiên làm việc và không ghi nhận chi phí.
+- **User sửa đổi số tiền vượt quá ngưỡng hợp lý:** User sửa số tiền lên gấp nhiều lần so với số tiền AI đọc được -> Hệ thống hiển thị cảnh báo xác nhận hai lần để chống thao tác nhầm lẫn.
 
-##### 3. Kịch bản 6: Loại chứng từ không thuộc danh mục giảm trừ thuế (HTTP 422)
-* **Vị trí xử lý:** `app/services/expense_ocr/expense_ocr_service.py`.
-* **Cơ chế:** Khi hóa đơn là hóa đơn tài chính thật nhưng thuộc mục cà phê, ăn uống, xem phim... AI gán `isTaxDocument = True` và `docTypeCode = 'UNSUPPORTED'`, sinh mã lỗi chuẩn `ERR_INVALID_DOC_TYPE`.
-* **Response Payload:**
-```json
-{
-  "statusCode": 422,
-  "message": "Validation failed: Document type is not eligible for Personal Income Tax deductions.",
-  "errors": [
-    {
-      "code": "ERR_INVALID_DOC_TYPE",
-      "field": "docTypeCode",
-      "message": "This document category does not qualify for tax relief or deductions."
-    }
-  ]
-}
-```
+#### 7. Kết quả sau khi thực hiện
+- Khoản chi phí được chuyển từ trạng thái "Bản nháp bóc tách" sang **"Đã xác nhận chính thức" (Confirmed Expense)**.
+- Toàn bộ vết kiểm toán phục vụ việc giải trình với cơ quan thuế sau này được lưu trữ an toàn.
 
-##### 4. Kịch bản 9: Điểm chất lượng ảnh thấp hơn ngưỡng (HTTP 422)
-* **Vị trí xử lý:** `app/schemas/expense_ocr/expense_ocr_schema.py` & `app/prompts/expense_ocr/expense_orc_promt.py`.
-* **Cơ chế:** AI trực tiếp quan sát và đánh giá khuyết tật quang học trên ảnh (`qualityIssues`), trả về danh sách lý do cụ thể (`IMAGE_BLURRY`, `EXCESSIVE_GLARE`, `CROPPED_EDGES`, `LOW_RESOLUTION`).
-* **Response Payload:**
-```json
-{
-  "statusCode": 422,
-  "message": "Image quality is too low for accurate tax document extraction. Please capture or upload a clearer document.",
-  "errors": [
-    {
-      "code": "ERR_IMAGE_QUALITY_TOO_LOW",
-      "field": "file",
-      "qualityScore": 0.52,
-      "requiredThreshold": 0.75,
-      "reasons": ["IMAGE_BLURRY", "EXCESSIVE_GLARE"]
-    }
-  ]
-}
-```
+#### 8. Business Rules
+- Bắt buộc phải lưu vết kiểm toán (Audit Trail) gồm: Ảnh gốc, kết quả thô của AI, thông tin người sửa, thời điểm sửa và giá trị cuối cùng.
+- Khi người dùng chủ động sửa dữ liệu, hệ thống tự động cập nhật lại các chỉ số cân đối tài chính liên quan.
 
-##### 5. Kịch bản 10: Tệp tin không phải chứng từ thuế hợp lệ (HTTP 422)
-* **Vị trí xử lý:** `app/prompts/expense_ocr/expense_orc_promt.py` & `expense_ocr_service.py`.
-* **Cơ chế:** Phân định dứt khoát giữa hóa đơn không giảm trừ với tệp tin rác (ảnh selfie, phong cảnh, động vật, meme). Khi phát hiện tệp tin rác, AI gán `isTaxDocument = False` và ném mã lỗi `ERR_NOT_TAX_DOCUMENT`.
-* **Response Payload:**
-```json
-{
-  "statusCode": 422,
-  "message": "Uploaded file is not recognized as a valid tax document.",
-  "errors": [
-    {
-      "code": "ERR_NOT_TAX_DOCUMENT",
-      "field": "file",
-      "message": "Uploaded file is not recognized as a valid tax document."
-    }
-  ]
-}
-```
-
-##### 6. Kịch bản 12: Ngày hóa đơn không được ở tương lai (HTTP 422)
-* **Vị trí xử lý:** `app/services/expense_ocr/expense_ocr_service.py`.
-* **Cơ chế:** So sánh `inv_date = datetime.strptime(invoiceDate, "%Y-%m-%d").date()` với `today_utc = datetime.now(timezone.utc).date()`. Nếu `inv_date > today_utc`, sinh mã lỗi `ERR_FUTURE_DATE`.
-* **Response Payload:**
-```json
-{
-  "statusCode": 422,
-  "message": "Invoice date cannot be greater than the current date.",
-  "errors": [
-    {
-      "code": "ERR_FUTURE_DATE",
-      "field": "invoiceDate",
-      "message": "Invoice date cannot be greater than the current date."
-    }
-  ]
-}
-```
-
-##### 7. Kịch bản 1, 4, 8: Các ràng buộc bảo mật & kỳ tính thuế phía Backend .NET
-* **404 Document not found:** Đã có trong `TaxPeriodService.ConfirmDocumentReviewAsync` (kiểm tra `document == null || document.Period.UserId != userId`).
-* **401 Unauthorized:** Đã có qua JWT Bearer Middleware (`[Authorize]`).
-* **403 Tax Period Locked:** Đã có trong `TaxPeriodService.InitOrGetPeriodAsync` và `BatchUploadDocumentsAsync` (kiểm tra `TaxPeriodStatus.SUBMITTED`).
-
-##### 8. Kịch bản 2: Document không ở trạng thái hợp lệ (HTTP 400 - `ERR_INVALID_STATUS`)
-* **Vị trí xử lý:** `TaxPeriodService.cs` (`ConfirmDocumentReviewAsync` & `TriggerDocumentOcrAsync`) và `DocumentOcrConsumerBackgroundService.cs`.
-* **Cơ chế:** 
-  - Trong `ConfirmDocumentReviewAsync`: Chặn nếu tài liệu đã ở trạng thái `CONFIRMED` (`throw new BadRequestException(ErrorCodes.InvalidDocumentStatus, ErrorMessages.DocumentAlreadyVerified)`).
-  - Trong `TriggerDocumentOcrAsync`: Chặn nếu tài liệu không ở trạng thái `UPLOADED` (đã `EXTRACTED` hoặc `CONFIRMED`).
-  - Trong `DocumentOcrConsumerBackgroundService`: Bỏ qua cập nhật bóc tách nếu tài liệu đã được người dùng xác nhận (`CONFIRMED`).
-* **Response Payload:**
-```json
-{
-  "success": false,
-  "errorCode": "ERR_INVALID_STATUS",
-  "message": "Document has already been extracted or verified."
-}
-```
-
-##### 9. Kịch bản 11: Trùng số hóa đơn & MST người bán trong cùng kỳ tính thuế (HTTP 409 - `ERR_DUPLICATE_DOCUMENT`)
-* **Vị trí xử lý:** `TaxPeriodService.ConfirmDocumentReviewAsync`.
-* **Cơ chế:** Trước khi cập nhật và chuyển trạng thái sang `CONFIRMED`, hệ thống truy vấn CSDL kiểm tra xem trong cùng `periodId` đã tồn tại chứng từ khác (khác `documentId`) có cùng cặp `(SellerTaxCode, InvoiceNumber)` hay chưa. Nếu phát hiện trùng, ném mã lỗi 409 `ERR_DUPLICATE_DOCUMENT`.
-* **Response Payload:**
-```json
-{
-  "success": false,
-  "errorCode": "ERR_DUPLICATE_DOCUMENT",
-  "message": "Duplicate document: Invoice number 0012345 from seller 0101234567 already exists."
-}
-```
+#### 9. Điểm chưa thống nhất
+- Người dùng có thể xóa một dòng hàng hóa cụ thể trong hóa đơn nếu dòng đó là hàng hóa không thuộc diện được giảm trừ (ví dụ mua thuốc kèm mỹ phẩm) hay không?
 
 ---
 
-#### 9.2. Chi tiết các Kịch bản CÒN THIẾU (Pending Implementation)
+### ĐẶC TẢ 6: QUẢN TRỊ CẤU HÌNH HỆ THỐNG & CHÍNH SÁCH CHI PHÍ ĐỘNG
 
-##### 1. Kịch bản 7: Danh tính người mua không khớp NNT hoặc người phụ thuộc (HTTP 422)
-* **Phân tầng:** Tích hợp giữa BE .NET & AI Service.
-* **Mô tả:** Trên hóa đơn viện phí / học phí, thông tin người mua / bệnh nhân (`buyerIdCard` hoặc `buyerName`) bắt buộc phải trùng khớp với Căn cước công dân / Họ tên của chính người nộp thuế HOẶC một trong các người phụ thuộc đã đăng ký trong kỳ.
-* **Hiện trạng & Cần bổ sung:** 
-  * Hiện tại trong `expense_consumer.py`, cờ `isIdentityValid` đang được gán mặc định `True`.
-  * **Cần bổ sung:** Phía .NET Backend khi gửi message vào `expense.ocr.ai.request.queue` cần đính kèm thông tin: `taxpayerProfile: { idCard, fullName }` và danh sách `dependents: [{ idCard, fullName }]`. Sau đó AI Service hoặc BE .NET thực hiện so khớp chéo chuỗi định danh.
+#### 1. Tên chức năng
+Quản trị cấu hình hệ thống & chính sách chi phí động (Dynamic System Configuration & Expense Policy Management).
 
-##### 2. Kịch bản 13: Trùng mã băm SHA-256 nội dung file nhị phân (HTTP 409)
-* **Phân tầng:** Backend Core (.NET API - Tầng Upload).
-* **Mô tả:** Khi người nộp thuế upload nhiều hóa đơn, nếu vô tình chọn lại đúng file ảnh/PDF đã upload trước đó trong cùng kỳ, hệ thống phát hiện trùng mã băm SHA-256 nhị phân và từ chối ngay lập tức tại cổng upload.
-* **Cần bổ sung tại .NET:** Thêm cột `FileHash` (String 64) vào bảng `documents`. Khi xử lý `IFormFile`:
-  ```csharp
-  using var sha256 = SHA256.Create();
-  using var stream = file.OpenReadStream();
-  var hashBytes = await sha256.ComputeHashAsync(stream);
-  var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+#### 2. Mục đích
+Cho phép Quản trị viên (Admin) quản lý tập trung toàn bộ các tham số vận hành, ngưỡng an toàn cho từng danh mục chi phí, danh sách trường cốt lõi và các quy tắc kiểm soát theo thời gian thực mà không cần lập trình viên sửa code.
 
-  var isDuplicate = (await docRepo.FindAsync(d => d.PeriodId == periodId && d.FileHash == fileHash)).Any();
-  if (isDuplicate)
-  {
-      throw new ConflictException("ERR_DUPLICATE_FILE_HASH",
-          "Duplicate file detected: An identical file has already been uploaded in this tax filing period.");
-  }
-  ```
+#### 3. Actor
+- Quản trị viên hệ thống (Admin)
+- Hệ thống (System)
+
+#### 4. Điều kiện trước
+- Admin đăng nhập bằng tài khoản có quyền Quản trị hệ thống (System Administrator).
+
+#### 5. Luồng chính
+1. Admin truy cập màn hình "Quản trị Cấu hình Hệ thống" (`System Configs Management`).
+2. Hệ thống hiển thị danh sách các cấu hình đang hoạt động được phân nhóm:
+   - Nhóm tham số AI (Ngưỡng tin cậy chung, Ngưỡng riêng cho từng loại hóa đơn).
+   - Nhóm danh mục chi phí (Mã danh mục, Tên hiển thị, Quy tắc nhận diện).
+   - Nhóm trường cốt lõi (Crucial Fields theo từng danh mục).
+   - Nhóm tham số vận hành (Dung lượng file tối đa, thời gian giữ file tạm).
+3. Admin thực hiện tạo mới, chỉnh sửa giá trị tham số:
+   - Hệ thống tự động suy đoán và kiểm tra định dạng kiểu dữ liệu (Số thực, Chuỗi văn bản, JSON, Danh sách phân tách bằng dấu phẩy).
+4. Admin nhấn "Cập nhật cấu hình".
+5. Hệ thống lưu cấu hình mới, cập nhật bộ nhớ đệm và kích hoạt áp dụng ngay lập tức cho các giao dịch tải hóa đơn diễn ra sau đó.
+6. Cho phép Admin tạm ẩn (Soft Delete) hoặc kích hoạt lại các cấu hình khi cần thiết.
+
+#### 6. Luồng thay thế / Ngoại lệ
+- **Sai kiểu dữ liệu:** Admin nhập chữ vào trường yêu cầu số thực (ví dụ nhập chữ "cao" vào ô ngưỡng tin cậy) -> Hệ thống báo lỗi và chặn lưu dữ liệu.
+- **Xóa cấu hình mặc định quan trọng:** Admin cố tình xóa cấu hình cơ sở của hệ thống -> Hệ thống từ chối và cảnh báo đây là tham số bắt buộc để duy trì hoạt động.
+
+#### 7. Kết quả sau khi thực hiện
+- Hệ thống hoạt động linh hoạt, dễ dàng thích ứng với các thay đổi chính sách kiểm soát chi phí mà không phát sinh chi phí triển khai phần mềm mới.
+
+#### 8. Business Rules
+- Cơ chế xóa cấu hình phải áp dụng nguyên tắc Xóa mềm (Soft Delete) để bảo toàn tính toàn vẹn của dữ liệu và nhật ký đối soát trong quá khứ.
+- Mọi thay đổi về cấu hình phải được ghi nhận vào nhật ký kiểm trị gồm: Admin thực hiện, giá trị cũ, giá trị mới, thời điểm thay đổi.
+
+#### 9. Điểm chưa thống nhất
+- Quy định giới hạn số lần thay đổi cấu hình trong ngày và cơ chế tự động gửi email thông báo cho toàn bộ đội ngũ Quản trị khi có một cấu hình ngưỡng quan trọng bị sửa đổi.
 
 ---
 
-### 10. KẾT LUẬN & GIÁ TRỊ ĐÓNG GÓP CHO ĐỒ ÁN CAPSTONE
+## 3. BẢNG TỔNG HỢP VÀ ÁNH XẠ TRẠNG THÁI NGHIỆP VỤ
 
-1. **Khả năng thương mại hóa cao:** Phân hệ xử lý trọn vẹn bài toán bóc tách hóa đơn tài chính phức tạp, bao gồm cả các bảng kê hàng hóa nhiều dòng, tự động phân định rạch ròi giữa hóa đơn không đủ điều kiện thuế (`UNSUPPORTED`) và ảnh rác không phải chứng từ thuế (`NOT_TAX_DOCUMENT`).
-2. **Kiến trúc phần mềm linh hoạt (Zero Hardcode):** Toàn bộ ngưỡng tin cậy, quy tắc trường cốt lõi và danh mục chứng từ đều được điều khiển động từ CSDL qua hệ thống `system_configs`.
-3. **Quản trị rủi ro & An toàn dữ liệu tài chính:** Mô hình kết hợp giữa điểm tin cậy tổng thể, kiểm soát trường cốt lõi và phát hiện lỗi quang học trực quan (`IMAGE_BLURRY`, `EXCESSIVE_GLARE`) tạo tiền đề vững chắc cho quy trình kiểm toán và hậu kiểm của cơ quan thuế.
-
+| STT | Tên đặc tả nghiệp vụ | Trọng tâm giải quyết | Trạng thái chứng từ chi phí |
+| :--- | :--- | :--- | :--- |
+| **1** | Tiếp nhận và phân loại chứng từ | Tải tệp & phân loại danh mục chi phí hợp lệ | Tải lên -> Hợp lệ / Bị từ chối (Unsupported) |
+| **2** | Bóc tách thông tin & bảng chi tiết | Trích xuất thông tin bên bán, bên mua & Line items | Đang bóc tách -> Bóc tách thành công |
+| **3** | Thẩm định ngưỡng tin cậy 3 tầng | Kiểm tra ngưỡng chung & bảo vệ trường cốt lõi | Đạt chuẩn (Passed) / Cần rà soát (Flagged) |
+| **4** | Đối soát niên độ & cân đối tài chính | Khớp năm quyết toán & kiểm tra số học | Niên độ hợp lệ / Cảnh báo sai lệch niên độ |
+| **5** | Hiệu chỉnh đối chiếu & xác nhận | Soi sáng ảnh gốc, sửa sai sót & lưu vết | Bản nháp -> Đã xác nhận chính thức |
+| **6** | Quản trị cấu hình hệ thống động | Điều chỉnh ngưỡng & danh mục thời gian thực | Cấu hình lưu phiên bản mới, áp dụng tức thời |
