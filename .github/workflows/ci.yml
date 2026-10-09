@@ -56,10 +56,10 @@ jobs:
           server_address: smtp.gmail.com
           server_port: 465
           secure: true
-          username: ${{ secrets.MAIL_USERNAME }}
+          username: vovancuong1208@gmail.com
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: "[CI Report] Kết quả test nhánh ${{ github.ref_name }} - Trạng thái: ${{ job.status }}"
-          to: ${{ secrets.MAIL_USERNAME }}
+          to: vovancuong1208@gmail.com
           from: GitHub Actions CI
           body: |
             Xin chào,
