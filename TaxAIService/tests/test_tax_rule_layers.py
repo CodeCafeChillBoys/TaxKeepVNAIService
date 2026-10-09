@@ -169,7 +169,7 @@ def test_service_approve_tax_rule_set_success():
 def test_route_approve_success():
     from fastapi.testclient import TestClient
     from app.main import app
-    from app.api.routes.tax_rule_routes import get_tax_rule_service
+    from app.api.routes.tax_rule.tax_rule_routes import get_tax_rule_service
 
     test_id = uuid.uuid4()
     admin_id = uuid.uuid4()
@@ -212,7 +212,7 @@ def test_route_approve_validation_error():
 def test_route_approve_not_found():
     from fastapi.testclient import TestClient
     from app.main import app
-    from app.api.routes.tax_rule_routes import get_tax_rule_service
+    from app.api.routes.tax_rule.tax_rule_routes import get_tax_rule_service
 
     test_id = uuid.uuid4()
     admin_id = uuid.uuid4()
@@ -250,8 +250,8 @@ async def test_service_process_with_admin_id():
 
     service = TaxRuleService(mock_repo)
 
-    with patch("app.services.tax_rule_document_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
-         patch("app.services.tax_rule_document_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
+    with patch("app.services.tax_rule.tax_rule_document_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
+         patch("app.services.tax_rule.tax_rule_document_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
         mock_pdf.return_value = (False, "PDF Content", None)
         mock_extract.return_value = {
             "taxRuleSet": {"name": "Luat Thue 2026"},
@@ -287,7 +287,7 @@ def test_route_upload_invalid_admin_id():
 
 def test_extraction_service_year_mismatch_warning():
     import json
-    from app.services.tax_rule_extraction_service import TaxRuleExtractionService
+    from app.services.tax_rule.tax_rule_extraction_service import TaxRuleExtractionService
 
     service = TaxRuleExtractionService()
     mock_resp = MagicMock()
@@ -316,7 +316,7 @@ def test_extraction_service_year_mismatch_warning():
 
 def test_extraction_service_year_mismatch_different_year():
     import json
-    from app.services.tax_rule_extraction_service import TaxRuleExtractionService
+    from app.services.tax_rule.tax_rule_extraction_service import TaxRuleExtractionService
 
     service = TaxRuleExtractionService()
     mock_resp = MagicMock()
@@ -344,7 +344,7 @@ def test_extraction_service_year_mismatch_different_year():
 
 def test_extraction_service_year_matched_success():
     import json
-    from app.services.tax_rule_extraction_service import TaxRuleExtractionService
+    from app.services.tax_rule.tax_rule_extraction_service import TaxRuleExtractionService
 
     service = TaxRuleExtractionService()
     mock_resp = MagicMock()
@@ -386,8 +386,8 @@ async def test_service_process_year_mismatch_saves_draft_with_warning():
 
     service = TaxRuleService(mock_repo)
 
-    with patch("app.services.tax_rule_document_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
-         patch("app.services.tax_rule_document_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
+    with patch("app.services.tax_rule.tax_rule_document_service.pdf_service.prepare_pdf_for_ai") as mock_pdf, \
+         patch("app.services.tax_rule.tax_rule_document_service.tax_rule_extraction_service.extract_tax_rules") as mock_extract:
         mock_pdf.return_value = (False, "PDF Content", None)
         mock_extract.return_value = {
             "verification": {
@@ -532,7 +532,7 @@ def test_service_get_all_rule_sets_includes_admin_id():
 def test_route_get_tax_rule_set_success():
     from fastapi.testclient import TestClient
     from app.main import app
-    from app.api.routes.tax_rule_routes import get_tax_rule_service
+    from app.api.routes.tax_rule.tax_rule_routes import get_tax_rule_service
 
     test_id = uuid.uuid4()
     mock_service = MagicMock()
@@ -564,7 +564,7 @@ def test_route_get_tax_rule_set_success():
 def test_route_update_tax_rule_set_success():
     from fastapi.testclient import TestClient
     from app.main import app
-    from app.api.routes.tax_rule_routes import get_tax_rule_service
+    from app.api.routes.tax_rule.tax_rule_routes import get_tax_rule_service
 
     test_id = uuid.uuid4()
     mock_service = MagicMock()
@@ -597,7 +597,7 @@ def test_route_update_tax_rule_set_success():
 
 def test_extraction_service_extracts_rules_successfully():
     import json
-    from app.services.tax_rule_extraction_service import tax_rule_extraction_service
+    from app.services.tax_rule.tax_rule_extraction_service import tax_rule_extraction_service
 
     mock_ai_response = MagicMock()
     mock_ai_response.text = json.dumps({
@@ -629,8 +629,8 @@ def test_extraction_service_extracts_rules_successfully():
 
 def test_extraction_service_raises_when_rules_empty():
     import json
-    from app.services.tax_rule_extraction_service import tax_rule_extraction_service, TaxRuleExtractionError
-    from app.errors.tax_rule_errors import TaxRuleErrorMessages
+    from app.services.tax_rule.tax_rule_extraction_service import tax_rule_extraction_service
+    from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleExtractionError
 
     mock_ai_response = MagicMock()
     mock_ai_response.text = json.dumps({
@@ -715,7 +715,7 @@ def test_repository_update_tax_rule_set_all_fields():
 
 def test_extraction_service_year_mismatch_preserves_draft_without_raising():
     import json
-    from app.services.tax_rule_extraction_service import tax_rule_extraction_service
+    from app.services.tax_rule.tax_rule_extraction_service import tax_rule_extraction_service
 
     mock_ai_response = MagicMock()
     mock_ai_response.text = json.dumps({
