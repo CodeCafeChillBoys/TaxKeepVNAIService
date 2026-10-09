@@ -1,7 +1,7 @@
 import uuid
 from abc import abstractmethod
-from typing import Optional, Dict, Any
 from app.services.interfaces.iservice import IService
+from typing import Optional, Dict, Any, List
 
 
 class ITaxRuleService(IService):
