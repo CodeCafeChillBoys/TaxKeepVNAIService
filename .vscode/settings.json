@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/TaxAIService/.venv/Scripts/python.exe",
+  "python.testing.pytestArgs": [
+    "TaxAIService/tests"
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showGutterCoverage": true
+}
