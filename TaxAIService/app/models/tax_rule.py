@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 class TaxRule(Base):
     __tablename__ = "tax_rules"
+    __table_args__ = {"extend_existing": True}
 
     # Primary key dạng GUID (UUID)
     rule_id: Mapped[uuid.UUID] = mapped_column(

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class Document(Base):
     __tablename__ = "documents"
+    __table_args__ = {"extend_existing": True}
 
     # Primary key dạng GUID (UUID v4)
     id: Mapped[uuid.UUID] = mapped_column(

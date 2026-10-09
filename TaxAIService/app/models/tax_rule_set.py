@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 class TaxRuleSet(Base):
     __tablename__ = "tax_rule_sets"
+    __table_args__ = {"extend_existing": True}
 
     rule_set_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
