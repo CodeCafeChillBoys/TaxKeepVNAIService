@@ -10,6 +10,7 @@ from app.infrastructure.database import Base
 class SystemConfig(Base):
     """Bảng cấu hình hệ thống (ngưỡng threshold do Admin cài)"""
     __tablename__ = "system_configs"
+    __table_args__ = {"extend_existing": True}
 
     config_key: Mapped[str] = mapped_column(String(100), primary_key=True)
     config_value: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -30,6 +31,7 @@ class SystemConfig(Base):
 class AiExtraction(Base):
     """Bảng cha: Lưu tổng quan 1 lần bóc tách cho 1 chứng từ"""
     __tablename__ = "ai_extractions"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
@@ -50,6 +52,7 @@ class AiExtraction(Base):
 class AiExtractionValue(Base):
     """Bảng con: Lưu chi tiết từng trường bóc tách, confidence và bounding_box"""
     __tablename__ = "ai_extractions_value"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     extraction_id: Mapped[uuid.UUID] = mapped_column(

@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
+    __table_args__ = {"extend_existing": True}
 
     # Primary key dạng GUID (UUID)
     id: Mapped[uuid.UUID] = mapped_column(

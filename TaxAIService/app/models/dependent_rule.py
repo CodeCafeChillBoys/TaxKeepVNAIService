@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 class DependentRule(Base):
     __tablename__ = "dependent_rules"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

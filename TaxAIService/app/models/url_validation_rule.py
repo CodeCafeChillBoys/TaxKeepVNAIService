@@ -9,6 +9,7 @@ from app.infrastructure.database import Base
 
 class UrlValidationRule(Base):
     __tablename__ = "url_validation_rules"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
