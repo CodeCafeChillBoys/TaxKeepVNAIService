@@ -60,7 +60,7 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           subject: "[CI Report] Kết quả test nhánh ${{ github.ref_name }} - Trạng thái: ${{ job.status }}"
           to: vovancuong1208@gmail.com
-          from: GitHub Actions CI
+          from: "GitHub Actions CI <vovancuong1208@gmail.com>"
           body: |
             Xin chào,
             
