@@ -77,12 +77,19 @@ class GeminiOcrOutput(BaseModel):
     paymentMethod: Optional[str] = Field(None, description="Hình thức thanh toán (QR, Chuyển khoản, Tiền mặt...)")
 
     # Tài chính
-    totalAmount: float = Field(0.0, description="Tổng số tiền thanh toán")
+    totalAmount: Optional[float] = Field(
+        None,
+        description="Tổng số tiền thanh toán; chỉ áp dụng cho hóa đơn, biên lai hoặc chứng từ có khoản thanh toán"
+    )
     totalAmountInWords: Optional[str] = Field(None, description="Số tiền viết bằng chữ")
 
     # Tra cứu
     lookupUrl: Optional[str] = Field(None, description="Đường dẫn tra cứu hóa đơn")
     lookupCode: Optional[str] = Field(None, description="Mã tra cứu / Mã bí mật")
+    insuranceDeducted: Optional[float] = Field(None, description="Mục 14b - Khoản đóng bảo hiểm bắt buộc")
+    totalIncome: Optional[float] = Field(None, description="Mục 16 - Tổng thu nhập chịu thuế")
+    taxWithheld: Optional[float] = Field(None, description="Mục 18 - Số thuế đã khấu trừ")
+
 
     # Danh sách chi tiết từng hàng hóa / dịch vụ trên hóa đơn
     items: List[InvoiceLineItem] = Field(default_factory=list, description="Bảng danh sách các mặt hàng, dịch vụ, viện phí, học phí trong hóa đơn")
@@ -125,10 +132,13 @@ class ProcessDocumentResponseData(BaseModel):
     buyerIdCard: Optional[str] = None
     buyerAddress: Optional[str] = None
     paymentMethod: Optional[str] = None
-    totalAmount: float = 0.0
+    totalAmount: Optional[float] = None
     totalAmountInWords: Optional[str] = None
     lookupUrl: Optional[str] = None
     lookupCode: Optional[str] = None
+    insuranceDeducted: Optional[float] = Field(None, description="Mục 14b - Khoản đóng bảo hiểm bắt buộc")
+    totalIncome: Optional[float] = Field(None, description="Mục 16 - Tổng thu nhập chịu thuế")
+    taxWithheld: Optional[float] = Field(None, description="Mục 18 - Số thuế đã khấu trừ")
     items: List[InvoiceLineItem] = Field(default_factory=list)
     validationStatus: ValidationStatus = Field(default_factory=ValidationStatus)
     validationErrors: List[str] = Field(default_factory=list)
