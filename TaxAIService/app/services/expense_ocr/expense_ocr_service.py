@@ -100,12 +100,24 @@ class ExpenseOcrService:
 
         # 4.2. Kiểm tra năm tính thuế
         is_year_valid = True
-        if doc_data.extractedYear and doc_data.extractedYear != target_year:
+        # Chứng từ khấu trừ có thể được lập vào năm sau năm phát sinh thu nhập.
+        # Vì vậy kỳ tính thuế phải đối chiếu với incomeYear, không phải ngày lập chứng từ.
+        year_to_validate = (
+            doc_data.incomeYear
+            if doc_data.docTypeCode == "WITHHOLDING_VOUCHER"
+            else doc_data.extractedYear
+        )
+        year_field = (
+            "incomeYear"
+            if doc_data.docTypeCode == "WITHHOLDING_VOUCHER"
+            else "extractedYear"
+        )
+        if year_to_validate and year_to_validate != target_year:
             is_year_valid = False
             validation_errors.append({
                 "code": "ERR_YEAR_MISMATCH",
-                "field": "extractedYear",
-                "message": f"Document is dated in {doc_data.extractedYear} but filing year is {target_year}."
+                "field": year_field,
+                "message": f"Document income year is {year_to_validate} but filing year is {target_year}."
             })
 
         # 4.3. Kiểm tra ngày hóa đơn không được ở tương lai (ERR_FUTURE_DATE)

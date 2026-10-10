@@ -160,6 +160,7 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                     "invoiceNumber": doc.invoiceNumber,
                     "invoiceDate": doc.invoiceDate,
                     "extractedYear": doc.extractedYear,
+                    "incomeYear": doc.incomeYear if doc.docTypeCode == "WITHHOLDING_VOUCHER" else None,
                     "sellerName": doc.sellerName,
                     "sellerTaxCode": doc.sellerTaxCode,
                     "sellerAddress": doc.sellerAddress,

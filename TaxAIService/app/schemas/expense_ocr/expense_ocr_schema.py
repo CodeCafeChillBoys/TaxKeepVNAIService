@@ -67,7 +67,11 @@ class GeminiOcrOutput(BaseModel):
     invoiceSeries: Optional[str] = Field(None, description="Ký hiệu mẫu hóa đơn (VD: 2C26TBH)")
     invoiceNumber: Optional[str] = Field(None, description="Số hóa đơn (VD: 82621)")
     invoiceDate: Optional[str] = Field(None, description="Ngày lập YYYY-MM-DD")
-    extractedYear: Optional[int] = Field(None, description="Năm trích xuất từ invoiceDate")
+    extractedYear: Optional[int] = Field(None, description="Năm của invoiceDate")
+    incomeYear: Optional[int] = Field(
+        None,
+        description="Năm phát sinh thu nhập, chỉ áp dụng cho chứng từ khấu trừ thuế TNCN"
+    )
 
     # Thông tin người mua / bệnh nhân / học sinh
     buyerName: Optional[str] = Field(None, description="Họ tên người mua/bệnh nhân")
@@ -123,6 +127,7 @@ class ProcessDocumentResponseData(BaseModel):
     invoiceNumber: Optional[str] = None
     invoiceDate: Optional[str] = None
     extractedYear: Optional[int] = None
+    incomeYear: Optional[int] = None
     sellerName: Optional[str] = None
     sellerTaxCode: Optional[str] = None
     sellerAddress: Optional[str] = None

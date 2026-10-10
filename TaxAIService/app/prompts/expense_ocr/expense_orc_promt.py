@@ -61,6 +61,17 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
    - totalAmount (Tổng số tiền thanh toán kiểu số float, không chứa dấu phẩy hay ký tự đ), totalAmountInWords (Số tiền bằng chữ) chỉ áp dụng cho hóa đơn/biên lai có khoản thanh toán.
    - Nếu docTypeCode = 'WITHHOLDING_VOUCHER': BẮT BUỘC trả totalAmount = null và totalAmountInWords = null; không được lấy tổng thu nhập chịu thuế hoặc số thuế khấu trừ đưa vào totalAmount.
    - lookupUrl (Link tra cứu HĐĐT), lookupCode (Mã tra cứu/mã bí mật).
+   - invoiceDate: Ngày lập hóa đơn/chứng từ, định dạng YYYY-MM-DD.
+   - extractedYear: Năm của ngày lập hóa đơn/chứng từ, được xác định từ invoiceDate. Đây KHÔNG mặc định là năm thu nhập.
+   - incomeYear: Năm phát sinh thu nhập, chỉ áp dụng cho chứng từ khấu trừ thuế TNCN (docTypeCode = 'WITHHOLDING_VOUCHER').
+   QUY TẮC XÁC ĐỊNH incomeYear:
+   1. Với 'WITHHOLDING_VOUCHER', ưu tiên đọc trường "Thời điểm trả thu nhập" / "Time of income payment".
+   2. Nếu trường này có tháng và năm, lấy năm ghi trực tiếp tại trường đó làm incomeYear.
+   3. Không lấy năm từ ngày lập chứng từ, ngày ký điện tử, ngày phát hành hoặc ngày tải tệp lên để thay thế incomeYear.
+   4. Không suy luận incomeYear từ invoiceDate nếu trường năm thu nhập không đọc được.
+   5. Nếu không xác định được năm thu nhập một cách đáng tin cậy, trả incomeYear = null.
+   6. extractedYear và incomeYear là hai trường độc lập, được phép có giá trị khác nhau.
+   7. Với chứng từ không phải 'WITHHOLDING_VOUCHER', không tự suy ra incomeYear nếu loại chứng từ không có trường này.
 
 5. BÓC TÁCH 3 TRƯỜNG TRÊN CHỨNG TỪ KHẤU TRỪ THUẾ (BẮT BUỘC NẾU TÀI LIỆU CÓ):
    - insuranceDeducted: tìm khoản bảo hiểm bắt buộc người lao động đã đóng hoặc bị khấu trừ từ thu nhập. Trả về số thực VND, bỏ dấu chấm/phẩy phân cách hàng nghìn.
@@ -70,6 +81,10 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
    - Không lấy nhầm các giá trị trên từ tổng thanh toán, thu nhập thực nhận hoặc thuế phải nộp ở mục khác.
    - Nếu chứng từ có các khoản này nhưng số tiền bằng 0 thì trả về 0.0; chỉ trả về null khi khoản đó không xuất hiện hoặc không đọc được.
    - Bắt buộc ghi cả 3 trường vào mảng fields với fieldName lần lượt là "insurance_deducted", "total_income", "tax_withheld", extractedValue là chuỗi số đã chuẩn hóa và confidenceScore phản ánh đúng độ rõ của vùng số.
+   - BẮT BUỘC bóc tách thêm incomeYear đối với 'WITHHOLDING_VOUCHER'.
+   - Trường "Thời điểm trả thu nhập" có thể ghi theo dạng tháng và năm; lấy năm xuất hiện trực tiếp tại trường này làm incomeYear. Ví dụ, nếu ghi "Tháng 1 - 12, năm 2024" thì incomeYear = 2024.
+   - Ngày lập chứng từ có thể thuộc năm sau; ví dụ ngày lập là 10/01/2025 nhưng thời điểm trả thu nhập là năm 2024 thì incomeYear = 2024 và extractedYear = 2025. Không được ghi đè incomeYear bằng extractedYear.
+   - Bổ sung incomeYear vào mảng fields với fieldName = "income_year", extractedValue là chuỗi năm 4 chữ số hoặc null nếu không đọc được; confidenceScore phản ánh độ rõ của trường "Thời điểm trả thu nhập".
 
 6. QUY TẮC BÓC TÁCH totalAmount THEO NGHIỆP VỤ THUẾ TNCN (CỰC KỲ QUAN TRỌNG):
    a. Đối với Chứng từ khấu trừ thuế TNCN (WITHHOLDING_VOUCHER):
