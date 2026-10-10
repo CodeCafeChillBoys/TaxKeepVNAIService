@@ -58,12 +58,22 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
    - invoiceSeries (Ký hiệu mẫu hóa đơn), invoiceNumber (Số hóa đơn), invoiceDate (Định dạng YYYY-MM-DD), extractedYear (Năm trích xuất từ ngày lập).
    - buyerName (Họ tên người mua/bệnh nhân/học sinh), buyerTaxCode (Mã số thuế người mua), buyerIdCard (Số CCCD/CMND người mua), buyerAddress, paymentMethod (Hình thức thanh toán: Tiền mặt, Chuyển khoản, QR...).
      * LƯU Ý BÓC TÁCH ĐỊNH DANH NGƯỜI MUA: Đọc kỹ vùng "Người mua hàng / Buyer", "CCCD / No:", "Số định danh cá nhân". Nếu trên hóa đơn có số CCCD/CMND (hoặc có thẻ CCCD chụp kèm theo), BẮT BUỘC trích xuất chính xác vào trường 'buyerIdCard' và họ tên người mua vào 'buyerName'.
-   - totalAmount (Tổng số tiền thanh toán kiểu số float, không chứa dấu phẩy hay ký tự đ), totalAmountInWords (Số tiền bằng chữ).
+   - totalAmount (Tổng số tiền thanh toán kiểu số float, không chứa dấu phẩy hay ký tự đ), totalAmountInWords (Số tiền bằng chữ) chỉ áp dụng cho hóa đơn/biên lai có khoản thanh toán.
+   - Nếu docTypeCode = 'WITHHOLDING_VOUCHER': BẮT BUỘC trả totalAmount = null và totalAmountInWords = null; không được lấy tổng thu nhập chịu thuế hoặc số thuế khấu trừ đưa vào totalAmount.
    - lookupUrl (Link tra cứu HĐĐT), lookupCode (Mã tra cứu/mã bí mật).
 
-5. QUY TẮC BÓC TÁCH totalAmount THEO NGHIỆP VỤ THUẾ TNCN (CỰC KỲ QUAN TRỌNG):
+5. BÓC TÁCH 3 TRƯỜNG TRÊN CHỨNG TỪ KHẤU TRỪ THUẾ (BẮT BUỘC NẾU TÀI LIỆU CÓ):
+   - insuranceDeducted: tìm khoản bảo hiểm bắt buộc người lao động đã đóng hoặc bị khấu trừ từ thu nhập. Trả về số thực VND, bỏ dấu chấm/phẩy phân cách hàng nghìn.
+   - totalIncome: tìm tổng thu nhập chịu thuế trước khi tính/khấu trừ thuế. Trả về số thực VND.
+   - taxWithheld: tìm số thuế thu nhập cá nhân thực tế đã khấu trừ hoặc tạm khấu trừ. Trả về số thực VND.
+   - Ưu tiên nhãn gần nghĩa trên chứng từ như "bảo hiểm bắt buộc", "thu nhập chịu thuế", "thuế TNCN đã khấu trừ", "PIT withheld"; không phụ thuộc vào số thứ tự mục vì mỗi mẫu có thể đánh số khác nhau.
+   - Không lấy nhầm các giá trị trên từ tổng thanh toán, thu nhập thực nhận hoặc thuế phải nộp ở mục khác.
+   - Nếu chứng từ có các khoản này nhưng số tiền bằng 0 thì trả về 0.0; chỉ trả về null khi khoản đó không xuất hiện hoặc không đọc được.
+   - Bắt buộc ghi cả 3 trường vào mảng fields với fieldName lần lượt là "insurance_deducted", "total_income", "tax_withheld", extractedValue là chuỗi số đã chuẩn hóa và confidenceScore phản ánh đúng độ rõ của vùng số.
+
+6. QUY TẮC BÓC TÁCH totalAmount THEO NGHIỆP VỤ THUẾ TNCN (CỰC KỲ QUAN TRỌNG):
    a. Đối với Chứng từ khấu trừ thuế TNCN (WITHHOLDING_VOUCHER):
-      - BẮT BUỘC lấy "Số thuế TNCN đã khấu trừ" (không lấy nhầm tổng thu nhập).
+      - Không bóc tách vào totalAmount. BẮT BUỘC trả totalAmount = null và totalAmountInWords = null; chỉ trả giá trị thuế đã khấu trừ vào taxWithheld.
    b. Đối với Hóa đơn Viện phí / Chi phí khám chữa bệnh:
       - BẮT BUỘC lấy "Số tiền người bệnh thực trả / cùng chi trả / phải thanh toán" (sau khi đã trừ đi phần BHYT chi trả). Tuyệt đối KHÔNG lấy "Tổng chi phí khám chữa bệnh".
       - Nếu BHYT chi trả 100% (người bệnh trả = 0 VNĐ), đặt totalAmount = 0.
@@ -74,7 +84,7 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
    e. Đối với Hóa đơn tiêu dùng thông thường (docTypeCode = 'UNSUPPORTED'):
       - Lấy tổng thanh toán (Total Payment) của hóa đơn.
 
-6. BÓC TÁCH BẢNG CHI TIẾT HÀNG HÓA / DỊCH VỤ VÀO MẢNG 'items':
+7. BÓC TÁCH BẢNG CHI TIẾT HÀNG HÓA / DỊCH VỤ VÀO MẢNG 'items':
    - itemOrder: STT dòng (1, 2, 3...)
    - itemName: Tên dịch vụ, hàng hóa, thuốc, danh mục khám, môn học, học phí...
    - unit: Đơn vị tính (Lần, cái, tháng, kỳ...)
@@ -83,7 +93,7 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
    - totalPrice: Thành tiền của dòng đó
    * Lưu ý đối với trường học: Phải bóc tách riêng dòng tiền Học phí chính khóa và các dòng phụ thu dịch vụ nếu có (tiền ăn bán trú, xe đưa rước, đồng phục, dã ngoại...).
 
-7. TỌA ĐỘ VÀ ĐỘ TIN CẬY (mảng 'fields'):
+8. TỌA ĐỘ VÀ ĐỘ TIN CẬY (mảng 'fields'):
    - Liệt kê từng trường bóc tách được kèm confidenceScore (0.0 đến 1.0) và boundingBox [x, y, w, h] trên ảnh.
    - Nếu chữ mờ, số bị nhòe, bị bóng sáng che khuất: hạ điểm confidenceScore < 0.75.
 
