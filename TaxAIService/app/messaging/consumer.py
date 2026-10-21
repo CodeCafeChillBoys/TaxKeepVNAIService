@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 async def start_rabbitmq_consumer() -> None:
     """
     Vòng lặp chạy nền để kết nối và lắng nghe messages từ RabbitMQ.
-    Khởi chạy các Consumer: TaxRule, Dependent OCR, Expense OCR.
+    Khởi chạy các Consumer: TaxRule, Dependent OCR, Expense OCR, Income OCR, Certificate OCR.
     Tự động kết nối lại nếu bị ngắt kết nối.
     """
     if not settings.RABBITMQ_ENABLED:
