@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import String, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,6 +18,11 @@ class ChatSession(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+        index=True
+    )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
         index=True
     )
     title: Mapped[str] = mapped_column(String(255), default="Cuộc trò chuyện mới", nullable=False)

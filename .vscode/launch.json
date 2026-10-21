@@ -1,0 +1,21 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug TaxKeep AI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app.main:app",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/TaxAIService",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/TaxAIService"
+            },
+            "justMyCode": true
+        }
+    ]
+}
