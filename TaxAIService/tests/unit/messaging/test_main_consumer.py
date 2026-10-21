@@ -44,8 +44,8 @@ def test_start_consumer_cancelled(monkeypatch):
                 pass
 
             mock_client.connect.assert_called_once()
-            assert mock_channel.declare_queue.await_count == 8  # 4 request queues + 4 response queues
-            assert mock_queue.consume.await_count == 4
+            assert mock_channel.declare_queue.await_count == 10  # 5 request queues + 5 response queues
+            assert mock_queue.consume.await_count == 5
 
 
     asyncio.run(_test())

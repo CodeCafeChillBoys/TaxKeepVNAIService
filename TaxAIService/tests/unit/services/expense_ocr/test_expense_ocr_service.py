@@ -146,3 +146,35 @@ async def test_extract_and_classify_success():
     assert result["is_passed_threshold"] is True
     assert result["overall_confidence"] == 0.93
     assert len(result["validation_errors"]) == 0
+
+
+@pytest.mark.anyio
+async def test_withholding_voucher_validates_income_year_not_issue_year():
+    service = ExpenseOcrService()
+    fake_output = {
+        "isTaxDocument": True,
+        "docTypeCode": "WITHHOLDING_VOUCHER",
+        "invoiceDate": "2025-01-10",
+        "extractedYear": 2025,
+        "incomeYear": 2024,
+        "fields": [
+            {"fieldName": "income_year", "extractedValue": "2024", "confidenceScore": 0.95}
+        ]
+    }
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(fake_output)
+
+    with patch.object(service.client.models, "generate_content", return_value=mock_resp):
+        result = await service.extract_and_classify(
+            file_bytes=b"x" * 150,
+            mime_type="image/jpeg",
+            target_year=2024,
+            categories=[AdminCategoryItem(
+                code="WITHHOLDING_VOUCHER",
+                name="Chứng từ khấu trừ thuế",
+                description="Chứng từ khấu trừ thuế TNCN"
+            )]
+        )
+
+    assert result["is_year_valid"] is True
+    assert not any(error["code"] == "ERR_YEAR_MISMATCH" for error in result["validation_errors"])

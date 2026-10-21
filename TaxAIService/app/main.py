@@ -12,8 +12,9 @@ from app.api.routes.url_rule import url_rule_routes
 from app.api.routes.ocr import dependent_ocr_routes
 from app.api.routes.system_config import system_config_routes
 from app.api.routes.income_ocr import income_ocr_routes
+from app.api.routes.certificate_ocr import certificate_ocr_routes
 from app.messaging import start_rabbitmq_consumer, rabbitmq_client
-
+from app.api.routes.tax_rule import tax_chat
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,6 +61,9 @@ app.include_router(url_rule_routes.router)
 app.include_router(dependent_ocr_routes.router)
 app.include_router(system_config_routes.router)
 app.include_router(income_ocr_routes.router)
+app.include_router(certificate_ocr_routes.router)
+app.include_router(tax_chat.router)
+
 
 
 @app.get("/", include_in_schema=False)

@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     RABBITMQ_INCOME_REQUEST_QUEUE: str = "income.ocr.ai.request.queue"
     RABBITMQ_INCOME_RESPONSE_QUEUE: str = "income.ocr.ai.response.queue"
 
+    RABBITMQ_CERTIFICATE_OCR_REQUEST_QUEUE: str = "certificate.ocr.ai.request.queue"
+    RABBITMQ_CERTIFICATE_OCR_RESPONSE_QUEUE: str = "certificate.ocr.ai.response.queue"
+
 
     model_config = SettingsConfigDict(
         env_file=".env",
