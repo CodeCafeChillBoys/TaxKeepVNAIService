@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+from typing import Optional
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,9 +22,39 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     EMBEDDING_DIMENSION: int = 768
 
-    # AI / Gemini API Key
+    # AI / Gemini API Config
     GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
+
+    # AI / OpenAI API Config (Dùng cho đọc chứng từ)
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
+
+    # Upload & File Limits
+    UPLOAD_DIR: str = "data/pdf"
+    MAX_FILE_SIZE_MB: int = 20
+
+    # Message Broker (RabbitMQ) Config
+    RABBITMQ_ENABLED: bool = True
+    RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
+    RABBITMQ_TAX_REQUEST_QUEUE: str = "tax.ai.request.queue"
+    RABBITMQ_TAX_RESPONSE_QUEUE: str = "tax.ai.response.queue"
+    RABBITMQ_EXCHANGE_NAME: str = "tax.ai.exchange"
+    
+    RABBITMQ_OCR_REQUEST_QUEUE: str = "ocr.ai.request.queue"
+    RABBITMQ_OCR_RESPONSE_QUEUE: str = "ocr.ai.response.queue"
+
+    RABBITMQ_EXPENSE_OCR_REQUEST_QUEUE: str = "expense.ocr.ai.request.queue"
+    RABBITMQ_EXPENSE_OCR_RESPONSE_QUEUE: str = "expense.ocr.ai.response.queue"
+    
+    
+    RABBITMQ_INCOME_REQUEST_QUEUE: str = "income.ocr.ai.request.queue"
+    RABBITMQ_INCOME_RESPONSE_QUEUE: str = "income.ocr.ai.response.queue"
+
+    RABBITMQ_CERTIFICATE_OCR_REQUEST_QUEUE: str = "certificate.ocr.ai.request.queue"
+    RABBITMQ_CERTIFICATE_OCR_RESPONSE_QUEUE: str = "certificate.ocr.ai.response.queue"
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

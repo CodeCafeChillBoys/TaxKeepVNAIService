@@ -1,17 +1,20 @@
 import uuid
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import Integer, String, Text, Float, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database import Base
+from app.enum import TaxRuleStatus
 
 if TYPE_CHECKING:
     from app.models.tax_rule_set import TaxRuleSet
+    from app.models.dependent_rule import DependentRule
 
 
 class TaxRule(Base):
     __tablename__ = "tax_rules"
+    __table_args__ = {"extend_existing": True}
 
     # Primary key dạng GUID (UUID)
     rule_id: Mapped[uuid.UUID] = mapped_column(
@@ -40,11 +43,13 @@ class TaxRule(Base):
     clause: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     point: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="Draft", nullable=False) # Draft, Active, Expired
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default=TaxRuleStatus.DRAFT.value, nullable=False) # Draft, Active, Expired
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
     rule_set: Mapped[Optional["TaxRuleSet"]] = relationship("TaxRuleSet", back_populates="rules")
+    dependent_rules: Mapped[List["DependentRule"]] = relationship(
+        "DependentRule", back_populates="rule", cascade="all, delete-orphan"
+    )
