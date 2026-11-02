@@ -47,3 +47,5 @@ htmlcov/
 # Uploaded data
 data/pdf/*
 !data/pdf/.gitkeep
+
+.vscode/
