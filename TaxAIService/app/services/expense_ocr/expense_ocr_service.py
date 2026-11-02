@@ -13,15 +13,21 @@ from app.repositories.interfaces.isystem_config_repository import ISystemConfigR
 from app.schemas.expense_ocr.expense_ocr_schema import GeminiOcrOutput, AdminCategoryItem
 from app.prompts.expense_ocr.expense_orc_promt import _build_prompt
 from app.errors.expense_ocr_errors import CorruptedFileError, UnreadableDocumentError
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 
 logger = logging.getLogger(__name__)
 
 
 class ExpenseOcrService:
-    def __init__(self, repo: Optional[ISystemConfigRepository] = None):
+    def __init__(
+        self, 
+        repo: Optional[ISystemConfigRepository] = None,
+        prompt_service: Optional[PromptTemplateService] = None
+    ):
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
         self.repo = repo
+        self.prompt_service = prompt_service
 
     async def extract_and_classify(
         self,
@@ -36,17 +42,30 @@ class ExpenseOcrService:
         if not file_bytes or len(file_bytes) < 100:
             raise CorruptedFileError("Dữ liệu tệp tin rỗng hoặc quá nhỏ, tệp có thể bị hỏng trong quá trình tải.")
 
-        prompt = _build_prompt(categories)
+        cat_text = "\n".join([
+            f"- Mã '{c.code}': {c.name}. Đặc điểm nhận diện: {c.description}"
+            for c in categories
+        ])
+        default_prompt = _build_prompt(categories)
+        if self.prompt_service:
+            system_instruction = self.prompt_service.get_rendered_prompt(
+                prompt_key="PROMPT_EXPENSE_OCR",
+                default_template=default_prompt,
+                params={"categories_text": cat_text}
+            )
+        else:
+            system_instruction = default_prompt
 
         # 2. Gọi Gemini Multimodal Vision và bắt tách bạch lỗi
         try:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=[
-                    types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
-                    prompt
+                    types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+
                 ],
                 config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
                     response_mime_type="application/json",
                     response_schema=GeminiOcrOutput,
                     temperature=0.1  # Giữ tính chính xác cao nhất, loại trừ ảo giác

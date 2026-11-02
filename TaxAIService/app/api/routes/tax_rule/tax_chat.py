@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.repositories.tax_rule.tax_chat_repository import TaxChatRepository
 from app.repositories.tax_rule.chat_history_repository import ChatHistoryRepository
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.tax_rule.tax_chat_service import TaxChatService
 
 router = APIRouter(prefix="/api/tax-chat", tags=["Tư Vấn Thuế AI"])
@@ -53,7 +55,13 @@ def chat_with_tax_ai(request: ChatQuestionRequest, db: Session = Depends(get_db)
     try:
         tax_repo = TaxChatRepository(db=db)
         history_repo = ChatHistoryRepository(db=db)
-        service = TaxChatService(repository=tax_repo, history_repository=history_repo)
+        prompt_repo = PromptTemplateRepository(db=db)
+        prompt_service = PromptTemplateService(repository=prompt_repo)
+        service = TaxChatService(
+            repository=tax_repo, 
+            history_repository=history_repo,
+            prompt_service=prompt_service
+        )
 
         tax_year = request.tax_year if (request.tax_year and request.tax_year > 1900) else None
 

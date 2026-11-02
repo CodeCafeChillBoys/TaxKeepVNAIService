@@ -13,6 +13,7 @@ from app.schemas.income_ocr.income_ocr_schema import (
     IncomeThresholdValidationResult
 )
 from app.prompts.income_ocr.income_ocr_prompt import build_income_ocr_prompt
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +58,15 @@ def evaluate_income_threshold(
 
 
 class IncomeOcrService:
-    def __init__(self, repo: Optional[ISystemConfigRepository] = None):
+    def __init__(
+        self, 
+        repo: Optional[ISystemConfigRepository] = None,
+        prompt_service: Optional[PromptTemplateService] = None
+    ):
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
         self.repo = repo
+        self.prompt_service = prompt_service
 
     def extract_payslip(
         self,
@@ -85,16 +91,26 @@ class IncomeOcrService:
 
         try:
             # 2. Xây dựng prompt & gọi Gemini API
-            prompt = build_income_ocr_prompt(target_month=target_month, target_year=target_year)
+            default_prompt = build_income_ocr_prompt(target_month=target_month, target_year=target_year)
+            target_year_str = f"Năm {target_year}" if target_year else "2024, 2025, 2026"
+            if self.prompt_service:
+                system_instruction = self.prompt_service.get_rendered_prompt(
+                    prompt_key="PROMPT_INCOME_OCR",
+                    default_template=default_prompt,
+                    params={"target_year_instruction": target_year_str}
+                )
+            else:
+                system_instruction = default_prompt
             contents = [
-                types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
-                prompt
+                types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+
             ]
 
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=contents,
                 config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
                     response_mime_type="application/json",
                     response_schema=GeminiIncomeOcrOutput,
                     temperature=0.0  # Loại trừ sáng tạo ảo giác

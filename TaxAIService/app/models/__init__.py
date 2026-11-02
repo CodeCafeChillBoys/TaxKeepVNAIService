@@ -5,6 +5,7 @@ from app.models.url_validation_rule import UrlValidationRule
 from app.models.ai_extraction_models import AiExtraction, AiExtractionValue, SystemConfig
 from app.models.chat_session import ChatSession
 from app.models.chat_message import ChatMessage
+from app.models.ai_prompt_template import AiPromptTemplate
 
 __all__ = [
     "TaxRuleSet",
@@ -16,4 +17,5 @@ __all__ = [
     "AiExtractionValue",
     "ChatSession",
     "ChatMessage",
+    "AiPromptTemplate"
 ]
