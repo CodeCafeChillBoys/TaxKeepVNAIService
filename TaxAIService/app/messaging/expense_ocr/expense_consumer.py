@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from app.infrastructure.database import get_db_context
 from app.repositories.expense_ocr import ExpenseOcrRepository
 from app.repositories.system_config import SystemConfigRepository
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.schemas.expense_ocr.expense_ocr_schema import (
     AdminCategoryItem,
     GeminiOcrOutput
@@ -101,7 +103,9 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
             # BƯỚC 2 & 3: Gọi AI bóc tách & Lưu Database
             with get_db_context() as db:
                 config_repo = SystemConfigRepository(db)
-                ocr_service = ExpenseOcrService(repo=config_repo)
+                prompt_repo = PromptTemplateRepository(db)
+                prompt_service = PromptTemplateService(repository=prompt_repo)
+                ocr_service = ExpenseOcrService(repo=config_repo, prompt_service=prompt_service)
                 result = await ocr_service.extract_and_classify(
                     file_bytes=file_bytes,
                     mime_type=mime_type,

@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.infrastructure.database import get_db
 from app.repositories.system_config.system_config_repository import SystemConfigRepository
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.income_ocr.income_ocr_service import IncomeOcrService
 from app.schemas.income_ocr.income_ocr_schema import IncomeOcrResponse
 
@@ -55,7 +57,9 @@ async def extract_income_payslip(
 
     # 3. Khởi tạo service và thực thi bóc tách
     config_repo = SystemConfigRepository(db)
-    service = IncomeOcrService(repo=config_repo)
+    prompt_repo = PromptTemplateRepository(db)
+    prompt_service = PromptTemplateService(repository=prompt_repo)
+    service = IncomeOcrService(repo=config_repo, prompt_service=prompt_service)
 
     result = service.extract_payslip(
         file_bytes=file_bytes,

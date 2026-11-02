@@ -10,14 +10,16 @@ from app.schemas.certificate_ocr.certificate_ocr_schema import (
     CertificateExtractedData
 )
 from app.prompts.certificate_ocr.certificate_ocr_prompt import build_certificate_ocr_prompt
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 
 logger = logging.getLogger(__name__)
 
 
 class CertificateOcrService:
-    def __init__(self):
+    def __init__(self, prompt_service: Optional[PromptTemplateService] = None):
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
+        self.prompt_service = prompt_service
 
     def extract_certificate(
         self,
@@ -38,16 +40,35 @@ class CertificateOcrService:
             )
 
         try:
-            prompt = build_certificate_ocr_prompt(allowed_types=allowed_types)
+            default_prompt = build_certificate_ocr_prompt(allowed_types=allowed_types)
+            types_guide = ""
+            if allowed_types:
+                types_guide = "\nDANH MỤC MÃ LOẠI CHỨNG CHỈ HỢP LỆ ĐƯỢC HỆ THỐNG CHẤP NHẬN:\n"
+                for t in allowed_types:
+                    code = t.get("code", "")
+                    name = t.get("name", "")
+                    keywords = t.get("ai_keywords", "")
+                    types_guide += f"- Mã: `{code}` | Tên: {name} | Dấu hiệu nhận biết: [{keywords}]\n"
+                types_guide += "- Mã: `OTHER` | Dành cho các chứng chỉ hoặc bằng cấp chuyên môn hợp lệ khác nhưng không thuộc các mã trên.\n"
+
+            if self.prompt_service:
+                system_instruction = self.prompt_service.get_rendered_prompt(
+                    prompt_key="PROMPT_CERTIFICATE_OCR",
+                    default_template=default_prompt,
+                    params={"allowed_types_guide": types_guide}
+                )
+            else:
+                system_instruction = default_prompt
             contents = [
-                types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
-                prompt
+                types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+
             ]
 
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=contents,
                 config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
                     response_mime_type="application/json",
                     response_schema=GeminiCertificateOcrOutput,
                     temperature=0.0  # Loại trừ ảo giác

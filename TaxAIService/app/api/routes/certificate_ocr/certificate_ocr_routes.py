@@ -1,9 +1,13 @@
 import json
 import logging
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
+from app.infrastructure.database import get_db
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.certificate_ocr.certificate_ocr_service import CertificateOcrService
 from app.schemas.certificate_ocr.certificate_ocr_schema import CertificateOcrResponse
 
@@ -18,6 +22,8 @@ ALLOWED_MIME_TYPES = {
 ocr_service = CertificateOcrService()
 
 
+
+
 @router.post(
     "/extract",
     response_model=CertificateOcrResponse,
@@ -29,7 +35,8 @@ async def extract_expert_certificate(
     allowed_types_json: Optional[str] = Form(
         None,
         description="Chuỗi JSON danh mục các loại chứng chỉ đang hoạt động từ Backend để AI đối chiếu phân loại"
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
     """
     Endpoint nhận file chứng chỉ hành nghề và phân tích bằng Gemini Vision:
@@ -56,6 +63,13 @@ async def extract_expert_certificate(
             allowed_types = json.loads(allowed_types_json)
         except Exception as ex:
             logger.warning(f"Không thể parse allowed_types_json: {ex}")
+
+    try:
+        prompt_repo = PromptTemplateRepository(db)
+        prompt_service = PromptTemplateService(prompt_repo)
+        ocr_service.prompt_service = prompt_service
+    except Exception:
+        pass
 
     # 4. Thực thi bóc tách
     result = ocr_service.extract_certificate(

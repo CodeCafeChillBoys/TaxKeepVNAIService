@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.models.dependent_rule import DependentRule
 from app.repositories.system_config.system_config_repository import SystemConfigRepository
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.ocr import DependentOcrService
 from app.schemas.ocr import OcrExtractionResponse
 
@@ -77,7 +79,9 @@ async def extract_dependent_document(
 
     # 3. Khởi tạo service với SystemConfigRepository kết nối DB
     config_repo = SystemConfigRepository(db)
-    ocr_service = DependentOcrService(repo=config_repo)
+    prompt_repo = PromptTemplateRepository(db)
+    prompt_service = PromptTemplateService(repository=prompt_repo)
+    ocr_service = DependentOcrService(repo=config_repo, prompt_service=prompt_service)
 
     # 4. Gọi Gemini OCR bóc dữ liệu, đối chiếu rules & kiểm tra ngưỡng tự động
     result = ocr_service.extract_document(

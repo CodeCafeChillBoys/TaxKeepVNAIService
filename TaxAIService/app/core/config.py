@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     GEMINI_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
+    
+    
+    # Redis Config
+    REDIS_ENABLED: bool = True
+    REDIS_URL: Optional[str] = None
 
     # AI / OpenAI API Config (Dùng cho đọc chứng từ)
     OPENAI_API_KEY: Optional[str] = None
