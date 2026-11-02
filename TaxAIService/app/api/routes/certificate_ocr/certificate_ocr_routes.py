@@ -19,6 +19,8 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"
 }
 
+ocr_service = CertificateOcrService()
+
 
 
 
@@ -62,12 +64,15 @@ async def extract_expert_certificate(
         except Exception as ex:
             logger.warning(f"Không thể parse allowed_types_json: {ex}")
 
-    prompt_repo = PromptTemplateRepository(db)
-    prompt_service = PromptTemplateService(prompt_repo)
-    service = CertificateOcrService(prompt_service=prompt_service)
+    try:
+        prompt_repo = PromptTemplateRepository(db)
+        prompt_service = PromptTemplateService(prompt_repo)
+        ocr_service.prompt_service = prompt_service
+    except Exception:
+        pass
 
     # 4. Thực thi bóc tách
-    result = service.extract_certificate(
+    result = ocr_service.extract_certificate(
         file_bytes=file_bytes,
         mime_type=mime_type,
         allowed_types=allowed_types
