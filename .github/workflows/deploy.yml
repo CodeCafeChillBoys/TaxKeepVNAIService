@@ -58,22 +58,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker Image
-        run: |
-          cd TaxAIService
-          docker build -t taxkeep-ai:latest -f Dockerfile .
-          docker save taxkeep-ai:latest | gzip > ../ai.tar.gz
-
-      - name: Copy Docker Image to EC2
-        uses: appleboy/scp-action@v0.1.7
+      - name: Đăng nhập vào Docker Hub
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "ai.tar.gz"
-          target: "~/taxkeep/"
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Deploy Container on EC2
+      - name: Build và Push AI Service Image lên Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: ./TaxAIService
+          file: ./TaxAIService/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/taxkeep-ai:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: SSH vào EC2 và kéo image mới về chạy qua Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -81,7 +82,14 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/taxkeep
-            docker load < ai.tar.gz
-            rm -f ai.tar.gz
+            echo "==> Đang kéo AI Service image mới từ Docker Hub..."
+            docker compose pull ai_service
+
+            echo "==> Khởi động lại container ai_service..."
             docker compose up -d ai_service
+
+            echo "==> Dọn dẹp image cũ không dùng..."
             docker image prune -f
+
+            echo "==> Kiểm tra trạng thái các container sau khi deploy:"
+            docker compose ps
