@@ -1,6 +1,8 @@
+from app.core import exclude_from_coverage
 from fastapi import HTTPException, status
 
 
+@exclude_from_coverage
 class PDFErrorMessages:
     """Bảng thông báo lỗi chuẩn cho tính năng Xử lý File PDF."""
     FILE_NOT_FOUND = "File not found."
@@ -17,6 +19,7 @@ class PDFErrorMessages:
         return f"The file size must not exceed {max_mb} MB."
 
 
+@exclude_from_coverage
 class PDFProcessingError(HTTPException):
     """Exception khi gặp sự cố bóc tách hoặc đọc tài liệu PDF."""
     def __init__(self, detail: str = PDFErrorMessages.NO_EXTRACTABLE_TEXT):

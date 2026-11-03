@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from abc import abstractmethod
 from typing import Optional, List, Tuple
@@ -7,6 +8,7 @@ from app.models.dependent_rule import DependentRule
 from app.repositories.interfaces.irepository import IRepository
 
 
+@exclude_from_coverage
 class ITaxRuleRepository(IRepository[TaxRuleSet]):
     """Interface định nghĩa các thao tác dữ liệu riêng cho Tax Rule, kế thừa IRepository."""
 

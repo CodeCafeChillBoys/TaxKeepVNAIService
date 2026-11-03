@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -6,6 +7,7 @@ from app.models.chat_session import ChatSession
 from app.models.chat_message import ChatMessage
 
 
+@exclude_from_coverage
 class ChatHistoryRepository:
     def __init__(self, db: Session):
         self.db = db

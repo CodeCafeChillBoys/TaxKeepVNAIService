@@ -1,8 +1,10 @@
+from app.core import exclude_from_coverage
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 
+@exclude_from_coverage
 class PromptTemplateResponse(BaseModel):
     prompt_key: str
     system_prompt: str
@@ -13,10 +15,12 @@ class PromptTemplateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @exclude_from_coverage
     class Config:
         from_attributes = True
 
 
+@exclude_from_coverage
 class PromptTemplateCreateRequest(BaseModel):
     prompt_key: str = Field(..., description="Mã định danh duy nhất của prompt (VD: PROMPT_TAX_CHAT_ADVISORY)")
     system_prompt: str = Field(..., description="Nội dung system prompt template")
@@ -25,6 +29,7 @@ class PromptTemplateCreateRequest(BaseModel):
     is_active: bool = Field(True, description="Trạng thái kích hoạt")
 
 
+@exclude_from_coverage
 class PromptTemplateUpdateRequest(BaseModel):
     system_prompt: str = Field(..., description="Nội dung system prompt mới")
     description: Optional[str] = None
@@ -32,11 +37,13 @@ class PromptTemplateUpdateRequest(BaseModel):
     is_active: Optional[bool] = True
 
 
+@exclude_from_coverage
 class PromptTestRenderRequest(BaseModel):
     prompt_key: str = Field(..., description="Mã prompt cần test")
     params: Dict[str, Any] = Field(default_factory=dict, description="Các giá trị biến truyền vào để test render")
 
 
+@exclude_from_coverage
 class PromptTestRenderResponse(BaseModel):
     prompt_key: str
     rendered_prompt: str

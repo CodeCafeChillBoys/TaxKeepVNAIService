@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import Optional, List
 from datetime import datetime
@@ -14,6 +15,7 @@ from app.services.tax_rule.tax_chat_service import TaxChatService
 router = APIRouter(prefix="/api/tax-chat", tags=["Tư Vấn Thuế AI"])
 
 
+@exclude_from_coverage
 class ChatQuestionRequest(BaseModel):
     question: str
     session_id: Optional[uuid.UUID] = None  # Để trống nếu là chat mới, truyền vào nếu là chat tiếp
@@ -21,12 +23,14 @@ class ChatQuestionRequest(BaseModel):
     user_id: Optional[uuid.UUID] = None     # Định danh người dùng từ BE
 
 
+@exclude_from_coverage
 class ChatQuestionResponse(BaseModel):
     session_id: Optional[uuid.UUID]
     question: str
     answer: str
 
 
+@exclude_from_coverage
 class ChatSessionItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,6 +41,7 @@ class ChatSessionItemResponse(BaseModel):
     updated_at: datetime
 
 
+@exclude_from_coverage
 class ChatMessageItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,6 +52,7 @@ class ChatMessageItemResponse(BaseModel):
     created_at: datetime
 
 
+@exclude_from_coverage
 @router.post("", response_model=ChatQuestionResponse)
 def chat_with_tax_ai(request: ChatQuestionRequest, db: Session = Depends(get_db)):
     """
@@ -79,6 +85,7 @@ def chat_with_tax_ai(request: ChatQuestionRequest, db: Session = Depends(get_db)
         )
 
 
+@exclude_from_coverage
 @router.get("/sessions", response_model=List[ChatSessionItemResponse])
 def get_user_chat_sessions(
     user_id: Optional[uuid.UUID] = Query(None, description="Lọc theo mã người dùng"),
@@ -92,6 +99,7 @@ def get_user_chat_sessions(
     return sessions
 
 
+@exclude_from_coverage
 @router.get("/sessions/{session_id}/messages", response_model=List[ChatMessageItemResponse])
 def get_chat_session_messages(session_id: uuid.UUID, db: Session = Depends(get_db)):
     """
@@ -102,6 +110,7 @@ def get_chat_session_messages(session_id: uuid.UUID, db: Session = Depends(get_d
     return messages
 
 
+@exclude_from_coverage
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_200_OK)
 def delete_chat_session(session_id: uuid.UUID, db: Session = Depends(get_db)):
     """

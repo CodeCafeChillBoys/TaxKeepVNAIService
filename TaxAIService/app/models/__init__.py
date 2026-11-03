@@ -6,6 +6,7 @@ from app.models.ai_extraction_models import AiExtraction, AiExtractionValue, Sys
 from app.models.chat_session import ChatSession
 from app.models.chat_message import ChatMessage
 from app.models.ai_prompt_template import AiPromptTemplate
+from app.models.ai_provider_key import AiProviderKey
 
 __all__ = [
     "TaxRuleSet",
@@ -17,5 +18,7 @@ __all__ = [
     "AiExtractionValue",
     "ChatSession",
     "ChatMessage",
-    "AiPromptTemplate"
+    "AiPromptTemplate",
+    "AiProviderKey",
+    
 ]

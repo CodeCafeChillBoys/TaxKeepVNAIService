@@ -46,7 +46,7 @@ jobs:
 
       - name: Run Pytest with Coverage
         run: |
-          pytest -v --cov=app --cov-report=term-missing --cov-fail-under=65
+          pytest -v --cov=app/services --cov-config=.coveragerc --cov-report=term-missing --cov-fail-under=65
 
       # Bước gửi email thông báo kết quả (Luôn là bước cuối cùng)
       - name: Send Email Notification

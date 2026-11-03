@@ -14,6 +14,7 @@ from app.schemas.ocr import (
 from app.prompts.ocr import build_dependent_ocr_prompt, OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT
 from app.repositories.interfaces.isystem_config_repository import ISystemConfigRepository
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
+from app.services.apiKey.ai_key_manager import AiKeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class DependentOcrService:
         prompt_service: Optional[PromptTemplateService] = None
     ):
         # Khởi tạo GenAI client với API Key từ config
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        self.client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
         # Sử dụng gemini-2.5-flash hoặc gemini-2.0-flash để tốc độ nhanh và chi phí rẻ nhất
         self.model = settings.GEMINI_MODEL 
         self.repo = repo
@@ -124,16 +125,20 @@ class DependentOcrService:
 
 
             # 3. Gọi Gemini API với Structured JSON Output
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=OcrExtractionResponse,
-                    temperature=0.0 # Bắt buộc để 0.0 để loại bỏ sáng tạo/ảo giác
+            def _call_gemini(client, model):
+                return client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                        response_schema=OcrExtractionResponse,
+                        temperature=0.0 # Bắt buộc để 0.0 để loại bỏ sáng tạo/ảo giác
+                    )
                 )
-            )
+
+            db_session = self.repo.db if self.repo and hasattr(self.repo, "db") else None
+            response = AiKeyManager.execute_with_failover(db_session, _call_gemini, default_client=self.client)
 
             raw_text = (response.text or "").strip()
             

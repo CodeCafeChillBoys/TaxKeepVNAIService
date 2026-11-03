@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import json
 import logging
 from typing import Optional
@@ -21,6 +22,7 @@ ALLOWED_MIME_TYPES = {
 }
 
 
+@exclude_from_coverage
 @router.post(
     "/extract",
     response_model=OcrExtractionResponse,

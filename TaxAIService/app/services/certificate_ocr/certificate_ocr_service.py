@@ -11,13 +11,15 @@ from app.schemas.certificate_ocr.certificate_ocr_schema import (
 )
 from app.prompts.certificate_ocr.certificate_ocr_prompt import build_certificate_ocr_prompt
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
+from app.services.apiKey.ai_key_manager import AiKeyManager
 
 logger = logging.getLogger(__name__)
 
 
 class CertificateOcrService:
-    def __init__(self, prompt_service: Optional[PromptTemplateService] = None):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    def __init__(self, prompt_service: Optional[PromptTemplateService] = None, db=None):
+        self.db = db
+        self.client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
         self.prompt_service = prompt_service
 
@@ -64,16 +66,20 @@ class CertificateOcrService:
 
             ]
 
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=GeminiCertificateOcrOutput,
-                    temperature=0.0  # Loại trừ ảo giác
+            def _call_gemini(client, model):
+                return client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                        response_schema=GeminiCertificateOcrOutput,
+                        temperature=0.0  # Loại trừ ảo giác
+                    )
                 )
-            )
+
+            db_session = getattr(self, "db", None)
+            response = AiKeyManager.execute_with_failover(db_session, _call_gemini, default_client=self.client)
 
             raw_json = (response.text or "").strip()
             if not raw_json:

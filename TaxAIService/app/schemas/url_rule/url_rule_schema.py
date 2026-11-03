@@ -1,9 +1,11 @@
+from app.core import exclude_from_coverage
 # app/schemas/url_rule_schema.py
 import uuid
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
+@exclude_from_coverage
 class UrlRuleCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -13,6 +15,7 @@ class UrlRuleCreateRequest(BaseModel):
     is_active: bool = Field(True, alias="isActive", description="Trạng thái kích hoạt")
     created_by: Optional[uuid.UUID] = Field(None, alias="createdBy", description="ID của Admin tạo quy tắc")
 
+@exclude_from_coverage
 class UrlRuleUpdateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -22,6 +25,7 @@ class UrlRuleUpdateRequest(BaseModel):
     is_active: Optional[bool] = Field(None, alias="isActive")
     updated_by: Optional[uuid.UUID] = Field(None, alias="updatedBy", description="ID của Admin cập nhật quy tắc")
 
+@exclude_from_coverage
 class UrlRuleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

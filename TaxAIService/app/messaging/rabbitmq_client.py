@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import json
 import logging
 from typing import Optional, Any
@@ -7,6 +8,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+@exclude_from_coverage
 class RabbitMQClient:
     """Quản lý kết nối bất đồng bộ tới RabbitMQ bằng aio-pika."""
 

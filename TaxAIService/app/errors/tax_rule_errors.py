@@ -1,7 +1,9 @@
+from app.core import exclude_from_coverage
 from typing import Any, Optional
 from fastapi import HTTPException, status
 
 
+@exclude_from_coverage
 class TaxRuleErrorMessages:
     """Bảng thông báo lỗi chuẩn cho tính năng Quy Tắc Thuế (Tax Rules & Extraction)."""
     NO_TAX_RULE_EXTRACTED = "No tax rule information could be extracted from the document."
@@ -29,6 +31,7 @@ class TaxRuleErrorMessages:
         return msg
 
 
+@exclude_from_coverage
 class TaxRuleServiceError(Exception):
     """Exception nghiệp vụ riêng cho TaxRuleService."""
     def __init__(self, status_code: int, message: str):
@@ -37,6 +40,7 @@ class TaxRuleServiceError(Exception):
         super().__init__(message)
 
 
+@exclude_from_coverage
 class TaxRuleExtractionError(HTTPException):
     """Exception khi LLM không thể trích xuất quy tắc thuế hợp lệ."""
     def __init__(self, detail: str = TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED):

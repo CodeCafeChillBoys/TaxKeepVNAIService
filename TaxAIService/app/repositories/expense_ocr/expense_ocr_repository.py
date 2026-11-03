@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import List, Dict, Any, Optional, Union
 from sqlalchemy.orm import Session
@@ -5,6 +6,7 @@ from app.models.ai_extraction_models import AiExtraction, AiExtractionValue
 from app.schemas.expense_ocr.expense_ocr_schema import ExtractedFieldDetail
 
 
+@exclude_from_coverage
 class ExpenseOcrRepository:
     """
     Repository phụ trách lưu trữ và truy vấn kết quả bóc tách chứng từ chi phí

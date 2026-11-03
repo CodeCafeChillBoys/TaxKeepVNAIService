@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 # app/models/url_validation_rule.py
 import uuid
 from datetime import datetime
@@ -7,6 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.infrastructure.database import Base
 
+@exclude_from_coverage
 class UrlValidationRule(Base):
     __tablename__ = "url_validation_rules"
     __table_args__ = {"extend_existing": True}

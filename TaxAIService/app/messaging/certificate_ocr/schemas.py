@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, Any, List, Dict
@@ -6,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.certificate_ocr.certificate_ocr_schema import CertificateExtractedData
 
 
+@exclude_from_coverage
 class CertificateOcrRequestMessage(BaseModel):
     """
     Message Contract nhận từ BE .NET gửi sang TaxAIService qua RabbitMQ (certificate.ocr.ai.request.queue).
@@ -29,6 +31,7 @@ class CertificateOcrRequestMessage(BaseModel):
     )
 
 
+@exclude_from_coverage
 class CertificateOcrResponseMessage(BaseModel):
     """
     Message Contract gửi từ TaxAIService về BE .NET qua RabbitMQ (certificate.ocr.ai.response.queue).

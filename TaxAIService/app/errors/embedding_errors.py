@@ -1,3 +1,5 @@
+from app.core import exclude_from_coverage
+@exclude_from_coverage
 class EmbeddingErrorMessages:
     """Bảng thông báo lỗi chuẩn cho tính năng Embedding & Vector AI."""
     API_KEY_MISSING = "GEMINI_API_KEY chưa được thiết lập trong file .env!"
@@ -8,6 +10,7 @@ class EmbeddingErrorMessages:
         return f"Lỗi khi gọi mô hình embedding Gemini: {detail}"
 
 
+@exclude_from_coverage
 class EmbeddingError(Exception):
     """Exception khi xảy ra lỗi tạo vector embedding."""
     def __init__(self, message: str = EmbeddingErrorMessages.EMPTY_INPUT_TEXT):

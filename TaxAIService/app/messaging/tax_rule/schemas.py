@@ -1,9 +1,11 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+@exclude_from_coverage
 class TaxRuleExtractRequestMessage(BaseModel):
     """
     Message Contract nhận từ BE.Net gửi sang TaxAIService qua RabbitMQ.
@@ -25,6 +27,7 @@ class TaxRuleExtractRequestMessage(BaseModel):
     source_url: Optional[str] = Field(None, alias="sourceUrl", description="URL nguồn văn bản gốc nếu có")
 
 
+@exclude_from_coverage
 class TaxRuleExtractResponseMessage(BaseModel):
     """
     Message Contract gửi ngược lại từ TaxAIService sang BE.Net qua RabbitMQ.

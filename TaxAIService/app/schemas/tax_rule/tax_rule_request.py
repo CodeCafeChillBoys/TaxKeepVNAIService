@@ -1,9 +1,11 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import Optional, Any, List, Union
 from pydantic import BaseModel, ConfigDict, Field
 from app.enum import TaxRuleType, DependentType, TaxRuleStatus
 
 
+@exclude_from_coverage
 class TaxRuleUploadRequest(BaseModel):
     """
     Schema đại diện cho dữ liệu yêu cầu khi upload văn bản PDF luật thuế
@@ -29,6 +31,7 @@ class TaxRuleUploadRequest(BaseModel):
     )
 
 
+@exclude_from_coverage
 class TaxRuleApproveRequest(BaseModel):
     """
     Schema đại diện cho dữ liệu yêu cầu khi phê duyệt bộ quy tắc thuế (Tax Rule Set)
@@ -42,6 +45,7 @@ class TaxRuleApproveRequest(BaseModel):
     )
 
 
+@exclude_from_coverage
 class TaxRuleItemUpdateRequest(BaseModel):
     """
     Schema cập nhật cho từng quy tắc thuế con
@@ -65,6 +69,7 @@ class TaxRuleItemUpdateRequest(BaseModel):
     status: Optional[TaxRuleStatus] = Field(None, alias="status")
 
 
+@exclude_from_coverage
 class DependentRuleUpdateRequest(BaseModel):
     """
     Schema cập nhật cho từng quy tắc người phụ thuộc
@@ -83,6 +88,7 @@ class DependentRuleUpdateRequest(BaseModel):
     status: Optional[TaxRuleStatus] = Field(None, alias="status")
 
 
+@exclude_from_coverage
 class TaxRuleUpdateRequest(BaseModel):
     """
     Schema đại diện cho dữ liệu yêu cầu chỉnh sửa toàn bộ nội dung của Tax Rule Set

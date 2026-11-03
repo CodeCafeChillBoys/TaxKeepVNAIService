@@ -11,6 +11,7 @@ from app.repositories.tax_rule.tax_chat_repository import TaxChatRepository
 from app.repositories.tax_rule.chat_history_repository import ChatHistoryRepository
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.prompts.tax_rule.tax_chat_prompt import DEFAULT_TAX_CHAT_SYSTEM_PROMPT
+from app.services.apiKey.ai_key_manager import AiKeyManager
 
 
 class TaxChatService:
@@ -24,14 +25,12 @@ class TaxChatService:
         self.history_repository = history_repository
         self.prompt_service = prompt_service
 
-        if not settings.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY chưa được thiết lập!")
-
-        os.environ.pop("GOOGLE_API_KEY", None)
-        os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY
-
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model = settings.GEMINI_MODEL
+        self.client = None
+        if settings.GEMINI_API_KEY:
+            os.environ.pop("GOOGLE_API_KEY", None)
+            os.environ["GEMINI_API_KEY"] = settings.GEMINI_API_KEY
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
     def _build_tax_knowledge_from_db(self, tax_year: Optional[int] = None) -> str:
         rules = self.repository.get_active_rules(tax_year=tax_year)
@@ -164,15 +163,19 @@ class TaxChatService:
             )
         )
 
-        # 5. Gọi Gemini API với System Instruction động
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.1
+        # 5. Gọi Gemini API với System Instruction động (Hỗ trợ failover xoay vòng key DB & fallback .env)
+        def _call_gemini(client, model):
+            return client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.1
+                )
             )
-        )
+
+        db_session = self.repository.db if self.repository and hasattr(self.repository, "db") else None
+        response = AiKeyManager.execute_with_failover(db_session, _call_gemini, default_client=self.client)
         ai_answer = (response.text or "").strip()
 
         # 6. Lưu câu trả lời của AI vào DB

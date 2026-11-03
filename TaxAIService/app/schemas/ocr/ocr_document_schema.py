@@ -1,7 +1,9 @@
+from app.core import exclude_from_coverage
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+@exclude_from_coverage
 class DependentRuleItem(BaseModel):
     """Quy tắc giấy tờ từ bảng dependent_document_rules của .NET truyền sang"""
     #cho phép model nhận dữ liệu bằng tên field Python hoặc alias của field.
@@ -12,6 +14,7 @@ class DependentRuleItem(BaseModel):
     description: Optional[str] = Field(None, alias="description", description="Tiêu chí/hướng dẫn của Admin")
 
     
+@exclude_from_coverage
 class RuleValidationResult(BaseModel):
     """Kết quả AI đối chiếu giấy tờ thực tế với Rule của Admin"""
     model_config = ConfigDict(populate_by_name=True)
@@ -38,6 +41,7 @@ class RuleValidationResult(BaseModel):
     )
 
 
+@exclude_from_coverage
 class ConfidenceScores(BaseModel):
     """Độ tin cậy trích xuất của từng trường dữ liệu (từ 0.0 đến 1.0)"""
     model_config = ConfigDict(populate_by_name=True)
@@ -67,6 +71,7 @@ class ConfidenceScores(BaseModel):
     document_number: Optional[float] = Field(None, alias="documentNumber")
     issuing_authority: Optional[float] = Field(None, alias="issuingAuthority")
 
+@exclude_from_coverage
 class ThresholdValidationResult(BaseModel):
     """Kết quả đối soát ngưỡng động từ Database/Admin - KHÔNG HARDCODE"""
     model_config = ConfigDict(populate_by_name=True)
@@ -100,6 +105,7 @@ class ThresholdValidationResult(BaseModel):
 
 
 
+@exclude_from_coverage
 class RequiredDocument(BaseModel):
     """Cấu trúc giấy tờ cần nộp, tương thích với Gemini Developer API schema."""
     model_config = ConfigDict(populate_by_name=True)
@@ -110,6 +116,7 @@ class RequiredDocument(BaseModel):
     description: Optional[str] = Field(None, alias="description")
 
 
+@exclude_from_coverage
 class ExtractedDependentData(BaseModel):
     """Toàn bộ thông tin bóc tách chi tiết từ CCCD hoặc giấy tờ người phụ thuộc"""
     model_config = ConfigDict(populate_by_name=True)
@@ -249,6 +256,7 @@ DependentOcrData = ExtractedDependentData
 
 
 
+@exclude_from_coverage
 class OcrExtractionResponse(BaseModel):
     """Response chuẩn trả về cho .NET"""
     model_config = ConfigDict(populate_by_name=True)

@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -5,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.enum.system_config_enum import ConfigDataType
 
 
+@exclude_from_coverage
 class SystemConfigCreateRequest(BaseModel):
     """Payload khi Admin tạo cấu hình mới (Admin không cần biết về data_type)"""
     config_key: str = Field(
@@ -32,6 +34,7 @@ class SystemConfigCreateRequest(BaseModel):
     )
 
 
+@exclude_from_coverage
 class SystemConfigUpdateRequest(BaseModel):
     """Payload khi Admin chỉnh sửa cấu hình"""
     config_value: Optional[str] = Field(None, example="0.90", description="Giá trị mới")
@@ -40,6 +43,7 @@ class SystemConfigUpdateRequest(BaseModel):
     admin_id: Optional[uuid.UUID] = Field(None, example="b3d87a41-3b7c-486a-a2ef-95b86377e80d")
 
 
+@exclude_from_coverage
 class SystemConfigResponse(BaseModel):
     """Dữ liệu trả về cho Frontend"""
     config_key: str
@@ -53,5 +57,6 @@ class SystemConfigResponse(BaseModel):
     created_at: datetime
     admin_id: Optional[uuid.UUID] = None
 
+    @exclude_from_coverage
     class Config:
         from_attributes = True

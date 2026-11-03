@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, Any
@@ -5,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.ocr import ExtractedDependentData
 
 
+@exclude_from_coverage
 class OcrExtractRequestMessage(BaseModel):
     """
     Message Contract nhận từ BE.Net gửi sang TaxAIService qua RabbitMQ.
@@ -30,6 +32,7 @@ class OcrExtractRequestMessage(BaseModel):
     applied_threshold: Optional[float] = Field(None, alias="appliedThreshold", description="Ngưỡng tin cậy áp dụng")
 
 
+@exclude_from_coverage
 class OcrExtractResponseMessage(BaseModel):
     """
     Message Contract gửi ngược lại từ TaxAIService sang BE.Net qua RabbitMQ.

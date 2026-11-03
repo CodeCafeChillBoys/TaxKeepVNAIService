@@ -9,6 +9,7 @@ from google.genai import types
 from google.genai.errors import APIError
 
 from app.core.config import settings
+from app.services.apiKey.ai_key_manager import AiKeyManager
 from app.repositories.interfaces.isystem_config_repository import ISystemConfigRepository
 from app.schemas.expense_ocr.expense_ocr_schema import GeminiOcrOutput, AdminCategoryItem
 from app.prompts.expense_ocr.expense_orc_promt import _build_prompt
@@ -24,7 +25,7 @@ class ExpenseOcrService:
         repo: Optional[ISystemConfigRepository] = None,
         prompt_service: Optional[PromptTemplateService] = None
     ):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        self.client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
         self.repo = repo
         self.prompt_service = prompt_service
@@ -58,19 +59,22 @@ class ExpenseOcrService:
 
         # 2. Gọi Gemini Multimodal Vision và bắt tách bạch lỗi
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[
-                    types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
-
-                ],
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=GeminiOcrOutput,
-                    temperature=0.1  # Giữ tính chính xác cao nhất, loại trừ ảo giác
+            def _call_gemini(client, model):
+                return client.models.generate_content(
+                    model=model,
+                    contents=[
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+                    ],
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                        response_schema=GeminiOcrOutput,
+                        temperature=0.1
+                    )
                 )
-            )
+
+            db_session = self.repo.db if self.repo and hasattr(self.repo, "db") else None
+            response = AiKeyManager.execute_with_failover(db_session, _call_gemini, default_client=self.client)
             raw_json = response.text
             if not raw_json or not raw_json.strip():
                 raise UnreadableDocumentError("AI Engine không nhận diện được bất kỳ nội dung nào từ tài liệu.")

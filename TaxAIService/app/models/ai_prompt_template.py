@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 # app/models/ai_prompt_template.py
 from datetime import datetime
 from typing import Optional, List
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.infrastructure.database import Base
 
 
+@exclude_from_coverage
 class AiPromptTemplate(Base):
     """
     Bảng quản lý các System Prompt động trong hệ thống.

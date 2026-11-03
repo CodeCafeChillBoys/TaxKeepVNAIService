@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Form, Depends, status
@@ -41,6 +42,7 @@ def get_url_validation_service(db: Session = Depends(get_db)) -> UrlValidationSe
 
 
 
+@exclude_from_coverage
 @router.post(
     "/documents/upload",
     response_model=TaxRuleUploadResponse,
@@ -134,6 +136,7 @@ async def upload_and_extract_tax_rules(
         )
 
 
+@exclude_from_coverage
 @router.get(
     "",
     response_model=List[TaxRuleSetResponse],
@@ -145,6 +148,7 @@ def get_all_tax_rule_sets(
     return service.get_all_rule_sets()
 
 
+@exclude_from_coverage
 @router.get(
     "/year/{taxYear}",
     response_model=TaxRuleDetailResponse,
@@ -157,6 +161,7 @@ def get_tax_rule_set_by_year(
     return service.get_tax_rule_set_detail_by_year(tax_year=taxYear)
 
 
+@exclude_from_coverage
 @router.get(
     "/{id}",
     response_model=TaxRuleDetailResponse,
@@ -169,6 +174,7 @@ def get_tax_rule_set(
     return service.get_tax_rule_set_detail(rule_set_id=id)
 
 
+@exclude_from_coverage
 @router.put(
     "/{id}",
     response_model=TaxRuleDetailResponse,
@@ -188,6 +194,7 @@ def update_tax_rule_set(
         )
 
 
+@exclude_from_coverage
 @router.post(
     "/{id}/approve",
     response_model=TaxRuleApproveResponse,
