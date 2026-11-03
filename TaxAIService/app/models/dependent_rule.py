@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
@@ -11,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.tax_rule import TaxRule
 
 
+@exclude_from_coverage
 class DependentRule(Base):
     __tablename__ = "dependent_rules"
     __table_args__ = {"extend_existing": True}

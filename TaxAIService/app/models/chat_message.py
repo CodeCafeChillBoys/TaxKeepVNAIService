@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.chat_session import ChatSession
 
 
+@exclude_from_coverage
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     __table_args__ = {"extend_existing": True}

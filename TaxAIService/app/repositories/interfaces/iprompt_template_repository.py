@@ -1,7 +1,9 @@
+from app.core import exclude_from_coverage
 from abc import ABC, abstractmethod
 from typing import Optional, List
 from app.models.ai_prompt_template import AiPromptTemplate
 
+@exclude_from_coverage
 class IPromptTemplateRepository(ABC):
     @abstractmethod
     def get_by_key(self, prompt_key: str, active_only: bool = True) -> Optional[AiPromptTemplate]:

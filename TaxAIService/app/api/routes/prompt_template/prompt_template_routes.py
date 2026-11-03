@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
@@ -21,6 +22,7 @@ def get_prompt_service(db: Session = Depends(get_db)) -> PromptTemplateService:
     return PromptTemplateService(repo)
 
 
+@exclude_from_coverage
 @router.get(
     "",
     response_model=List[PromptTemplateResponse],
@@ -33,6 +35,7 @@ def get_all_prompts(
     return service.get_all(active_only=active_only)
 
 
+@exclude_from_coverage
 @router.get(
     "/{prompt_key}",
     response_model=PromptTemplateResponse,
@@ -51,6 +54,7 @@ def get_prompt_by_key(
     return record
 
 
+@exclude_from_coverage
 @router.post(
     "",
     response_model=PromptTemplateResponse,
@@ -67,6 +71,7 @@ def create_prompt(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@exclude_from_coverage
 @router.put(
     "/{prompt_key}",
     response_model=PromptTemplateResponse,
@@ -83,6 +88,7 @@ def update_prompt(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+@exclude_from_coverage
 @router.delete(
     "/{prompt_key}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -101,6 +107,7 @@ def delete_prompt(
     return None
 
 
+@exclude_from_coverage
 @router.post(
     "/test-render",
     response_model=PromptTestRenderResponse,

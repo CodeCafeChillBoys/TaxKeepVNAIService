@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 from fastapi import HTTPException, status
 from app.core.config import settings
+from app.services.apiKey.ai_key_manager import AiKeyManager
 from app.enum import TaxRuleStatus
 from app.prompts.tax_rule import build_tax_rule_extraction_prompt
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleExtractionError
@@ -14,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 class TaxRuleExtractionService:
-    def __init__(self):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    def __init__(self, db=None):
+        self.db = db
+        self.client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
         self.model = settings.GEMINI_MODEL
 
     def extract_tax_rules(
@@ -52,14 +54,17 @@ class TaxRuleExtractionService:
 
         raw_text = ""
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1
+            def _call_gemini(client, model):
+                return client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.1
+                    )
                 )
-            )
+
+            response = AiKeyManager.execute_with_failover(self.db, _call_gemini, default_client=self.client)
             raw_text = (response.text or "").strip()
             # Làm sạch markdown code fences nếu LLM có kèm ```json ... ```
             clean_text = raw_text

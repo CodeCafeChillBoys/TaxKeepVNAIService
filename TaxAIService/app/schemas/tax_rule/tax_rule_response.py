@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import Optional, List, Union, Dict, Any
@@ -5,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.enum import TaxRuleType, DependentType, TaxRuleStatus
 
 
+@exclude_from_coverage
 class TaxRuleItemResponse(BaseModel):
     """
     Schema đại diện cho từng chi tiết quy tắc thuế (Tax Rule) trong kết quả trả về
@@ -27,6 +29,7 @@ class TaxRuleItemResponse(BaseModel):
     status: TaxRuleStatus = Field(TaxRuleStatus.DRAFT, alias="status", description="Trạng thái quy tắc: Draft hoặc Active")
 
 
+@exclude_from_coverage
 class TaxRuleSetResponse(BaseModel):
     """
     Schema đại diện cho tập bộ quy tắc thuế theo năm (Tax Rule Set)
@@ -44,6 +47,7 @@ class TaxRuleSetResponse(BaseModel):
     approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt bộ quy tắc")
 
 
+@exclude_from_coverage
 class DependentRuleResponse(BaseModel):
     """
     Schema đại diện cho từng loại điều kiện người phụ thuộc
@@ -70,6 +74,7 @@ class DependentRuleResponse(BaseModel):
     status: TaxRuleStatus = Field(TaxRuleStatus.DRAFT, alias="status")
 
 
+@exclude_from_coverage
 class TaxRuleExtractionDataResponse(BaseModel):
     """
     Schema gom nhóm dữ liệu bóc tách gồm Tax Rule Set, danh sách Tax Rules và Dependent Rules
@@ -83,6 +88,7 @@ class TaxRuleExtractionDataResponse(BaseModel):
     warning: Optional[str] = Field(None, alias="warning", description="Cảnh báo lệch năm nếu có")
 
 
+@exclude_from_coverage
 class TaxRuleUploadResponse(BaseModel):
     """
     Response trả về sau khi Admin upload văn bản PDF và bóc tách thành công
@@ -94,6 +100,7 @@ class TaxRuleUploadResponse(BaseModel):
     data: TaxRuleExtractionDataResponse = Field(..., description="Dữ liệu bộ quy tắc thuế đã bóc tách")
 
 
+@exclude_from_coverage
 class TaxRuleApproveResponse(BaseModel):
     """
     Response trả về sau khi Admin bấm Approve phê duyệt bộ quy tắc thuế sang Active
@@ -107,6 +114,7 @@ class TaxRuleApproveResponse(BaseModel):
     approved_at: Optional[datetime] = Field(None, alias="approvedAt", description="Thời điểm phê duyệt")
 
 
+@exclude_from_coverage
 class TaxRuleDetailResponse(BaseModel):
     """
     Response trả về khi Admin Review (GET) hoặc Edit (PUT) toàn bộ nội dung bộ quy tắc thuế

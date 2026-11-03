@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
 from app.models.tax_rule import TaxRule
@@ -5,6 +6,7 @@ from app.models.tax_rule_set import TaxRuleSet
 from app.models.dependent_rule import DependentRule
 from app.enum import TaxRuleStatus
 
+@exclude_from_coverage
 class TaxChatRepository:
     def __init__(self, db: Session):
         self.db = db

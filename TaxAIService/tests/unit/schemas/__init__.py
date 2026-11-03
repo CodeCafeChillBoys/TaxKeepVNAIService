@@ -1,1 +1,0 @@
-"""Schemas unit tests package."""

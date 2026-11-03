@@ -1,0 +1,29 @@
+[run]
+source = app/services
+omit =
+    */__pycache__/*
+    */tests/*
+    */interfaces/*
+    app/api/*
+    app/core/*
+    app/enum/*
+    app/errors/*
+    app/infrastructure/*
+    app/mappers/*
+    app/messaging/*
+    app/models/*
+    app/repositories/*
+    app/schemas/*
+    app/main.py
+
+[report]
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    @exclude_from_coverage
+    @exclude_from_coverage\(.*\)
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError

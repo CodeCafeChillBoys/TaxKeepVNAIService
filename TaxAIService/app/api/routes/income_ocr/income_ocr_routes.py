@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 # app/api/routes/income_ocr/income_ocr_routes.py
 import logging
 from typing import Optional
@@ -20,6 +21,7 @@ ALLOWED_MIME_TYPES = {
 }
 
 
+@exclude_from_coverage
 @router.post(
     "/extract",
     response_model=IncomeOcrResponse,

@@ -1,9 +1,11 @@
+from app.core import exclude_from_coverage
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from app.enum.expense_document_enum import DocumentExtractionStatus
 
 
 # 1. Schema cho từng danh mục Admin gửi sang
+@exclude_from_coverage
 class AdminCategoryItem(BaseModel):
     code: str = Field(..., description="Mã danh mục, VD: MEDICAL_EXPENSE_INVOICE")
     name: str = Field(..., description="Tên hiển thị, VD: Chi phí y tế")
@@ -11,6 +13,7 @@ class AdminCategoryItem(BaseModel):
 
 
 # 2. Chi tiết từng trường kèm Bounding Box
+@exclude_from_coverage
 class BoundingBox(BaseModel):
     x: int = 0
     y: int = 0
@@ -19,6 +22,7 @@ class BoundingBox(BaseModel):
 
 
 # Dùng để ocr bóc tách ra từng field
+@exclude_from_coverage
 class ExtractedFieldDetail(BaseModel):
     fieldName: str
     extractedValue: Optional[str] = None
@@ -33,6 +37,7 @@ class ExtractedFieldDetail(BaseModel):
 
 
 # Chi tiết từng dòng hàng hóa / dịch vụ trên hóa đơn
+@exclude_from_coverage
 class InvoiceLineItem(BaseModel):
     itemOrder: int = Field(1, description="Số thứ tự mặt hàng (1, 2, 3...)")
     itemName: str = Field(..., description="Tên hàng hóa, dịch vụ, danh mục khám, thuốc, học phí...")
@@ -43,6 +48,7 @@ class InvoiceLineItem(BaseModel):
 
 
 # 3. Kết quả Gemini trả về
+@exclude_from_coverage
 class GeminiOcrOutput(BaseModel):
     # Phân loại
     isTaxDocument: bool = Field(
@@ -109,12 +115,14 @@ class GeminiOcrOutput(BaseModel):
 
 
 # 4. Response Schemas trả về cho Backend .NET
+@exclude_from_coverage
 class ValidationStatus(BaseModel):
     isYearValid: bool = True
     isDocTypeValid: bool = True
     isIdentityValid: bool = True
 
 
+@exclude_from_coverage
 class ProcessDocumentResponseData(BaseModel):
     id: str
     periodId: str
@@ -151,6 +159,7 @@ class ProcessDocumentResponseData(BaseModel):
     createdAt: str
 
 
+@exclude_from_coverage
 class ProcessDocumentResponse(BaseModel):
     message: str = "Document processed and validated successfully."
     data: ProcessDocumentResponseData

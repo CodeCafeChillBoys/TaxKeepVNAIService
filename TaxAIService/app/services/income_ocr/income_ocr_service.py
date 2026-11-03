@@ -14,6 +14,7 @@ from app.schemas.income_ocr.income_ocr_schema import (
 )
 from app.prompts.income_ocr.income_ocr_prompt import build_income_ocr_prompt
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
+from app.services.apiKey.ai_key_manager import AiKeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class IncomeOcrService:
         repo: Optional[ISystemConfigRepository] = None,
         prompt_service: Optional[PromptTemplateService] = None
     ):
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        self.client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
         self.repo = repo
         self.prompt_service = prompt_service
@@ -106,16 +107,20 @@ class IncomeOcrService:
 
             ]
 
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=GeminiIncomeOcrOutput,
-                    temperature=0.0  # Loại trừ sáng tạo ảo giác
+            def _call_gemini(client, model):
+                return client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                        response_schema=GeminiIncomeOcrOutput,
+                        temperature=0.0  # Loại trừ sáng tạo ảo giác
+                    )
                 )
-            )
+
+            db_session = self.repo.db if self.repo and hasattr(self.repo, "db") else None
+            response = AiKeyManager.execute_with_failover(db_session, _call_gemini, default_client=self.client)
 
             raw_json = (response.text or "").strip()
             if not raw_json:

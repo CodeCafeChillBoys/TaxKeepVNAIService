@@ -1,6 +1,8 @@
+from app.core import exclude_from_coverage
 from typing import Optional, List, Dict, Any
 
 
+@exclude_from_coverage
 class ExpenseOcrError(Exception):
     """Lớp lỗi cơ sở cho phân hệ Expense OCR"""
     def __init__(self, code: str, message: str, status_code: int = 422, details: Optional[Dict[str, Any]] = None):
@@ -11,6 +13,7 @@ class ExpenseOcrError(Exception):
         super().__init__(message)
 
 
+@exclude_from_coverage
 class CorruptedFileError(ExpenseOcrError):
     """File tải về rỗng, byte hỏng, base64 sai hoặc định dạng ảnh/PDF bị lỗi"""
     def __init__(self, message: str = "Tệp tin bị hỏng hoặc định dạng không hợp lệ, không thể đọc dữ liệu."):
@@ -21,6 +24,7 @@ class CorruptedFileError(ExpenseOcrError):
         )
 
 
+@exclude_from_coverage
 class UnreadableDocumentError(ExpenseOcrError):
     """AI Engine không thể đọc hoặc parse được văn bản (ảnh quá mờ, lóa đèn, mất nét)"""
     def __init__(

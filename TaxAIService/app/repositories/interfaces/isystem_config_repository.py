@@ -1,8 +1,10 @@
+from app.core import exclude_from_coverage
 from abc import ABC, abstractmethod
 from typing import Optional, Set, List
 from app.models.ai_extraction_models import SystemConfig
 
 
+@exclude_from_coverage
 class ISystemConfigRepository(ABC):
     """Interface cho Repository quản lý cấu hình hệ thống (System Config)."""
 

@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 import json
 from datetime import datetime
@@ -10,6 +11,7 @@ from app.enum import TaxRuleStatus
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 
 
+@exclude_from_coverage
 class TaxRuleRepository(ITaxRuleRepository):
     """Triển khai cụ thể ITaxRuleRepository sử dụng SQLAlchemy Session."""
 

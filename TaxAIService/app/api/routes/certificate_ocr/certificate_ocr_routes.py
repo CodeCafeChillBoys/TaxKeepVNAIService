@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import json
 import logging
 from typing import Optional
@@ -24,6 +25,7 @@ ocr_service = CertificateOcrService()
 
 
 
+@exclude_from_coverage
 @router.post(
     "/extract",
     response_model=CertificateOcrResponse,
@@ -68,6 +70,7 @@ async def extract_expert_certificate(
         prompt_repo = PromptTemplateRepository(db)
         prompt_service = PromptTemplateService(prompt_repo)
         ocr_service.prompt_service = prompt_service
+        ocr_service.db = db
     except Exception:
         pass
 

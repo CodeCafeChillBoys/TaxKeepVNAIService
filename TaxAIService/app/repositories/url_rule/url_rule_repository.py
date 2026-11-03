@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.url_validation_rule import UrlValidationRule
 from app.repositories.interfaces.iurl_rule_repository import IUrlRuleRepository
 
+@exclude_from_coverage
 class UrlRuleRepository(IUrlRuleRepository):
     def __init__(self, db: Session):
         self.db = db

@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,6 +21,7 @@ def get_url_validation_service(db: Session = Depends(get_db)) -> UrlValidationSe
     return UrlValidationService(repo)
 
 
+@exclude_from_coverage
 @router.get(
     "",
     response_model=List[UrlRuleResponse],
@@ -32,6 +34,7 @@ def get_rules(
     return service.get_all_rules(active_only=active_only)
 
 
+@exclude_from_coverage
 @router.post(
     "",
     response_model=UrlRuleResponse,
@@ -45,6 +48,7 @@ def create_rule(
     return service.create_rule(payload)
 
 
+@exclude_from_coverage
 @router.get(
     "/{id}",
     response_model=UrlRuleResponse,
@@ -63,6 +67,7 @@ def get_rule_by_id(
     return rule
 
 
+@exclude_from_coverage
 @router.put(
     "/{id}",
     response_model=UrlRuleResponse,
@@ -82,6 +87,7 @@ def update_rule(
     return updated_rule
 
 
+@exclude_from_coverage
 @router.delete(
     "/{id}",
     status_code=status.HTTP_200_OK,

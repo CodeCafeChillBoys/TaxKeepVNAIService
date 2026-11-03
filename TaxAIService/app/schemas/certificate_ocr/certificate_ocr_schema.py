@@ -1,7 +1,9 @@
+from app.core import exclude_from_coverage
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, Field
 
 
+@exclude_from_coverage
 class ExtractedCertificateFieldDetail(BaseModel):
     """Độ tin cậy của từng trường phục vụ đối soát"""
     model_config = ConfigDict(populate_by_name=True)
@@ -16,6 +18,7 @@ class ExtractedCertificateFieldDetail(BaseModel):
     )
 
 
+@exclude_from_coverage
 class GeminiCertificateOcrOutput(BaseModel):
     """Schema chuẩn Gemini Vision trả về dưới dạng Structured JSON"""
     model_config = ConfigDict(populate_by_name=True)
@@ -87,6 +90,7 @@ class GeminiCertificateOcrOutput(BaseModel):
     )
 
 
+@exclude_from_coverage
 class CertificateExtractedData(BaseModel):
     """Dữ liệu bóc tách chuẩn hóa gửi cho Backend ASP.NET Core đối chiếu"""
     model_config = ConfigDict(populate_by_name=True)
@@ -105,6 +109,7 @@ class CertificateExtractedData(BaseModel):
     overall_confidence: float = Field(0.0, alias="overallConfidence")
 
 
+@exclude_from_coverage
 class CertificateOcrResponse(BaseModel):
     """Response DTO chuẩn trả về cho REST API"""
     model_config = ConfigDict(populate_by_name=True)

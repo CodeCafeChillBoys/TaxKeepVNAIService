@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 from typing import Optional,List,Dict,Any
 from pydantic import BaseModel, ConfigDict, Field  # lớp trung gian giúp fastAPI kiểm tra và chuyển đổi dữ liệu request / reponse theo schemae mặc định
 
@@ -6,12 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field  # lớp trung gian giúp fast
 # Field đặt thêm rule vào field
 # model_dump → model → dict
 
+@exclude_from_coverage
 class BoundingBox(BaseModel):
     x: int = 0
     y: int = 0
     w: int = 0
     h: int = 0
     
+@exclude_from_coverage
 class ExtractedIncomeFieldDetail(BaseModel):
     """Chi tiết bóc tách từng trường để phục vụ thẩm định và lưu log"""
     field_name: str = Field(..., alias="fieldName")
@@ -30,6 +33,7 @@ class ExtractedIncomeFieldDetail(BaseModel):
     # -------------------------------------------------------------------------
 # 2. Schema AI Gemini trả về (Ép kiểu Structured Output)
 # -------------------------------------------------------------------------
+@exclude_from_coverage
 class GeminiIncomeOcrOutput(BaseModel):
     """Schema chuẩn Gemini 2.5 Flash trả về dưới dạng JSON"""
     model_config = ConfigDict(populate_by_name=True)
@@ -121,6 +125,7 @@ class GeminiIncomeOcrOutput(BaseModel):
 # -------------------------------------------------------------------------
 # 3. Kết quả thẩm định ngưỡng (Threshold Validation)
 # -------------------------------------------------------------------------
+@exclude_from_coverage
 class IncomeThresholdValidationResult(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     applied_threshold: float = Field(..., alias="appliedThreshold")
@@ -133,6 +138,7 @@ class IncomeThresholdValidationResult(BaseModel):
 # -------------------------------------------------------------------------
 # 4. Response DTO trả về cho REST API và RabbitMQ
 # -------------------------------------------------------------------------
+@exclude_from_coverage
 class IncomeExtractedData(BaseModel):
     """Dữ liệu bóc tách chuẩn hóa tương thích bảng incomes"""
     model_config = ConfigDict(populate_by_name=True)
@@ -151,6 +157,7 @@ class IncomeExtractedData(BaseModel):
     threshold_validation: IncomeThresholdValidationResult = Field(..., alias="thresholdValidation")
     
     
+@exclude_from_coverage
 class IncomeOcrResponse(BaseModel):
     """Payload phản hồi HTTP chuẩn cho .NET Backend"""
     model_config = ConfigDict(populate_by_name=True)

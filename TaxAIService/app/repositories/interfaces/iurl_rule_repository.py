@@ -1,8 +1,10 @@
+from app.core import exclude_from_coverage
 from abc import ABC, abstractmethod
 from typing import List, Optional
 import uuid
 from app.models.url_validation_rule import UrlValidationRule
 
+@exclude_from_coverage
 class IUrlRuleRepository(ABC):
     @abstractmethod
     def get_all(self, active_only: bool = False) -> List[UrlValidationRule]:

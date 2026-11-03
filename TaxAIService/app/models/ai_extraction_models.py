@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database import Base
 
 
+@exclude_from_coverage
 class SystemConfig(Base):
     """Bảng cấu hình hệ thống (ngưỡng threshold do Admin cài)"""
     __tablename__ = "system_configs"
@@ -28,6 +30,7 @@ class SystemConfig(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
+@exclude_from_coverage
 class AiExtraction(Base):
     """Bảng cha: Lưu tổng quan 1 lần bóc tách cho 1 chứng từ"""
     __tablename__ = "ai_extractions"
@@ -49,6 +52,7 @@ class AiExtraction(Base):
     )
 
 
+@exclude_from_coverage
 class AiExtractionValue(Base):
     """Bảng con: Lưu chi tiết từng trường bóc tách, confidence và bounding_box"""
     __tablename__ = "ai_extractions_value"

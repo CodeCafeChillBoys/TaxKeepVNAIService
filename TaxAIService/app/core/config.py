@@ -11,6 +11,10 @@ load_dotenv(override=True)
 if "GOOGLE_API_KEY" in os.environ and os.environ["GOOGLE_API_KEY"] != os.environ.get("GEMINI_API_KEY"):
     del os.environ["GOOGLE_API_KEY"]
 
+# Xóa biến DEBUG từ môi trường Windows nếu mang giá trị không phải boolean (ví dụ 'release', 'build', ...)
+if "DEBUG" in os.environ and os.environ["DEBUG"].strip().lower() not in ("true", "false", "1", "0", "yes", "no", "t", "f"):
+    del os.environ["DEBUG"]
+
 
 class Settings(BaseSettings):
     # App config

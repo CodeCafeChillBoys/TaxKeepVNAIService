@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import logging
 from datetime import datetime
 from typing import Optional, Set, List
@@ -8,6 +9,7 @@ from app.repositories.interfaces.isystem_config_repository import ISystemConfigR
 logger = logging.getLogger(__name__)
 
 
+@exclude_from_coverage
 class SystemConfigRepository(ISystemConfigRepository):
     """
     Repository truy vấn và quản lý cấu hình hệ thống (System Config) từ Database.

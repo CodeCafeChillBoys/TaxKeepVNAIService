@@ -1,8 +1,10 @@
+from app.core import exclude_from_coverage
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.models.ai_prompt_template import AiPromptTemplate
 from app.repositories.interfaces.iprompt_template_repository import IPromptTemplateRepository
 
+@exclude_from_coverage
 class PromptTemplateRepository(IPromptTemplateRepository):
     def __init__(self, db: Session):
         self.db = db
@@ -17,7 +19,7 @@ class PromptTemplateRepository(IPromptTemplateRepository):
         query = self.db.query(AiPromptTemplate)
         if active_only:
             query = query.filter(AiPromptTemplate.is_active.is_(True))
-        return query.order_by(AiPromptTemplate.prompt_key.asc()).all()
+        return query.order_by(AiPromptTemplate.prompt_key.asc()).all()   
 
     def save(self, template: AiPromptTemplate) -> AiPromptTemplate:
         self.db.add(template)

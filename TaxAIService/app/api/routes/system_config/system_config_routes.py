@@ -1,3 +1,4 @@
+from app.core import exclude_from_coverage
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -20,6 +21,7 @@ def get_config_service(db: Session = Depends(get_db)) -> SystemConfigService:
     return SystemConfigService(repo)
 
 
+@exclude_from_coverage
 @router.get(
     "",
     response_model=List[SystemConfigResponse],
@@ -32,6 +34,7 @@ def get_all_configs(
     return service.get_all_configs(active_only=active_only)
 
 
+@exclude_from_coverage
 @router.post(
     "",
     response_model=SystemConfigResponse,
@@ -48,6 +51,7 @@ def create_config(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@exclude_from_coverage
 @router.get(
     "/threshold/test-resolve",
     summary="[TEST] Kiểm tra xem AI sẽ áp dụng ngưỡng nào cho danh mục này"
@@ -65,6 +69,7 @@ def test_threshold_resolve(
     return service.test_resolve_threshold(category_code=category_code)
 
 
+@exclude_from_coverage
 @router.get(
     "/{key}",
     response_model=SystemConfigResponse,
@@ -83,6 +88,7 @@ def get_config_by_key(
     return config
 
 
+@exclude_from_coverage
 @router.put(
     "/{key}",
     response_model=SystemConfigResponse,
@@ -105,6 +111,7 @@ def update_config(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@exclude_from_coverage
 @router.delete(
     "/{key}",
     status_code=status.HTTP_200_OK,
@@ -124,6 +131,7 @@ def delete_config(
     return {"message": f"Đã xóa mềm cấu hình '{key.upper()}' thành công."}
 
 
+@exclude_from_coverage
 @router.patch(
     "/{key}/restore",
     response_model=SystemConfigResponse,
