@@ -206,3 +206,16 @@ def test_tax_chat_delete_session(mock_repo, mock_history_repo):
 
         service_no_repo = TaxChatService(repository=mock_repo, history_repository=None)
         assert service_no_repo.delete_session(session_id) is False
+
+
+def test_tax_chat_ask_empty_or_whitespace_question_raises_value_error(mock_repo, mock_history_repo):
+    with patch("app.services.tax_rule.tax_chat_service.genai.Client"):
+        service = TaxChatService(repository=mock_repo, history_repository=mock_history_repo)
+        
+        for invalid_q in ["", "   ", "\t\n  ", None]:
+            try:
+                service.ask(question=invalid_q)
+                assert False, f"Expected ValueError for question: {invalid_q}"
+            except ValueError as e:
+                assert "Vui lòng nhập câu hỏi" in str(e)
+

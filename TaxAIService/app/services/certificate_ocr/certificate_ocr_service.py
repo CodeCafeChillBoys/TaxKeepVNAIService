@@ -40,7 +40,7 @@ class CertificateOcrService:
                 message="Tệp tin rỗng hoặc bị lỗi trong quá trình tải lên.",
                 errors=[{"code": "ERR_INVALID_FILE", "message": "File bytes empty or too small"}]
             )
-
+        
         try:
             default_prompt = build_certificate_ocr_prompt(allowed_types=allowed_types)
             types_guide = ""
