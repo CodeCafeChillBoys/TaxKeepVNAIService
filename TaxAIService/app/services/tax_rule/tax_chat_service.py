@@ -100,13 +100,17 @@ class TaxChatService:
         tax_year: Optional[int] = None,
         user_id: Optional[uuid.UUID] = None
     ) -> Dict[str, Any]:
+        clean_question = question.strip() if question else ""
+        if not clean_question:
+            raise ValueError("Vui lòng nhập câu hỏi.")
+
         # 1. Quản lý phiên hội thoại & Lấy lịch sử chat cũ
         active_session = None
         history_messages = []
         if self.history_repository:
             active_session = self.history_repository.get_or_create_session(
                 session_id=session_id, 
-                first_question=question,
+                first_question=clean_question,
                 user_id=user_id
             )
             # Lấy 6 tin nhắn trước đó (chưa bao gồm câu hỏi hiện tại)
@@ -118,7 +122,7 @@ class TaxChatService:
             self.history_repository.save_message(
                 session_id=active_session.id, 
                 role="user", 
-                content=question
+                content=clean_question
             )
 
         # 2. Lấy dữ liệu luật từ DB
@@ -159,7 +163,7 @@ class TaxChatService:
         contents.append(
             types.Content(
                 role="user", 
-                parts=[types.Part.from_text(text=question)]
+                parts=[types.Part.from_text(text=clean_question)]
             )
         )
 
@@ -188,7 +192,7 @@ class TaxChatService:
 
         return {
             "session_id": active_session.id if active_session else None,
-            "question": question,
+            "question": clean_question,
             "answer": ai_answer
         }
 

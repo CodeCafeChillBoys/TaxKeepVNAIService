@@ -3,7 +3,7 @@ import uuid
 from typing import Optional, List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 from app.infrastructure.database import get_db
 from app.repositories.tax_rule.tax_chat_repository import TaxChatRepository
@@ -17,10 +17,17 @@ router = APIRouter(prefix="/api/tax-chat", tags=["Tư Vấn Thuế AI"])
 
 @exclude_from_coverage
 class ChatQuestionRequest(BaseModel):
-    question: str
+    question: str = Field(..., description="Nội dung câu hỏi của người dùng")
     session_id: Optional[uuid.UUID] = None  # Để trống nếu là chat mới, truyền vào nếu là chat tiếp
     tax_year: Optional[int] = None
     user_id: Optional[uuid.UUID] = None     # Định danh người dùng từ BE
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Vui lòng nhập câu hỏi.")
+        return v.strip()
 
 
 @exclude_from_coverage
@@ -78,6 +85,13 @@ def chat_with_tax_ai(request: ChatQuestionRequest, db: Session = Depends(get_db)
             user_id=request.user_id
         )
         return result
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
