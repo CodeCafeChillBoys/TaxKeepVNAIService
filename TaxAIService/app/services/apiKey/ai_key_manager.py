@@ -162,9 +162,9 @@ class AiKeyManager:
                         else:
                             raise e
             except Exception as db_err:
-                logger.warning(f"Lỗi khi truy vấn AI Keys pool: {db_err}")
+                logger.warning("Lỗi khi sử dụng pool AI key từ DB: %s", db_err)
 
         # Nếu DB không còn key nào hoặc tất cả đều cạn quota -> Fallback về key trong .env hoặc default_client đã mock
-        logger.warning("Toàn bộ Key trong DB đều hết Quota hoặc không có sẵn! Sử dụng key mặc định từ file .env")
+        logger.info("Chuyển sang Gemini client mặc định")
         fallback_client = default_client or (genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None)
         return ai_operation_func(fallback_client, settings.GEMINI_MODEL)

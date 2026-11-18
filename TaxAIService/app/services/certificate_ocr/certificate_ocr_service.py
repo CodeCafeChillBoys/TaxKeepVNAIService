@@ -71,6 +71,7 @@ class CertificateOcrService:
                     model=model,
                     contents=contents,
                     config=types.GenerateContentConfig(
+                        http_options=types.HttpOptions(api_version="v1beta"),
                         system_instruction=system_instruction,
                         response_mime_type="application/json",
                         response_schema=GeminiCertificateOcrOutput,

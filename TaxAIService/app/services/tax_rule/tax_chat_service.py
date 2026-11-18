@@ -173,6 +173,7 @@ class TaxChatService:
                 model=model,
                 contents=contents,
                 config=types.GenerateContentConfig(
+                    http_options=types.HttpOptions(api_version="v1beta"),
                     system_instruction=system_instruction,
                     temperature=0.1
                 )

@@ -64,8 +64,8 @@ DANH SÁCH DANH MỤC HỢP LỆ DO QUẢN TRỊ VIÊN (ADMIN) QUY ĐỊNH:
 
 QUY TẮC PHÂN LOẠI & LOẠI TRỪ NGHIÊM NGẶT THEO LUẬT THUẾ TNCN:
 1. CÁC KHOẢN ĐƯỢC PHÉP CHẤP NHẬN:
-   - Y TẾ / BỆNH VIỆN / TIỀN THUỐC: Khám chữa bệnh, tiền giường, viện phí, phẫu thuật (gán MEDICAL_EXPENSE_INVOICE, HOSPITAL_FEE_RECEIPT, PRESCRIPTION_INVOICE).
-   - GIÁO DỤC / HỌC PHÍ: Học phí trường học mầm non, phổ thông, đại học, dạy nghề (gán TUITION_FEE_INVOICE, TUITION_RECEIPT, EDUCATION_EXPENSE_INVOICE).
+   - Y TẾ / BỆNH VIỆN / TIỀN THUỐC (Hạn mức tối đa 23 triệu đồng/năm): Khám chữa bệnh, tiền giường, viện phí, phẫu thuật, thuốc theo đơn tại cơ sở y tế trong nước thuộc phạm vi danh mục do BHYT chi trả (gán MEDICAL_EXPENSE_INVOICE, HOSPITAL_FEE_RECEIPT, PRESCRIPTION_INVOICE). Không chấp nhận dịch vụ thẩm mỹ, bồi bổ ngoài danh mục BHYT hoặc cơ sở y tế nước ngoài.
+   - GIÁO DỤC / HỌC PHÍ (Hạn mức tối đa 24 triệu đồng/năm): Chi cho giáo dục - đào tạo tại cơ sở giáo dục - đào tạo trong nước gồm: học phí mầm non, phổ thông, đại học, giáo dục nghề nghiệp và đào tạo kỹ năng chuyên môn khác (gán TUITION_FEE_INVOICE, TUITION_RECEIPT, EDUCATION_EXPENSE_INVOICE). Không tính phụ thu dịch vụ sinh hoạt (ăn bán trú, xe đưa đón, đồng phục).
    - TỪ THIỆN, NHÂN ĐẠO, KHUYẾN HỌC: Đóng góp vào quỹ từ thiện nhà nước cho phép (CHARITY_DONATION_RECEIPT).
    - BẢO HIỂM HƯU TRÍ TỰ NGUYỆN: Đóng quỹ hưu trí tự nguyện (INSURANCE_RECEIPT).
    - CHỨNG TỪ KHẤU TRỪ THUẾ TNCN: (WITHHOLDING_VOUCHER).
