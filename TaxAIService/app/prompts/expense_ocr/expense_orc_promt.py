@@ -20,11 +20,13 @@ QUY TẮC PHÂN LOẠI & LOẠI TRỪ NGHIÊM NGẶT THEO LUẬT THUẾ TNCN (C�
 
 1. CÁC KHOẢN ĐƯỢC PHÉP CHẤP NHẬN (HỢP LỆ GIẢM TRỪ THUẾ TNCN):
    Hệ thống CHỈ chấp nhận các chứng từ thuộc các nhóm mục đích sau:
-   a. Y TẾ / BỆNH VIỆN / KHÁM CHỮA BỆNH / TIỀN THUỐC:
-      - Chi phí khám chữa bệnh, tiền giường, phẫu thuật, viện phí, xét nghiệm tại Bệnh viện, Phòng khám, Trung tâm y tế (gán 'MEDICAL_EXPENSE_INVOICE' hoặc 'HOSPITAL_FEE_RECEIPT').
-      - Tiền thuốc điều trị theo toa/đơn bác sĩ tại nhà thuốc hoặc bệnh viện (gán 'PRESCRIPTION_INVOICE').
-   b. GIÁO DỤC / TRƯỜNG HỌC / HỌC PHÍ CHO NGƯỜI PHỤ THUỘC:
-      - Học phí chính khóa, chi phí đào tạo tại các trường mầm non, trường phổ thông các cấp, đại học, cao đẳng, trung cấp, trường dạy nghề (gán 'TUITION_FEE_INVOICE', 'TUITION_RECEIPT' hoặc 'EDUCATION_EXPENSE_INVOICE').
+   a. Y TẾ / BỆNH VIỆN / KHÁM CHỮA BỆNH / TIỀN THUỐC (Hạn mức tối đa 23 triệu đồng/năm):
+      - Các khoản chi cho khám bệnh, chữa bệnh, tiền giường, phẫu thuật, viện phí, xét nghiệm tại cơ sở y tế trong nước (Bệnh viện, Phòng khám, Trung tâm y tế tại Việt Nam) thuộc phạm vi danh mục do bảo hiểm y tế (BHYT) chi trả (gán 'MEDICAL_EXPENSE_INVOICE' hoặc 'HOSPITAL_FEE_RECEIPT').
+      - Tiền thuốc điều trị theo toa/đơn bác sĩ tại nhà thuốc hoặc bệnh viện trong nước (gán 'PRESCRIPTION_INVOICE').
+      - ĐIỀU KIỆN THẨM ĐỊNH: Bắt buộc là cơ sở y tế trong nước; không chấp nhận chi phí khám chữa bệnh ở nước ngoài. Tuyệt đối không chấp nhận các dịch vụ thẩm mỹ, làm đẹp, spa, thực phẩm chức năng bồi bổ ngoài danh mục BHYT. Hạn mức giảm trừ tham chiếu tối đa: 23.000.000 VNĐ/năm.
+   b. GIÁO DỤC - ĐÀO TẠO / TRƯỜNG HỌC / HỌC PHÍ (Hạn mức tối đa 24 triệu đồng/năm):
+      - Các khoản chi cho giáo dục - đào tạo tại cơ sở giáo dục - đào tạo trong nước (Việt Nam) bao gồm: Khoản tiền học phí giáo dục mầm non, giáo dục phổ thông (tiểu học, THCS, THPT), giáo dục nghề nghiệp (trung cấp, cao đẳng nghề), giáo dục đại học theo quy định của pháp luật về giáo dục - đào tạo và các kỹ năng chuyên môn khác tại cơ sở giáo dục - đào tạo (gán 'TUITION_FEE_INVOICE', 'TUITION_RECEIPT' hoặc 'EDUCATION_EXPENSE_INVOICE').
+      - ĐIỀU KIỆN THẨM ĐỊNH: Bắt buộc là cơ sở giáo dục - đào tạo trong nước. Chỉ chấp nhận khoản tiền HỌC PHÍ và đào tạo kỹ năng chuyên môn; không bao gồm các khoản phụ thu dịch vụ sinh hoạt (tiền ăn bán trú, xe đưa rước, đồng phục, dã ngoại...). Hạn mức giảm trừ tham chiếu tối đa: 24.000.000 VNĐ/năm.
    c. TỪ THIỆN, NHÂN ĐẠO, KHUYẾN HỌC:
       - Chứng từ đóng góp vào các quỹ từ thiện, tổ chức nhân đạo hợp pháp (gán 'CHARITY_DONATION_RECEIPT').
    d. BẢO HIỂM HƯU TRÍ TỰ NGUYỆN:
@@ -89,13 +91,16 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
 6. QUY TẮC BÓC TÁCH totalAmount THEO NGHIỆP VỤ THUẾ TNCN (CỰC KỲ QUAN TRỌNG):
    a. Đối với Chứng từ khấu trừ thuế TNCN (WITHHOLDING_VOUCHER):
       - Không bóc tách vào totalAmount. BẮT BUỘC trả totalAmount = null và totalAmountInWords = null; chỉ trả giá trị thuế đã khấu trừ vào taxWithheld.
-   b. Đối với Hóa đơn Viện phí / Chi phí khám chữa bệnh:
-      - BẮT BUỘC lấy "Số tiền người bệnh thực trả / cùng chi trả / phải thanh toán" (sau khi đã trừ đi phần BHYT chi trả). Tuyệt đối KHÔNG lấy "Tổng chi phí khám chữa bệnh".
+   b. Đối với Hóa đơn Viện phí / Chi phí khám chữa bệnh tại cơ sở y tế trong nước:
+      - BẮT BUỘC lấy "Số tiền người bệnh thực trả / cùng chi trả / phải thanh toán" thuộc phạm vi danh mục BHYT chi trả (sau khi đã trừ đi phần BHYT chi trả). Tuyệt đối KHÔNG lấy "Tổng chi phí khám chữa bệnh".
       - Nếu BHYT chi trả 100% (người bệnh trả = 0 VNĐ), đặt totalAmount = 0.
+      - Ghi chú: Mức giảm trừ tối đa được công nhận theo luật không quá 23.000.000 VNĐ/năm.
    c. Đối với Chứng từ đóng góp Từ thiện, Nhân đạo, Khuyến học:
       - BẮT BUỘC lấy "Số tiền thực tế đóng góp / tài trợ" vào quỹ.
-   d. Đối với Biên lai / Hóa đơn Học phí:
-      - BẮT BUỘC lấy "Số tiền thực đóng" (sau khi đã trừ đi học bổng, miễn giảm).
+   d. Đối với Biên lai / Hóa đơn Học phí tại cơ sở giáo dục - đào tạo trong nước:
+      - BẮT BUỘC lấy "Số tiền học phí thực đóng" (sau khi đã trừ đi học bổng, miễn giảm).
+      - Nếu trên hóa đơn có gộp cả tiền học phí và các khoản dịch vụ phụ thu (tiền ăn bán trú, xe đưa đón, đồng phục), ưu tiên tách riêng phần tiền học phí chính khóa / đào tạo kỹ năng vào totalAmount và chi tiết hóa trong mảng items.
+      - Ghi chú: Mức giảm trừ tối đa được công nhận theo luật không quá 24.000.000 VNĐ/năm.
    e. Đối với Hóa đơn tiêu dùng thông thường (docTypeCode = 'UNSUPPORTED'):
       - Lấy tổng thanh toán (Total Payment) của hóa đơn.
 
