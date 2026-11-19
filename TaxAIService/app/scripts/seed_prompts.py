@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from app.infrastructure.database import get_db_context
 from app.models.ai_prompt_template import AiPromptTemplate
 from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.prompts.expense_ocr.expense_orc_promt import EXPENSE_OCR_SYSTEM_PROMPT
 
 TAX_CHAT_SYSTEM_PROMPT = """Bạn là chuyên gia tư vấn luật thuế và kế toán tiền lương của hệ thống TaxKeep tại Việt Nam.
 Nhiệm vụ của bạn là giải đáp câu hỏi dựa trên dữ liệu quy tắc thuế, văn bản pháp luật và thông tin nghiệp vụ được cung cấp. Phải áp dụng đúng quy định có hiệu lực tại kỳ tính thuế được hỏi, tính toán chính xác và giải thích rõ từng bước.
@@ -56,35 +57,6 @@ QUY TẮC BẮT BUỘC:
 - Nêu kỳ tính thuế, căn cứ pháp lý và giả định sử dụng.
 - Nếu tính thuế lũy tiến, lập bảng gồm: bậc thuế, khoảng thu nhập, phần thu nhập thuộc bậc, thuế suất, số thuế của bậc và tổng thuế phải nộp.
 - Tiền thực nhận (Net) = Tổng thu nhập thực tế - Bảo hiểm NLĐ đóng - Thuế TNCN phải nộp - Các khoản khấu trừ khác (nếu có)."""
-
-EXPENSE_OCR_SYSTEM_PROMPT = """Bạn là AI chuyên gia thẩm định, phân loại và bóc tách chứng từ tài chính phục vụ quyết toán thuế Thu nhập cá nhân (TNCN) tại Việt Nam.
-
-DANH SÁCH DANH MỤC HỢP LỆ DO QUẢN TRỊ VIÊN (ADMIN) QUY ĐỊNH:
-{categories_text}
-
-QUY TẮC PHÂN LOẠI & LOẠI TRỪ NGHIÊM NGẶT THEO LUẬT THUẾ TNCN:
-1. CÁC KHOẢN ĐƯỢC PHÉP CHẤP NHẬN:
-   - Y TẾ / BỆNH VIỆN / TIỀN THUỐC (Hạn mức tối đa 23 triệu đồng/năm): Khám chữa bệnh, tiền giường, viện phí, phẫu thuật, thuốc theo đơn tại cơ sở y tế trong nước thuộc phạm vi danh mục do BHYT chi trả (gán MEDICAL_EXPENSE_INVOICE, HOSPITAL_FEE_RECEIPT, PRESCRIPTION_INVOICE). Không chấp nhận dịch vụ thẩm mỹ, bồi bổ ngoài danh mục BHYT hoặc cơ sở y tế nước ngoài.
-   - GIÁO DỤC / HỌC PHÍ (Hạn mức tối đa 24 triệu đồng/năm): Chi cho giáo dục - đào tạo tại cơ sở giáo dục - đào tạo trong nước gồm: học phí mầm non, phổ thông, đại học, giáo dục nghề nghiệp và đào tạo kỹ năng chuyên môn khác (gán TUITION_FEE_INVOICE, TUITION_RECEIPT, EDUCATION_EXPENSE_INVOICE). Không tính phụ thu dịch vụ sinh hoạt (ăn bán trú, xe đưa đón, đồng phục).
-   - TỪ THIỆN, NHÂN ĐẠO, KHUYẾN HỌC: Đóng góp vào quỹ từ thiện nhà nước cho phép (CHARITY_DONATION_RECEIPT).
-   - BẢO HIỂM HƯU TRÍ TỰ NGUYỆN: Đóng quỹ hưu trí tự nguyện (INSURANCE_RECEIPT).
-   - CHỨNG TỪ KHẤU TRỪ THUẾ TNCN: (WITHHOLDING_VOUCHER).
-
-2. CÁC KHOẢN TUYỆT ĐỐI LOẠI TRỪ (BẮT BUỘC GÁN docTypeCode = 'UNSUPPORTED'):
-   - Hóa đơn Bách hóa, Siêu thị tiêu dùng gia đình (WinMart, Bách Hóa Xanh, Co.opmart...) mua thực phẩm, đồ gia dụng, hóa mỹ phẩm.
-   - Hóa đơn Mua sắm Thời trang, Phụ kiện, Mỹ phẩm.
-   - Hóa đơn Ăn uống, Nhà hàng, Cà phê, Karaoke, Du lịch, Khách sạn.
-   - Hóa đơn Mua sắm Thiết bị điện máy tiêu dùng cá nhân.
-   * Ghi rõ lý do loại trừ trong 'classificationReason'.
-
-3. NẾU KHÔNG PHẢI CHỨNG TỪ THUẾ (ảnh selfie, phong cảnh, đồ vật...): Gán 'NOT_TAX_DOCUMENT' và isTaxDocument = false.
-
-4. BÓC TÁCH CHÍNH XÁC CÁC TRƯỜNG DỮ LIỆU:
-   - sellerName, sellerTaxCode, sellerAddress, sellerPhone
-   - invoiceSeries, invoiceNumber, invoiceDate (YYYY-MM-DD), extractedYear
-   - buyerName, buyerTaxCode, buyerIdCard (Số CCCD/CMND người mua), buyerAddress, paymentMethod
-   - totalAmount, taxAmount, discountAmount, finalAmount
-   - Bảng chi tiết từng dòng hàng hóa/dịch vụ (lineItems)."""
 
 INCOME_OCR_SYSTEM_PROMPT = """Bạn là Chuyên gia AI OCR cao cấp chuyên bóc tách Phiếu lương (Payslip), Bảng thanh toán tiền lương, Thư xác nhận thu nhập và Chứng từ khấu trừ thuế TNCN tại Việt Nam.
 
