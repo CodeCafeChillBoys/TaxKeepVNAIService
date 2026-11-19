@@ -181,11 +181,15 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                     "insuranceDeducted": doc.insuranceDeducted,
                     "totalIncome": doc.totalIncome,
                     "taxWithheld": doc.taxWithheld,
+                    "overallConfidence": result.get("overall_confidence"),
+                    "appliedThreshold": result.get("applied_threshold"),
+                    "isPassedThreshold": result.get("is_passed_threshold"),
                     "items": [item.model_dump() for item in doc.items] if hasattr(doc, "items") and doc.items else [],
                     "validationStatus": {
                         "isYearValid": result["is_year_valid"],
                         "isDocTypeValid": result["is_doc_type_valid"],
-                        "isIdentityValid": True
+                        "isIdentityValid": True,
+                        "isPassedThreshold": result["is_passed_threshold"]
                     },
                     "validationErrors": [err["message"] if isinstance(err, dict) else str(err) for err in errors],
                     "status": doc_status.value,

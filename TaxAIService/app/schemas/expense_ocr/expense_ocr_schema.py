@@ -120,6 +120,7 @@ class ValidationStatus(BaseModel):
     isYearValid: bool = True
     isDocTypeValid: bool = True
     isIdentityValid: bool = True
+    isPassedThreshold: bool = True
 
 
 @exclude_from_coverage
@@ -152,6 +153,9 @@ class ProcessDocumentResponseData(BaseModel):
     insuranceDeducted: Optional[float] = Field(None, description="Mục 14b - Khoản đóng bảo hiểm bắt buộc")
     totalIncome: Optional[float] = Field(None, description="Mục 16 - Tổng thu nhập chịu thuế")
     taxWithheld: Optional[float] = Field(None, description="Mục 18 - Số thuế đã khấu trừ")
+    overallConfidence: Optional[float] = Field(None, description="Điểm tin cậy OCR tổng thể (0.0 đến 1.0)")
+    appliedThreshold: Optional[float] = Field(None, description="Ngưỡng tin cậy áp dụng")
+    isPassedThreshold: Optional[bool] = Field(None, description="Trạng thái vượt qua ngưỡng tin cậy")
     items: List[InvoiceLineItem] = Field(default_factory=list)
     validationStatus: ValidationStatus = Field(default_factory=ValidationStatus)
     validationErrors: List[str] = Field(default_factory=list)
