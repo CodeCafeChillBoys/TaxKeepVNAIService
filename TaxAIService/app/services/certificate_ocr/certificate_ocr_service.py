@@ -12,13 +12,20 @@ from app.schemas.certificate_ocr.certificate_ocr_schema import (
 from app.prompts.certificate_ocr.certificate_ocr_prompt import build_certificate_ocr_prompt
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.apiKey.ai_key_manager import AiKeyManager
+from app.repositories.interfaces.isystem_config_repository import ISystemConfigRepository
 
 logger = logging.getLogger(__name__)
 
 
 class CertificateOcrService:
-    def __init__(self, prompt_service: Optional[PromptTemplateService] = None, db=None):
+    def __init__(
+        self,
+        prompt_service: Optional[PromptTemplateService] = None,
+        repo: Optional[ISystemConfigRepository] = None,
+        db=None
+    ):
         self.db = db
+        self.repo = repo
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
         self.model = settings.GEMINI_MODEL  # gemini-2.5-flash
         self.prompt_service = prompt_service
@@ -27,7 +34,8 @@ class CertificateOcrService:
         self,
         file_bytes: bytes,
         mime_type: str,
-        allowed_types: Optional[List[Dict[str, str]]] = None
+        allowed_types: Optional[List[Dict[str, str]]] = None,
+        applied_threshold: Optional[float] = None
     ) -> CertificateOcrResponse:
         """
         Bóc tách thông tin chứng chỉ hành nghề của chuyên gia bằng Gemini Vision Multimodal.
@@ -127,6 +135,17 @@ class CertificateOcrService:
             else:
                 overall_conf = 0.92
 
+            if applied_threshold is None or applied_threshold <= 0:
+                cert_type = getattr(doc, "certificate_type", None) or "EXPERT_CERTIFICATE"
+                if self.repo:
+                    threshold_val = self.repo.get_system_threshold(category_code=cert_type, default=0.80)
+                else:
+                    threshold_val = 0.80
+            else:
+                threshold_val = applied_threshold
+
+            is_passed_threshold = overall_conf >= threshold_val
+
             # Kiểm tra xem mã loại chứng chỉ nhận diện được có nằm trong danh mục hệ thống cho phép không
             valid_codes = [t.get("code") for t in (allowed_types or []) if t.get("code")]
             if valid_codes:
@@ -146,13 +165,18 @@ class CertificateOcrService:
                 issue_date=doc.issue_date,
                 has_expiry=doc.has_expiry,
                 expiry_date=doc.expiry_date,
-                overall_confidence=overall_conf
+                overall_confidence=overall_conf,
+                applied_threshold=threshold_val,
+                is_passed_threshold=is_passed_threshold
             )
 
             return CertificateOcrResponse(
                 success=True,
                 status_code=200,
                 message="Bóc tách chứng chỉ hành nghề thành công.",
+                overall_confidence=overall_conf,
+                applied_threshold=threshold_val,
+                is_passed_threshold=is_passed_threshold,
                 data=extracted_data
             )
 

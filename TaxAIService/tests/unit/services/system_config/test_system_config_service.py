@@ -187,3 +187,40 @@ def test_get_all_get_by_key_and_test_resolve_threshold():
     res = service.test_resolve_threshold("MEDICAL")
     assert res["resolved_threshold"] == 0.85
     assert res["category_code"] == "MEDICAL"
+
+
+def test_seed_system_configs_idempotent():
+    from app.scripts.seed_system_configs import seed_system_configs, SEED_SYSTEM_CONFIGS
+
+    mock_db = MagicMock()
+    # First run: nothing exists -> should add all
+    mock_db.query.return_value.filter.return_value.first.return_value = None
+
+    added = seed_system_configs(db=mock_db)
+    assert added == len(SEED_SYSTEM_CONFIGS)
+    assert mock_db.commit.called
+
+    # Verify key document categories exist in SEED_SYSTEM_CONFIGS
+    keys = {c["config_key"] for c in SEED_SYSTEM_CONFIGS}
+    assert "AI_CONFIDENCE_THRESHOLD" in keys
+    assert "CRUCIAL_EXTRACTION_FIELDS" in keys
+    assert "MEDICAL_STATEMENT_AMOUNT_TOLERANCE" in keys
+    assert "THRESHOLD_MEDICAL_RECEIPT" in keys
+    assert "THRESHOLD_MEDICAL_COST_STATEMENT" in keys
+    assert "THRESHOLD_EDUCATION_RECEIPT" in keys
+    assert "THRESHOLD_DONATION_RECEIPT" in keys
+    assert "THRESHOLD_WITHHOLDING_VOUCHER" in keys
+    assert "THRESHOLD_VAT_INVOICE" in keys
+    assert "THRESHOLD_SALES_INVOICE" in keys
+    assert "THRESHOLD_INCOME_PAYSLIP" in keys
+    assert "THRESHOLD_CITIZEN_ID" in keys
+    assert "THRESHOLD_BIRTH_CERTIFICATE" in keys
+    assert "THRESHOLD_STUDENT_CARD" in keys
+    assert "THRESHOLD_DISABILITY_CERTIFICATE" in keys
+    assert "THRESHOLD_MARRIAGE_CERTIFICATE" in keys
+    assert "THRESHOLD_EXPERT_CERTIFICATE" in keys
+    assert "THRESHOLD_TAX_AGENT" in keys
+    assert "THRESHOLD_CPA" in keys
+    assert "THRESHOLD_ACCOUNTANT" in keys
+    assert "THRESHOLD_CHIEF_ACCOUNTANT" in keys
+

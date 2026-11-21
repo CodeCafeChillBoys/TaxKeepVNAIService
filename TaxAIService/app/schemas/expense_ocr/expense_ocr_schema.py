@@ -1,12 +1,17 @@
 from app.core import exclude_from_coverage
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from pydantic import BaseModel, Field
-from app.enum.expense_document_enum import DocumentExtractionStatus
+from app.enum.expense_document_enum import (
+    DocumentExtractionStatus,
+    MedicalDeductionStatus,
+    MedicalStatementStatus
+)
 
 
 # 1. Schema cho từng danh mục Admin gửi sang
 @exclude_from_coverage
 class AdminCategoryItem(BaseModel):
+    isMedicalStatement: bool = False
     code: str = Field(..., description="Mã danh mục, VD: MEDICAL_EXPENSE_INVOICE")
     name: str = Field(..., description="Tên hiển thị, VD: Chi phí y tế")
     description: str = Field(..., description="Mô tả đặc điểm để AI nhận diện")
@@ -45,6 +50,85 @@ class InvoiceLineItem(BaseModel):
     quantity: float = Field(1.0, description="Số lượng")
     unitPrice: float = Field(0.0, description="Đơn giá")
     totalPrice: float = Field(0.0, description="Thành tiền = số lượng x đơn giá")
+
+
+class MedicalStatementHeader(BaseModel):
+    formCode: Optional[str] = None
+    statementNumber: Optional[str] = None
+    formVersion: Optional[Literal["QD697", "QD6556"]] = None
+    facilityName: Optional[str] = None
+    hospitalName: Optional[str] = None
+    hospitalCode: Optional[str] = None
+    department: Optional[str] = None
+    patientName: Optional[str] = None
+    patientDateOfBirth: Optional[str] = Field(None, description="YYYY-MM-DD")
+    dob: Optional[str] = Field(None, description="YYYY-MM-DD")
+    gender: Optional[str] = None
+    idCard: Optional[str] = None
+    patientIdCard: Optional[str] = None
+    insuranceNumber: Optional[str] = None
+    benefitRate: Optional[float] = None
+    hasInsuranceCard: Optional[bool] = None
+    visitDate: Optional[str] = Field(None, description="YYYY-MM-DD")
+    admissionDate: Optional[str] = Field(None, description="YYYY-MM-DD")
+    dischargeDate: Optional[str] = Field(None, description="YYYY-MM-DD")
+    treatmentFrom: Optional[str] = Field(None, description="YYYY-MM-DD")
+    treatmentTo: Optional[str] = Field(None, description="YYYY-MM-DD")
+    treatmentType: Optional[str] = None
+
+
+class MedicalCostSection(BaseModel):
+    sectionIndex: int
+    hasInsuranceCard: Optional[bool] = None
+    benefitRate: Optional[float] = Field(None, description="Mức hưởng dạng tỷ lệ, ví dụ 80% = 0.8")
+    periodFrom: Optional[str] = Field(None, description="YYYY-MM-DD")
+    periodTo: Optional[str] = Field(None, description="YYYY-MM-DD")
+
+
+class MedicalStatementLine(BaseModel):
+    sectionIndex: int
+    itemOrder: int
+    groupCode: Optional[str] = None
+    groupName: Optional[str] = None
+    sectionCode: Optional[str] = None
+    sectionName: Optional[str] = None
+    isPackageSubLine: bool = False
+    itemName: str
+    itemCode: Optional[str] = Field(None, description="Mã dịch vụ, thuốc hoặc thiết bị nếu được in rõ")
+    unit: Optional[str] = None
+    quantity: Optional[float] = None
+    unitPriceHospital: Optional[float] = None
+    unitPrice: Optional[float] = None
+    unitPriceInsurance: Optional[float] = None
+    serviceRate: Optional[float] = Field(None, description="Cột (6), phần trăm, ví dụ 80% = 80")
+    hospitalAmount: Optional[float] = None
+    totalAmount: Optional[float] = None
+    insuranceRate: Optional[float] = Field(None, description="Cột (8), phần trăm, ví dụ 100% = 100")
+    insuranceAmount: Optional[float] = None
+    insuranceFundPaid: Optional[float] = None
+    insurancePaid: Optional[float] = None
+    patientCoPay: Optional[float] = None
+    otherSourcePaid: Optional[float] = None
+    patientSelfPay: Optional[float] = None
+    isEligibleDeduction: bool = True
+    deductionStatus: Optional[MedicalDeductionStatus] = MedicalDeductionStatus.ELIGIBLE
+    deductionReason: Optional[str] = None
+    eligibleAmount: Optional[float] = None
+    suggestedStatus: Optional[MedicalDeductionStatus] = None
+    suggestedReason: Optional[str] = None
+    confidenceScore: float = Field(..., ge=0, le=1)
+
+
+class MedicalStatementSummary(BaseModel):
+    totalHospitalAmount: Optional[float] = None
+    insuranceFundPaid: Optional[float] = None
+    insurancePaidAmount: Optional[float] = None
+    patientPaid: Optional[float] = None
+    patientPaidAmount: Optional[float] = None
+    patientSelfPayAmount: Optional[float] = None
+    coPayWithinInsurance: Optional[float] = None
+    otherPatientPayments: Optional[float] = None
+    otherSourcePaid: Optional[float] = None
 
 
 # 3. Kết quả Gemini trả về
@@ -103,6 +187,11 @@ class GeminiOcrOutput(BaseModel):
 
     # Danh sách chi tiết từng hàng hóa / dịch vụ trên hóa đơn
     items: List[InvoiceLineItem] = Field(default_factory=list, description="Bảng danh sách các mặt hàng, dịch vụ, viện phí, học phí trong hóa đơn")
+    medicalHeader: Optional[MedicalStatementHeader] = None
+    medicalSections: List[MedicalCostSection] = Field(default_factory=list)
+    medicalLines: List[MedicalStatementLine] = Field(default_factory=list)
+    medicalSummary: Optional[MedicalStatementSummary] = None
+    crossCheckIssues: List[str] = Field(default_factory=list)
 
     # Danh sách chi tiết từng trường để lưu AI_EXTRACTIONS_Value
     fields: List[ExtractedFieldDetail] = Field(default_factory=list)

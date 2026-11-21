@@ -29,6 +29,11 @@ class CertificateOcrRequestMessage(BaseModel):
         alias="allowedTypes",
         description="Danh sách các loại chứng chỉ đang hoạt động do Admin cấu hình"
     )
+    applied_threshold: Optional[float] = Field(
+        None,
+        alias="appliedThreshold",
+        description="Ngưỡng tin cậy áp dụng"
+    )
 
 
 @exclude_from_coverage
@@ -45,6 +50,9 @@ class CertificateOcrResponseMessage(BaseModel):
     success: bool = Field(..., alias="success", description="Bóc tách thành công hay thất bại")
     status_code: int = Field(200, alias="statusCode", description="Mã trạng thái HTTP (200, 400, 422, 500)")
     message: str = Field(..., alias="message", description="Thông báo kết quả hoặc lý do từ chối")
+    overall_confidence: Optional[float] = Field(None, alias="overallConfidence", description="Tổng độ tin cậy trích xuất")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold", description="Ngưỡng tin cậy áp dụng")
+    is_passed_threshold: Optional[bool] = Field(None, alias="isPassedThreshold", description="Trạng thái đạt ngưỡng tin cậy")
     data: Optional[CertificateExtractedData] = Field(None, alias="data", description="Dữ liệu bóc tách chứng chỉ")
     errors: Optional[Any] = Field(None, alias="errors", description="Chi tiết lỗi nếu thất bại")
     processed_at: str = Field(

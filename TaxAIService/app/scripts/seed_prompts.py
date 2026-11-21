@@ -7,7 +7,17 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from app.infrastructure.database import get_db_context
 from app.models.ai_prompt_template import AiPromptTemplate
 from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
-from app.prompts.expense_ocr.expense_orc_promt import EXPENSE_OCR_SYSTEM_PROMPT
+from app.prompts.expense_ocr import (
+    EXPENSE_OCR_SYSTEM_PROMPT,
+    MEDICAL_STATEMENT_RULES,
+    MEDICAL_STATEMENT_ONLY_SYSTEM_PROMPT,
+)
+from app.prompts.expense_ocr.expense_ocr_prompt import EXPENSE_OCR_SYSTEM_PROMPT_TEMPLATE
+from app.schemas.prompt_template.prompt_template_schema import (
+    PromptTemplateCreateRequest,
+    PromptTemplateUpdateRequest,
+)
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 
 TAX_CHAT_SYSTEM_PROMPT = """Bạn là chuyên gia tư vấn luật thuế và kế toán tiền lương của hệ thống TaxKeep tại Việt Nam.
 Nhiệm vụ của bạn là giải đáp câu hỏi dựa trên dữ liệu quy tắc thuế, văn bản pháp luật và thông tin nghiệp vụ được cung cấp. Phải áp dụng đúng quy định có hiệu lực tại kỳ tính thuế được hỏi, tính toán chính xác và giải thích rõ từng bước.
@@ -149,9 +159,25 @@ SEED_TEMPLATES = [
     },
     {
         "prompt_key": "PROMPT_EXPENSE_OCR",
-        "system_prompt": EXPENSE_OCR_SYSTEM_PROMPT,
+        "system_prompt": EXPENSE_OCR_SYSTEM_PROMPT_TEMPLATE,
         "description": "System prompt bóc tách và phân loại hóa đơn chi phí hợp lệ giảm trừ thuế",
-        "variables": ["categories_text"],
+        "variables": ["categories_text", "medical_statement_rules"],
+        "is_active": True,
+        "version": 1
+    },
+    {
+        "prompt_key": "PROMPT_MEDICAL_STATEMENT_RULES",
+        "system_prompt": MEDICAL_STATEMENT_RULES,
+        "description": "Quy tắc bóc tách bảng kê chi phí KCB (Mục 7a) chèn động vào hóa đơn chi phí",
+        "variables": [],
+        "is_active": True,
+        "version": 1
+    },
+    {
+        "prompt_key": "PROMPT_MEDICAL_STATEMENT_OCR",
+        "system_prompt": MEDICAL_STATEMENT_ONLY_SYSTEM_PROMPT,
+        "description": "System prompt chuyên biệt bóc tách Bảng kê chi phí khám bệnh, chữa bệnh (Mẫu số 01/BV, 02/BV)",
+        "variables": ["medical_doc_type_code", "medical_categories_guide"],
         "is_active": True,
         "version": 1
     },
@@ -223,5 +249,81 @@ def seed_prompts():
         print(f"\n[HOÀN TẤT] Tạo mới: {created_count}, Cập nhật: {updated_count} System Prompt Templates!")
 
 
+def seed_expense_medical_prompt():
+    prompt_key = "PROMPT_EXPENSE_OCR"
+    with get_db_context() as db:
+        service = PromptTemplateService(PromptTemplateRepository(db))
+        existing = service.get_by_key(prompt_key)
+        if existing is None:
+            saved = service.create(PromptTemplateCreateRequest(
+                prompt_key=prompt_key,
+                system_prompt=EXPENSE_OCR_SYSTEM_PROMPT_TEMPLATE,
+                description="System prompt bóc tách và phân loại hóa đơn chi phí hợp lệ giảm trừ thuế",
+                variables=["categories_text", "medical_statement_rules"],
+            ))
+            print(f" -> Đã tạo mới prompt: {prompt_key}")
+        else:
+            saved = service.update(prompt_key, PromptTemplateUpdateRequest(
+                system_prompt=EXPENSE_OCR_SYSTEM_PROMPT_TEMPLATE,
+                description="System prompt bóc tách và phân loại hóa đơn chi phí hợp lệ giảm trừ thuế",
+                variables=["categories_text", "medical_statement_rules"],
+                is_active=existing.is_active,
+            ))
+            service.clear_cache(prompt_key)
+            print(f" -> Đã cập nhật prompt: {prompt_key} (version {saved.version})")
+
+        # Đồng bộ cấu hình động cho PROMPT_MEDICAL_STATEMENT_RULES
+        rules_key = "PROMPT_MEDICAL_STATEMENT_RULES"
+        existing_rules = service.get_by_key(rules_key)
+        if existing_rules is None:
+            saved_rules = service.create(PromptTemplateCreateRequest(
+                prompt_key=rules_key,
+                system_prompt=MEDICAL_STATEMENT_RULES,
+                description="Quy tắc bóc tách bảng kê chi phí KCB (Mục 7a) chèn động vào hóa đơn chi phí",
+                variables=[],
+            ))
+            print(f" -> Đã tạo mới prompt: {rules_key}")
+        else:
+            saved_rules = service.update(rules_key, PromptTemplateUpdateRequest(
+                system_prompt=MEDICAL_STATEMENT_RULES,
+                description="Quy tắc bóc tách bảng kê chi phí KCB (Mục 7a) chèn động vào hóa đơn chi phí",
+                variables=[],
+                is_active=existing_rules.is_active,
+            ))
+            service.clear_cache(rules_key)
+            print(f" -> Đã cập nhật prompt: {rules_key} (version {saved_rules.version})")
+
+
+def seed_medical_statement_prompt():
+    prompt_key = "PROMPT_MEDICAL_STATEMENT_OCR"
+    with get_db_context() as db:
+        service = PromptTemplateService(PromptTemplateRepository(db))
+        existing = service.get_by_key(prompt_key)
+        if existing is None:
+            saved = service.create(PromptTemplateCreateRequest(
+                prompt_key=prompt_key,
+                system_prompt=MEDICAL_STATEMENT_ONLY_SYSTEM_PROMPT,
+                description="System prompt chuyên biệt bóc tách Bảng kê chi phí khám bệnh, chữa bệnh (Mẫu số 01/BV, 02/BV)",
+                variables=["medical_doc_type_code", "medical_categories_guide"],
+            ))
+            print(f" -> Đã tạo mới prompt: {prompt_key}")
+        else:
+            saved = service.update(prompt_key, PromptTemplateUpdateRequest(
+                system_prompt=MEDICAL_STATEMENT_ONLY_SYSTEM_PROMPT,
+                description="System prompt chuyên biệt bóc tách Bảng kê chi phí khám bệnh, chữa bệnh (Mẫu số 01/BV, 02/BV)",
+                variables=["medical_doc_type_code", "medical_categories_guide"],
+                is_active=existing.is_active,
+            ))
+            service.clear_cache(prompt_key)
+            print(f" -> Đã cập nhật prompt: {prompt_key} (version {saved.version})")
+
+
 if __name__ == "__main__":
-    seed_prompts()
+    if sys.argv[1:] == ["--expense-medical"]:
+        seed_expense_medical_prompt()
+    elif sys.argv[1:] == ["--medical-statement"]:
+        seed_medical_statement_prompt()
+    elif not sys.argv[1:]:
+        seed_prompts()
+    else:
+        raise SystemExit("Usage: python -m app.scripts.seed_prompts [--expense-medical | --medical-statement]")

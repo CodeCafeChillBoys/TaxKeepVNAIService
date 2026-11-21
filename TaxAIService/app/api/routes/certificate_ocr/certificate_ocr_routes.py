@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.infrastructure.database import get_db
 from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.repositories.system_config.system_config_repository import SystemConfigRepository
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.certificate_ocr.certificate_ocr_service import CertificateOcrService
 from app.schemas.certificate_ocr.certificate_ocr_schema import CertificateOcrResponse
@@ -38,6 +39,10 @@ async def extract_expert_certificate(
         None,
         description="Chuỗi JSON danh mục các loại chứng chỉ đang hoạt động từ Backend để AI đối chiếu phân loại"
     ),
+    applied_threshold: Optional[float] = Form(
+        None,
+        description="Ngưỡng tin cậy áp dụng (mặc định 0.80)"
+    ),
     db: Session = Depends(get_db)
 ):
     """
@@ -67,9 +72,11 @@ async def extract_expert_certificate(
             logger.warning(f"Không thể parse allowed_types_json: {ex}")
 
     try:
+        config_repo = SystemConfigRepository(db)
         prompt_repo = PromptTemplateRepository(db)
         prompt_service = PromptTemplateService(prompt_repo)
         ocr_service.prompt_service = prompt_service
+        ocr_service.repo = config_repo
         ocr_service.db = db
     except Exception:
         pass
@@ -78,7 +85,8 @@ async def extract_expert_certificate(
     result = ocr_service.extract_certificate(
         file_bytes=file_bytes,
         mime_type=mime_type,
-        allowed_types=allowed_types
+        allowed_types=allowed_types,
+        applied_threshold=applied_threshold
     )
 
     return JSONResponse(

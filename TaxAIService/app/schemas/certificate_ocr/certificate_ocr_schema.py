@@ -107,6 +107,8 @@ class CertificateExtractedData(BaseModel):
     has_expiry: bool = Field(False, alias="hasExpiry")
     expiry_date: Optional[str] = Field(None, alias="expiryDate")
     overall_confidence: float = Field(0.0, alias="overallConfidence")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold")
+    is_passed_threshold: Optional[bool] = Field(None, alias="isPassedThreshold")
 
 
 @exclude_from_coverage
@@ -117,5 +119,8 @@ class CertificateOcrResponse(BaseModel):
     success: bool
     status_code: int = Field(..., alias="statusCode")
     message: str
+    overall_confidence: Optional[float] = Field(None, alias="overallConfidence")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold")
+    is_passed_threshold: Optional[bool] = Field(None, alias="isPassedThreshold")
     data: Optional[CertificateExtractedData] = None
     errors: Optional[List[dict]] = None

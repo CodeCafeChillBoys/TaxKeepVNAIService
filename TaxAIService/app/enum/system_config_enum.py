@@ -29,3 +29,6 @@ class DefaultSystemConfigKey(str, Enum):
     # Danh sách các trường cốt lõi bắt buộc rõ nét, phân tách bằng dấu phẩy
     CRUCIAL_EXTRACTION_FIELDS = "CRUCIAL_EXTRACTION_FIELDS"
 
+    # Dung sai chênh lệch số tiền cho phép khi đối soát bảng kê y tế
+    MEDICAL_STATEMENT_AMOUNT_TOLERANCE = "MEDICAL_STATEMENT_AMOUNT_TOLERANCE"
+

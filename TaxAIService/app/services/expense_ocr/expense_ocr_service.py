@@ -12,11 +12,71 @@ from app.core.config import settings
 from app.services.apiKey.ai_key_manager import AiKeyManager
 from app.repositories.interfaces.isystem_config_repository import ISystemConfigRepository
 from app.schemas.expense_ocr.expense_ocr_schema import GeminiOcrOutput, AdminCategoryItem
-from app.prompts.expense_ocr.expense_orc_promt import _build_prompt
+from app.prompts.expense_ocr import (
+    EXPENSE_OCR_SYSTEM_PROMPT,
+    MEDICAL_STATEMENT_RULES,
+    MEDICAL_STATEMENT_ONLY_SYSTEM_PROMPT,
+    format_expense_categories,
+    replace_medical_statement_rules,
+    build_medical_categories_guide,
+    build_medical_statement_prompt,
+    build_expense_ocr_prompt,
+)
 from app.errors.expense_ocr_errors import CorruptedFileError, UnreadableDocumentError
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
 
 logger = logging.getLogger(__name__)
+
+def check_medical_statement_amounts(doc: GeminiOcrOutput, tolerance: float) -> List[str]:
+    issues = dict.fromkeys(doc.crossCheckIssues)
+    lines = [line for line in doc.medicalLines if not line.isPackageSubLine]
+    section_cards = {
+        section.sectionIndex: section.hasInsuranceCard for section in doc.medicalSections
+    }
+
+    def differs(expected: Optional[float], *parts: Optional[float]) -> bool:
+        return (
+            expected is not None
+            and all(part is not None for part in parts)
+            and abs(expected - sum(part for part in parts if part is not None)) > tolerance
+        )
+
+    for line in lines:
+        has_card = section_cards.get(line.sectionIndex)
+        if line.sectionIndex not in section_cards:
+            issues["UNKNOWN_SECTION"] = None
+
+        if has_card is False:
+            mismatch = differs(line.hospitalAmount, line.patientSelfPay)
+        else:
+            mismatch = differs(line.hospitalAmount, line.insuranceAmount, line.patientSelfPay)
+            if has_card is True:
+                mismatch |= differs(
+                    line.insuranceAmount, line.insuranceFundPaid, line.patientCoPay, line.otherSourcePaid
+                )
+        if mismatch:
+            issues["LINE_SUM_MISMATCH"] = None
+
+    if doc.medicalSummary and lines:
+        summary_columns = {
+            "totalHospitalAmount": "hospitalAmount",
+            "coPayWithinInsurance": "patientCoPay",
+            "otherPatientPayments": "patientSelfPay",
+            "insuranceFundPaid": "insuranceFundPaid",
+            "otherSourcePaid": "otherSourcePaid",
+        }
+        for summary_field, line_field in summary_columns.items():
+            if differs(getattr(doc.medicalSummary, summary_field), *(getattr(line, line_field) for line in lines)):
+                issues["SUMMARY_MISMATCH"] = None
+                break
+        if differs(
+            doc.medicalSummary.patientPaid,
+            doc.medicalSummary.coPayWithinInsurance,
+            doc.medicalSummary.otherPatientPayments,
+        ):
+            issues["SUMMARY_MISMATCH"] = None
+
+    return list(issues)
 
 
 class ExpenseOcrService:
@@ -36,26 +96,36 @@ class ExpenseOcrService:
         mime_type: str,
         target_year: int,
         categories: List[AdminCategoryItem],
-        applied_threshold: Optional[float] = None
+        applied_threshold: Optional[float] = None,
+        is_medical_statement_request: bool = False,
+        expected_doc_type: Optional[str] = None
     ) -> Dict[str, Any]:
 
         # 1. Kiểm tra tệp tin rỗng hoặc hỏng trước khi gửi sang AI
         if not file_bytes or len(file_bytes) < 100:
             raise CorruptedFileError("Dữ liệu tệp tin rỗng hoặc quá nhỏ, tệp có thể bị hỏng trong quá trình tải.")
 
-        cat_text = "\n".join([
-            f"- Mã '{c.code}': {c.name}. Đặc điểm nhận diện: {c.description}"
-            for c in categories
-        ])
-        default_prompt = _build_prompt(categories)
-        if self.prompt_service:
-            system_instruction = self.prompt_service.get_rendered_prompt(
-                prompt_key="PROMPT_EXPENSE_OCR",
-                default_template=default_prompt,
-                params={"categories_text": cat_text}
+        medical_statement_codes = {c.code for c in categories if c.isMedicalStatement}
+
+        # CHỌN SYSTEM PROMPT RIÊNG BIỆT DỰA VÀO LOẠI TÀI LIỆU
+        if is_medical_statement_request:
+            medical_doc_type = expected_doc_type or "MEDICAL_COST_STATEMENT"
+            for c in categories:
+                if c.isMedicalStatement:
+                    medical_doc_type = c.code
+                    break
+
+            cat_text = format_expense_categories(categories)
+            system_instruction = build_medical_statement_prompt(
+                medical_doc_type=medical_doc_type,
+                categories_text=cat_text,
+                prompt_service=self.prompt_service,
             )
         else:
-            system_instruction = default_prompt
+            system_instruction = build_expense_ocr_prompt(
+                categories=categories,
+                prompt_service=self.prompt_service,
+            )
 
         # 2. Gọi Gemini Multimodal Vision và bắt tách bạch lỗi
         try:
@@ -97,6 +167,27 @@ class ExpenseOcrService:
             raise UnreadableDocumentError(
                 message="AI Engine could not parse the document. The image quality may be too blurry or illegible."
             )
+
+        if is_medical_statement_request:
+            doc_data.docTypeCode = medical_doc_type
+            doc_data.isTaxDocument = True
+            doc_data.invoiceSeries = None
+            doc_data.sellerTaxCode = None
+            doc_data.sellerPhone = None
+            doc_data.buyerTaxCode = None
+            doc_data.lookupUrl = None
+            doc_data.lookupCode = None
+            doc_data.items = []
+            if doc_data.medicalHeader:
+                doc_data.sellerName = doc_data.medicalHeader.facilityName or doc_data.sellerName
+                doc_data.buyerName = doc_data.medicalHeader.patientName or doc_data.buyerName
+                doc_data.invoiceDate = doc_data.medicalHeader.visitDate or doc_data.invoiceDate
+            if doc_data.medicalSummary:
+                doc_data.totalAmount = (
+                    doc_data.medicalSummary.patientPaid
+                    if doc_data.medicalSummary.patientPaid is not None
+                    else doc_data.medicalSummary.totalHospitalAmount
+                )
 
         # 4. Kiểm tra nghiệp vụ (Business Rules Validation)
         validation_errors = []
@@ -161,18 +252,26 @@ class ExpenseOcrService:
 
         # 5. Phân giải Ngưỡng động 3 tầng từ Database
         doc_type = doc_data.docTypeCode if doc_data else None
+        is_medical_statement = is_medical_statement_request or (doc_type in medical_statement_codes)
         if self.repo:
             if applied_threshold is None:
                 applied_threshold = self.repo.get_system_threshold(category_code=doc_type)
-            crucial_fields = self.repo.get_crucial_fields(category_code=doc_type)
+            crucial_fields = self.repo.get_crucial_fields(category_code=doc_type) if not is_medical_statement else set()
         else:
             if applied_threshold is None:
                 applied_threshold = 0.80
-            crucial_fields = {"total_amount", "seller_tax_code", "buyer_id_card", "invoice_number"}
+            crucial_fields = set() if is_medical_statement else {"total_amount", "seller_tax_code", "buyer_id_card", "invoice_number"}
 
         # 6. Tính điểm tin cậy tổng thể (overall_confidence)
-        if doc_data.fields:
-            scores = [f.confidenceScore for f in doc_data.fields]
+        scores = [f.confidenceScore for f in doc_data.fields]
+        if is_medical_statement:
+            tolerance = (
+                self.repo.get_float_value("MEDICAL_STATEMENT_AMOUNT_TOLERANCE", 1000.0)
+                if self.repo else 1000.0
+            )
+            doc_data.crossCheckIssues = check_medical_statement_amounts(doc_data, tolerance)
+            scores.extend(line.confidenceScore for line in doc_data.medicalLines if not line.isPackageSubLine)
+        if scores:
             overall_confidence = round(sum(scores) / len(scores), 2)
         else:
             overall_confidence = 0.0
@@ -232,8 +331,7 @@ class ExpenseOcrService:
             "low_confidence_fields": low_confidence_fields,
             "is_year_valid": is_year_valid,
             "is_doc_type_valid": is_doc_type_valid,
+            "is_medical_statement": is_medical_statement,
             "validation_errors": validation_errors,
-            "raw_payload": json.loads(raw_json)
+            "raw_payload": doc_data.model_dump(mode="json") if is_medical_statement else json.loads(raw_json)
         }
-        
-        

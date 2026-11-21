@@ -100,6 +100,9 @@ async def handle_ocr_extract_message(message: aio_pika.IncomingMessage) -> None:
                 success=ocr_result.success,
                 status_code=ocr_result.status_code,
                 message=ocr_result.message,
+                overall_confidence=ocr_result.data.overall_confidence if ocr_result.data else None,
+                applied_threshold=ocr_result.data.applied_threshold if ocr_result.data else None,
+                is_passed_threshold=ocr_result.data.is_passed_threshold if ocr_result.data else None,
                 data=ocr_result.data,
                 errors=ocr_result.errors
             )
@@ -114,6 +117,9 @@ async def handle_ocr_extract_message(message: aio_pika.IncomingMessage) -> None:
                 success=False,
                 status_code=500,
                 message="Xử lý OCR thất bại.",
+                overall_confidence=0.0,
+                applied_threshold=request_msg.applied_threshold if request_msg else None,
+                is_passed_threshold=False,
                 data=None,
                 errors=str(e)
             )

@@ -44,6 +44,9 @@ class OcrExtractResponseMessage(BaseModel):
     success: bool = Field(..., alias="success", description="Trạng thái bóc tách thành công hay thất bại")
     status_code: int = Field(200, alias="statusCode", description="HTTP Status code tương ứng (200, 400, 500)")
     message: str = Field(..., alias="message", description="Thông báo kết quả")
+    overall_confidence: Optional[float] = Field(None, alias="overallConfidence", description="Tổng độ tin cậy trích xuất")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold", description="Ngưỡng tin cậy áp dụng")
+    is_passed_threshold: Optional[bool] = Field(None, alias="isPassedThreshold", description="Trạng thái đạt ngưỡng tin cậy")
     data: Optional[ExtractedDependentData] = Field(None, alias="data", description="Dữ liệu CCCD/NPT chi tiết")
     errors: Optional[Any] = Field(None, alias="errors", description="Chi tiết lỗi nếu thất bại")
     processed_at: str = Field(

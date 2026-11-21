@@ -44,6 +44,7 @@ async def handle_income_ocr_job(message: aio_pika.IncomingMessage):
         user_id = body.get("userId")
         target_month = body.get("targetMonth") or body.get("month")
         target_year = body.get("targetYear") or body.get("year")
+        applied_threshold = body.get("appliedThreshold") or body.get("threshold")
         file_url = body.get("fileUrl")
         file_base64 = body.get("fileBase64")
 
@@ -57,7 +58,8 @@ async def handle_income_ocr_job(message: aio_pika.IncomingMessage):
                     file_bytes=file_bytes,
                     mime_type=mime_type,
                     target_month=int(target_month) if target_month else None,
-                    target_year=int(target_year) if target_year else None
+                    target_year=int(target_year) if target_year else None,
+                    applied_threshold=float(applied_threshold) if applied_threshold is not None else None
                 )
 
             # Đóng gói response bắn ngược lại .NET
@@ -67,6 +69,9 @@ async def handle_income_ocr_job(message: aio_pika.IncomingMessage):
                 "fileUrl": file_url,
                 "statusCode": result.status_code,
                 "message": result.message,
+                "overallConfidence": result.overall_confidence,
+                "appliedThreshold": result.applied_threshold,
+                "isPassedThreshold": result.is_passed_threshold,
                 "data": result.data.model_dump(by_alias=True) if result.data else None,
                 "errors": result.errors,
                 "processedAt": datetime.now(timezone.utc).isoformat()

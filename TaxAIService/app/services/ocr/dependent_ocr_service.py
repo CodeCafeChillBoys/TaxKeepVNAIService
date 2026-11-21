@@ -152,8 +152,9 @@ class DependentOcrService:
             if result.data:
                 # Nếu không truyền trực tiếp hoặc truyền <= 0 (do Swagger UI điền 0), tự động lấy từ DB system_configs
                 if applied_threshold is None or applied_threshold <= 0:
+                    doc_type = getattr(result.data, "document_type", None)
                     if self.repo:
-                        applied_threshold = self.repo.get_system_threshold()
+                        applied_threshold = self.repo.get_system_threshold(category_code=doc_type)
                     else:
                         applied_threshold = 0.80
                 # Tính trung bình cộng và thẩm định ngưỡng
@@ -163,6 +164,9 @@ class DependentOcrService:
                         applied_threshold=applied_threshold
                     )
                     result.data.threshold_validation = threshold_res
+                    result.data.overall_confidence = threshold_res.overall_confidence
+                    result.data.applied_threshold = threshold_res.applied_threshold
+                    result.data.is_passed_threshold = threshold_res.is_passed_threshold
 
                     # Cảnh báo nếu không đạt ngưỡng
                     if not threshold_res.is_passed_threshold:
