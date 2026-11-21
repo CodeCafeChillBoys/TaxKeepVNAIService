@@ -8,6 +8,10 @@ import aio_pika
 import httpx
 
 from app.services.certificate_ocr.certificate_ocr_service import CertificateOcrService
+from app.infrastructure.database import get_db_context
+from app.repositories.system_config.system_config_repository import SystemConfigRepository
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.messaging.certificate_ocr.schemas import (
     CertificateOcrRequestMessage,
     CertificateOcrResponseMessage
@@ -74,12 +78,17 @@ async def handle_certificate_ocr_job(message: aio_pika.IncomingMessage) -> None:
             mime_type = mime_type or "image/jpeg"
 
             # 2. Gọi Service bóc tách chứng chỉ bằng Gemini Vision
-            service = CertificateOcrService()
-            ocr_result = service.extract_certificate(
-                file_bytes=file_bytes,
-                mime_type=mime_type,
-                allowed_types=request_msg.allowed_types
-            )
+            with get_db_context() as db:
+                config_repo = SystemConfigRepository(db)
+                prompt_repo = PromptTemplateRepository(db)
+                prompt_service = PromptTemplateService(prompt_repo)
+                service = CertificateOcrService(prompt_service=prompt_service, repo=config_repo, db=db)
+                ocr_result = service.extract_certificate(
+                    file_bytes=file_bytes,
+                    mime_type=mime_type,
+                    allowed_types=request_msg.allowed_types,
+                    applied_threshold=request_msg.applied_threshold
+                )
 
             # 3. Đóng gói response message
             response_msg = CertificateOcrResponseMessage(
@@ -90,6 +99,9 @@ async def handle_certificate_ocr_job(message: aio_pika.IncomingMessage) -> None:
                 success=ocr_result.success,
                 status_code=ocr_result.status_code,
                 message=ocr_result.message,
+                overall_confidence=ocr_result.overall_confidence,
+                applied_threshold=ocr_result.applied_threshold,
+                is_passed_threshold=ocr_result.is_passed_threshold,
                 data=ocr_result.data,
                 errors=ocr_result.errors
             )
@@ -107,6 +119,9 @@ async def handle_certificate_ocr_job(message: aio_pika.IncomingMessage) -> None:
                 success=False,
                 status_code=500,
                 message=f"Lỗi hệ thống khi bóc tách chứng chỉ: {str(ex)}",
+                overall_confidence=0.0,
+                applied_threshold=request_msg.applied_threshold if request_msg else None,
+                is_passed_threshold=False,
                 errors=[{"code": "ERR_CONSUMER_EXCEPTION", "message": str(ex)}]
             )
             await publish_certificate_ocr_response(error_response)

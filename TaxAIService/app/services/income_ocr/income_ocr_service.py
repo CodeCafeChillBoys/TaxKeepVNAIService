@@ -199,13 +199,19 @@ class IncomeOcrService:
                 employeeName=doc.employee_name,
                 grossSalary=doc.gross_salary,
                 netSalary=doc.net_salary,
-                thresholdValidation=threshold_res
+                thresholdValidation=threshold_res,
+                overallConfidence=threshold_res.overall_confidence,
+                appliedThreshold=threshold_res.applied_threshold,
+                isPassedThreshold=threshold_res.is_passed_threshold
             )
 
             return IncomeOcrResponse(
                 success=True,
                 status_code=200,
                 message="Bóc tách thông tin phiếu lương thành công.",
+                overallConfidence=threshold_res.overall_confidence,
+                appliedThreshold=threshold_res.applied_threshold,
+                isPassedThreshold=threshold_res.is_passed_threshold,
                 data=extracted_data
             )
 

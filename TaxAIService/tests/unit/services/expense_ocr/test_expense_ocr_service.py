@@ -178,3 +178,96 @@ async def test_withholding_voucher_validates_income_year_not_issue_year():
 
     assert result["is_year_valid"] is True
     assert not any(error["code"] == "ERR_YEAR_MISMATCH" for error in result["validation_errors"])
+
+
+@pytest.mark.anyio
+async def test_medical_statement_uses_prompt_service_when_available():
+    mock_prompt_service = MagicMock()
+    mock_prompt_service.get_rendered_prompt.return_value = "RENDERED_PROMPT_FROM_DB"
+
+    service = ExpenseOcrService(prompt_service=mock_prompt_service)
+    fake_output = {
+        "isTaxDocument": True,
+        "docTypeCode": "MEDICAL_STATEMENT",
+        "extractedYear": 2026,
+        "fields": []
+    }
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(fake_output)
+
+    with patch.object(service.client.models, "generate_content", return_value=mock_resp) as mock_gen:
+        await service.extract_and_classify(
+            file_bytes=b"x" * 150,
+            mime_type="image/jpeg",
+            target_year=2026,
+            categories=[
+                AdminCategoryItem(code="MEDICAL_STATEMENT", name="Bảng kê KCB", description="Bảng kê", isMedicalStatement=True)
+            ],
+            is_medical_statement_request=True,
+            expected_doc_type="MEDICAL_STATEMENT"
+        )
+
+    mock_prompt_service.get_rendered_prompt.assert_called_once()
+    call_args = mock_prompt_service.get_rendered_prompt.call_args
+    assert call_args.kwargs["prompt_key"] == "PROMPT_MEDICAL_STATEMENT_OCR"
+    assert call_args.kwargs["params"]["medical_doc_type_code"] == "MEDICAL_STATEMENT"
+
+
+@pytest.mark.anyio
+async def test_medical_statement_fallback_without_prompt_service():
+    service = ExpenseOcrService(prompt_service=None)
+    fake_output = {
+        "isTaxDocument": True,
+        "docTypeCode": "MEDICAL_COST_STATEMENT",
+        "extractedYear": 2026,
+        "fields": []
+    }
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(fake_output)
+
+    with patch.object(service.client.models, "generate_content", return_value=mock_resp) as mock_gen:
+        await service.extract_and_classify(
+            file_bytes=b"x" * 150,
+            mime_type="image/jpeg",
+            target_year=2026,
+            categories=[],
+            is_medical_statement_request=True
+        )
+
+    # config.system_instruction was passed to generate_content
+    call_args = mock_gen.call_args
+    config = call_args.kwargs.get("config")
+    assert config is not None
+    assert "BẢNG KÊ CHI PHÍ KHÁM BỆNH, CHỮA BỆNH" in config.system_instruction
+
+
+def test_build_expense_ocr_prompt_dynamic():
+    from app.prompts.expense_ocr import build_expense_ocr_prompt
+
+    mock_service = MagicMock()
+    mock_service.get_rendered_prompt.side_effect = lambda prompt_key, default_template, params: f"RENDERED_{prompt_key}"
+
+    categories = [
+        AdminCategoryItem(code="MEDICAL_COST_STATEMENT", name="Bảng kê KCB", description="Bảng kê", isMedicalStatement=True)
+    ]
+    prompt = build_expense_ocr_prompt(categories=categories, prompt_service=mock_service)
+    assert "RENDERED_PROMPT_EXPENSE_OCR" in prompt
+    assert mock_service.get_rendered_prompt.call_count >= 1
+
+
+def test_build_medical_statement_prompt_dynamic():
+    from app.prompts.expense_ocr import build_medical_statement_prompt
+
+    mock_service = MagicMock()
+    mock_service.get_rendered_prompt.return_value = "RENDERED_PROMPT_MEDICAL_STATEMENT_OCR"
+
+    prompt = build_medical_statement_prompt(
+        medical_doc_type="TEST_DOC",
+        categories_text="Test categories",
+        prompt_service=mock_service,
+    )
+    assert "RENDERED_PROMPT_MEDICAL_STATEMENT_OCR" in prompt
+    call_args = mock_service.get_rendered_prompt.call_args
+    assert call_args.kwargs["prompt_key"] == "PROMPT_MEDICAL_STATEMENT_OCR"
+    assert call_args.kwargs["params"]["medical_doc_type_code"] == "TEST_DOC"
+

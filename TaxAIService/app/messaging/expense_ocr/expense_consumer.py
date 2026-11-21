@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 async def _get_file_bytes_and_mime(file_url: str = None, file_base64: str = None, filename: str = "invoice.jpg"):
     """Tải file từ URL, file local hoặc giải mã Base64 an toàn"""
     file_bytes = None
-    mime_type = "image/jpeg"
+    mime_type = None
 
     if file_base64:
         try:
@@ -51,7 +51,9 @@ async def _get_file_bytes_and_mime(file_url: str = None, file_base64: str = None
     if not file_bytes or len(file_bytes) == 0:
         raise CorruptedFileError("Không thể lấy dữ liệu tệp tin hoặc tệp rỗng (0 bytes).")
 
-    if not mime_type or mime_type == "application/octet-stream":
+    if file_bytes.startswith(b"%PDF-"):
+        mime_type = "application/pdf"
+    elif not mime_type or mime_type == "application/octet-stream":
         guessed, _ = mimetypes.guess_type(filename or file_url or "")
         mime_type = guessed or "image/jpeg"
 
@@ -75,6 +77,14 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
         file_url = body.get("fileUrl") or body.get("FileUrl")
         file_base64 = body.get("fileBase64") or body.get("FileBase64")
         original_filename = body.get("originalFilename") or body.get("OriginalFilename") or "invoice.jpg"
+        doc_type_code = body.get("docTypeCode") or body.get("DocTypeCode")
+        is_medical_statement_request = bool(
+            body.get("isMedicalStatement") or
+            body.get("IsMedicalStatement") or
+            doc_type_code == "MEDICAL_COST_STATEMENT" or
+            body.get("parentDocumentId") or
+            body.get("ParentDocumentId")
+        )
 
         # 2. Xử lý danh mục: Nhận danh mục động do .NET Backend truyền sang
         raw_categories = body.get("categories") or body.get("Categories") or []
@@ -111,7 +121,9 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                     mime_type=mime_type,
                     target_year=target_year,
                     categories=categories,
-                    applied_threshold=applied_threshold
+                    applied_threshold=applied_threshold,
+                    is_medical_statement_request=is_medical_statement_request,
+                    expected_doc_type=doc_type_code
                 )
 
                 doc: GeminiOcrOutput = result["data"]
@@ -153,6 +165,9 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                 "statusCode": status_code,
                 "message": response_message,
                 "errors": errors if not is_valid else [],
+                "overallConfidence": result.get("overall_confidence"),
+                "appliedThreshold": result.get("applied_threshold"),
+                "isPassedThreshold": result.get("is_passed_threshold"),
                 "data": {
                     "id": str(task_id),
                     "periodId": str(period_id) if period_id else None,
@@ -198,14 +213,31 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
             }
 
             # BƯỚC 5: Bắn ngược sang queue response cho .NET
+            if is_medical_statement_request or result.get("is_medical_statement"):
+                response_payload["data"].update(doc.model_dump(mode="json", include={
+                    "medicalHeader", "medicalSections", "medicalLines", "medicalSummary", "crossCheckIssues"
+                }))
+                response_payload["data"]["isMedicalStatementUpload"] = True
+                response_payload["data"]["items"] = []
+                response_payload["data"]["invoiceSeries"] = None
+                response_payload["data"]["sellerTaxCode"] = None
+                response_payload["data"]["sellerPhone"] = None
+                response_payload["data"]["buyerTaxCode"] = None
+                response_payload["data"]["lookupUrl"] = None
+                response_payload["data"]["lookupCode"] = None
             await publish_expense_ocr_response(response_payload)
             logger.info(f"Đã xử lý xong Task {task_id} -> docTypeCode: {doc.docTypeCode}, Status: {doc_status.value} (HTTP {status_code})")
 
         except ExpenseOcrError as ocr_err:
             logger.warning(f"Lỗi nghiệp vụ OCR Task {task_id}: [{ocr_err.code}] {ocr_err.message}")
+            fail_overall = getattr(ocr_err, "details", {}).get("qualityScore") or 0.0
+            fail_threshold = getattr(ocr_err, "details", {}).get("requiredThreshold") or applied_threshold
             fail_payload = {
                 "statusCode": ocr_err.status_code,
                 "message": ocr_err.message,
+                "overallConfidence": fail_overall,
+                "appliedThreshold": fail_threshold,
+                "isPassedThreshold": False,
                 "errors": [
                     {
                         "code": ocr_err.code,
@@ -219,6 +251,9 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
                     "periodId": str(period_id) if period_id else None,
                     "userId": str(user_id) if user_id else None,
                     "status": DocumentExtractionStatus.FAILED.value,
+                    "overallConfidence": fail_overall,
+                    "appliedThreshold": fail_threshold,
+                    "isPassedThreshold": False,
                     "validationErrors": [ocr_err.message]
                 }
             }
@@ -229,12 +264,18 @@ async def handle_expense_ocr_job(message: aio_pika.IncomingMessage):
             fail_payload = {
                 "statusCode": 500,
                 "message": f"Processing failed: {str(e)}",
+                "overallConfidence": 0.0,
+                "appliedThreshold": applied_threshold,
+                "isPassedThreshold": False,
                 "errors": [{"code": "ERR_INTERNAL_SERVER", "message": str(e)}],
                 "data": {
                     "id": str(task_id) if task_id else None,
                     "periodId": str(period_id) if period_id else None,
                     "userId": str(user_id) if user_id else None,
                     "status": DocumentExtractionStatus.FAILED.value,
+                    "overallConfidence": 0.0,
+                    "appliedThreshold": applied_threshold,
+                    "isPassedThreshold": False,
                     "validationErrors": [str(e)]
                 }
             }

@@ -155,6 +155,9 @@ class IncomeExtractedData(BaseModel):
     gross_salary: Optional[float] = Field(None, alias="grossSalary")
     net_salary: Optional[float] = Field(None, alias="netSalary")
     threshold_validation: IncomeThresholdValidationResult = Field(..., alias="thresholdValidation")
+    overall_confidence: Optional[float] = Field(None, alias="overallConfidence", description="Tổng độ tin cậy trích xuất")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold", description="Ngưỡng tin cậy áp dụng")
+    is_passed_threshold: Optional[bool] = Field(None, alias="isPassedThreshold", description="Trạng thái đạt ngưỡng")
     
     
 @exclude_from_coverage
@@ -164,6 +167,9 @@ class IncomeOcrResponse(BaseModel):
     success: bool = Field(True, alias="success")
     status_code: int = Field(200, alias="statusCode")
     message: str = Field("Bóc tách báo cáo lương thành công.", alias="message")
+    overall_confidence: Optional[float] = Field(None, alias="overallConfidence")
+    applied_threshold: Optional[float] = Field(None, alias="appliedThreshold")
+    is_passed_threshold: Optional[bool] = Field(None, alias="isPassedThreshold")
     data: Optional[IncomeExtractedData] = Field(None, alias="data")
     errors: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="errors")
     

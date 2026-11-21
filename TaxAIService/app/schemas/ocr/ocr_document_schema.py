@@ -199,6 +199,24 @@ class ExtractedDependentData(BaseModel):
         description="Kết quả kiểm tra ngưỡng động"
     )
 
+    overall_confidence: Optional[float] = Field(
+        None,
+        alias="overallConfidence",
+        description="Tổng độ tin cậy trích xuất"
+    )
+
+    applied_threshold: Optional[float] = Field(
+        None,
+        alias="appliedThreshold",
+        description="Ngưỡng tin cậy áp dụng"
+    )
+
+    is_passed_threshold: Optional[bool] = Field(
+        None,
+        alias="isPassedThreshold",
+        description="Trạng thái đạt ngưỡng tin cậy"
+    )
+
     required_documents: Optional[List[RequiredDocument]] = Field(
         default_factory=list,
         alias="requiredDocuments",
