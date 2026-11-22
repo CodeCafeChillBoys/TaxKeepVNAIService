@@ -84,12 +84,14 @@ async def test_extract_and_classify_year_mismatch_and_future_date():
     service = ExpenseOcrService()
 
     # Tạo ngày mai trong tương lai
-    tomorrow = (datetime.now(timezone.utc) + timedelta(days=2)).strftime("%Y-%m-%d")
+    tomorrow_dt = datetime.now(timezone.utc) + timedelta(days=2)
+    tomorrow = tomorrow_dt.strftime("%Y-%m-%d")
+    target_year = tomorrow_dt.year - 1
 
     fake_output = {
         "isTaxDocument": True,
         "docTypeCode": "MEDICAL",
-        "extractedYear": 2025,
+        "extractedYear": tomorrow_dt.year,
         "invoiceDate": tomorrow,
         "fields": [
             {"fieldName": "total_amount", "extractedValue": "500000", "confidenceScore": 0.95}
@@ -102,7 +104,7 @@ async def test_extract_and_classify_year_mismatch_and_future_date():
         result = await service.extract_and_classify(
             file_bytes=b"x" * 150,
             mime_type="image/jpeg",
-            target_year=2026,
+            target_year=target_year,
             categories=[AdminCategoryItem(code="MEDICAL", name="Y tế", description="Hóa đơn y tế")]
         )
 
