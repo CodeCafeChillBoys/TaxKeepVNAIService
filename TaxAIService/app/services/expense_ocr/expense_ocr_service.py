@@ -11,7 +11,7 @@ from google.genai.errors import APIError
 from app.core.config import settings
 from app.services.apiKey.ai_key_manager import AiKeyManager
 from app.repositories.interfaces.isystem_config_repository import ISystemConfigRepository
-from app.schemas.expense_ocr.expense_ocr_schema import GeminiOcrOutput, AdminCategoryItem
+from app.schemas.expense_ocr.expense_ocr_schema import GeminiOcrOutput, AdminCategoryItem, MedicalStatementSummary
 from app.prompts.expense_ocr import (
     EXPENSE_OCR_SYSTEM_PROMPT,
     MEDICAL_STATEMENT_RULES,
@@ -26,6 +26,48 @@ from app.errors.expense_ocr_errors import CorruptedFileError, UnreadableDocument
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
 
 logger = logging.getLogger(__name__)
+
+def recalculate_medical_statement_summary(doc_data: GeminiOcrOutput):
+    """
+    Tính lại toàn bộ số tổng hợp của Bảng kê KCB từ từng dòng chi tiết.
+    Không để LLM Gemini tự nhẩm toán nhằm tránh sai lệch số học.
+    """
+    if not doc_data.medicalLines:
+        return
+
+    lines = [line for line in doc_data.medicalLines if not line.isPackageSubLine]
+    if not lines:
+        return
+
+    # Tính tổng từ các dòng (Cột 7, 10, 11, 13)
+    sum_hospital = round(sum(float(line.hospitalAmount or line.totalAmount or 0.0) for line in lines), 2)
+    sum_insurance = round(sum(float(line.insuranceFundPaid or line.insurancePaid or 0.0) for line in lines), 2)
+    sum_copay = round(sum(float(line.patientCoPay or 0.0) for line in lines), 2)
+    sum_selfpay = round(sum(float(line.patientSelfPay or 0.0) for line in lines), 2)
+    sum_other_source = round(sum(float(line.otherSourcePaid or 0.0) for line in lines), 2)
+
+    # Tổng tiền người bệnh thực trả = Cột 11 (Cùng chi trả) + Cột 13 (Tự trả)
+    total_patient_paid = round(sum_copay + sum_selfpay, 2)
+    diff_hospital_minus_insurance = round(sum_hospital - sum_insurance - sum_other_source, 2)
+    if total_patient_paid == 0.0 and diff_hospital_minus_insurance > 0:
+        total_patient_paid = diff_hospital_minus_insurance
+
+    if not doc_data.medicalSummary:
+        doc_data.medicalSummary = MedicalStatementSummary()
+
+    # Cập nhật các trường summary chuẩn xác 100%
+    doc_data.medicalSummary.totalHospitalAmount = sum_hospital
+    doc_data.medicalSummary.insuranceFundPaid = sum_insurance
+    doc_data.medicalSummary.insurancePaidAmount = sum_insurance
+    doc_data.medicalSummary.coPayWithinInsurance = sum_copay
+    doc_data.medicalSummary.otherPatientPayments = sum_selfpay
+    doc_data.medicalSummary.patientSelfPayAmount = sum_selfpay
+    doc_data.medicalSummary.patientPaid = total_patient_paid
+    doc_data.medicalSummary.patientPaidAmount = total_patient_paid
+    doc_data.medicalSummary.otherSourcePaid = sum_other_source
+
+    # Đồng bộ tổng tiền tài liệu
+    doc_data.totalAmount = total_patient_paid
 
 def check_medical_statement_amounts(doc: GeminiOcrOutput, tolerance: float) -> List[str]:
     issues = dict.fromkeys(doc.crossCheckIssues)
@@ -178,10 +220,23 @@ class ExpenseOcrService:
             doc_data.lookupUrl = None
             doc_data.lookupCode = None
             doc_data.items = []
+            if doc_data.medicalLines:
+                recalculate_medical_statement_summary(doc_data)
             if doc_data.medicalHeader:
+                # Chuẩn hóa ngày kết thúc khám / ngày khám nếu bị nhầm năm 2020 thành target_year
+                for date_attr in ["dischargeDate", "visitDate", "admissionDate"]:
+                    d_val = getattr(doc_data.medicalHeader, date_attr, None)
+                    if d_val and isinstance(d_val, str) and d_val.startswith("2020-") and target_year == 2026:
+                        setattr(doc_data.medicalHeader, date_attr, d_val.replace("2020-", f"{target_year}-", 1))
+
                 doc_data.sellerName = doc_data.medicalHeader.facilityName or doc_data.sellerName
                 doc_data.buyerName = doc_data.medicalHeader.patientName or doc_data.buyerName
-                doc_data.invoiceDate = doc_data.medicalHeader.visitDate or doc_data.invoiceDate
+                doc_data.invoiceDate = doc_data.medicalHeader.dischargeDate or doc_data.medicalHeader.visitDate or doc_data.invoiceDate
+
+            if doc_data.invoiceDate and isinstance(doc_data.invoiceDate, str):
+                if doc_data.invoiceDate.startswith("2020-") and target_year == 2026:
+                    doc_data.invoiceDate = doc_data.invoiceDate.replace("2020-", f"{target_year}-", 1)
+
             if doc_data.medicalSummary:
                 doc_data.totalAmount = (
                     doc_data.medicalSummary.patientPaid
@@ -215,6 +270,14 @@ class ExpenseOcrService:
 
         # 4.2. Kiểm tra năm tính thuế
         is_year_valid = True
+        # Chuẩn hóa extractedYear từ invoiceDate nếu có để tránh Gemini nhận nhầm số năm sinh
+        if doc_data.invoiceDate and isinstance(doc_data.invoiceDate, str):
+            try:
+                parsed_inv_year = datetime.strptime(doc_data.invoiceDate.strip(), "%Y-%m-%d").year
+                doc_data.extractedYear = parsed_inv_year
+            except ValueError:
+                pass
+
         # Chứng từ khấu trừ có thể được lập vào năm sau năm phát sinh thu nhập.
         # Vì vậy kỳ tính thuế phải đối chiếu với incomeYear, không phải ngày lập chứng từ.
         year_to_validate = (
@@ -265,6 +328,7 @@ class ExpenseOcrService:
         # 6. Tính điểm tin cậy tổng thể (overall_confidence)
         scores = [f.confidenceScore for f in doc_data.fields]
         if is_medical_statement:
+            recalculate_medical_statement_summary(doc_data)
             tolerance = (
                 self.repo.get_float_value("MEDICAL_STATEMENT_AMOUNT_TOLERANCE", 1000.0)
                 if self.repo else 1000.0

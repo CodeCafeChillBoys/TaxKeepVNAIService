@@ -8,7 +8,9 @@ import aio_pika
 from datetime import datetime, timezone
 
 from app.infrastructure.database import get_db_context
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
 from app.repositories.system_config import SystemConfigRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.income_ocr.income_ocr_service import IncomeOcrService
 from app.messaging.income_ocr.producer import publish_income_ocr_response
 
@@ -53,7 +55,8 @@ async def handle_income_ocr_job(message: aio_pika.IncomingMessage):
 
             with get_db_context() as db:
                 config_repo = SystemConfigRepository(db)
-                service = IncomeOcrService(repo=config_repo)
+                prompt_service = PromptTemplateService(PromptTemplateRepository(db))
+                service = IncomeOcrService(repo=config_repo, prompt_service=prompt_service)
                 result = service.extract_payslip(
                     file_bytes=file_bytes,
                     mime_type=mime_type,

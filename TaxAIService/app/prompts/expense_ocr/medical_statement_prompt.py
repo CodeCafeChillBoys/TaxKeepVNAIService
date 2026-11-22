@@ -34,8 +34,8 @@ QUY TẮC BÓC TÁCH BẢNG KÊ Y TẾ (CỰC KỲ QUAN TRỌNG):
 3. THÔNG TIN CHUNG (CHỈ BÓC TÁCH CƠ BẢN):
    - sellerName: Tên cơ sở y tế / Bệnh viện (lấy từ tiêu đề bảng kê).
    - invoiceNumber: Số hồ sơ bệnh án hoặc số bảng kê / mã lượt khám nếu có.
-   - invoiceDate: Ngày khám hoặc ngày lập bảng kê (YYYY-MM-DD).
-   - extractedYear: Năm của invoiceDate.
+   - invoiceDate: Ngày khám hoặc ngày lập bảng kê (YYYY-MM-DD). ĐỌC KỸ: Nếu bảng kê ghi "20/11/2026" thì invoiceDate là "2026-11-20", NĂM LÀ 2026, KHÔNG ĐƯỢC NHẦM VỚI 2020 HAY NĂM SINH!
+   - extractedYear: Năm của invoiceDate (BẮT BUỘC 4 CHỮ SỐ, ví dụ: 2026). TUYỆT ĐỐI KHÔNG lấy năm sinh người bệnh (2000), không nhầm ngày 20 thành năm 2020.
    - buyerName: Họ tên người bệnh.
    - buyerIdCard: Số CCCD/CMND người bệnh nếu có ghi.
    - totalAmount: Tổng số tiền người bệnh thực trả (lấy từ medicalSummary.patientPaid).
@@ -55,8 +55,8 @@ QUY TẮC BÓC TÁCH BẢNG KÊ Y TẾ (CỰC KỲ QUAN TRỌNG):
       - insuranceNumber: Mã thẻ BHYT nếu có.
       - benefitRate: Mức hưởng BHYT dạng số thập phân (ví dụ 80% = 0.8, 100% = 1.0).
       - hasInsuranceCard: true nếu có sử dụng thẻ BHYT, false nếu không dùng hoặc thu phí dịch vụ.
-      - visitDate / admissionDate: Ngày khám hoặc ngày vào viện YYYY-MM-DD.
-      - dischargeDate: Ngày ra viện hoặc kết thúc khám YYYY-MM-DD.
+      - visitDate / admissionDate: Ngày đến khám hoặc ngày vào viện YYYY-MM-DD (Định dạng YYYY-MM-DD, kiểm tra đúng 4 chữ số năm, không nhầm ngày 20 thành năm 2020).
+      - dischargeDate: Ngày kết thúc khám hoặc ra viện YYYY-MM-DD (Định dạng YYYY-MM-DD, ví dụ: "20/11/2026" -> "2026-11-20", TUYỆT ĐỐI KHÔNG ĐỌC LÀ 2020-11-20).
       - treatmentType: Ngoại trú hoặc Nội trú.
 
    b. medicalSections:
@@ -76,12 +76,23 @@ QUY TẮC BÓC TÁCH BẢNG KÊ Y TẾ (CỰC KỲ QUAN TRỌNG):
       - patientCoPay: Số tiền người bệnh cùng chi trả trong danh mục BHYT (cột 11).
       - patientSelfPay: Số tiền người bệnh tự trả (cột 13 hoặc toàn bộ nếu không dùng thẻ BHYT).
       - deductionStatus: Trạng thái giảm trừ thuế TNCN của từng dòng theo danh mục y tế gửi kèm (CHỈ CÓ 2 TRẠNG THÁI "ELIGIBLE" HOẶC "EXCLUDED"):
-        * "ELIGIBLE": Dòng thuộc danh mục khám chữa bệnh hợp lệ (khám bệnh, xét nghiệm, CĐHA, thuốc điều trị, phẫu thuật bệnh lý...).
-        * "EXCLUDED": Bị loại trừ (phẫu thuật tạo hình thẩm mỹ làm đẹp, cắt mí, nâng mũi, tiêm filler, botox, spa làm trắng da, thực phẩm chức năng bồi bổ, phòng VIP tự chọn, hoặc chữ mờ/không đủ dữ liệu căn cứ hợp lệ...).
+        * "ELIGIBLE": Dòng thuộc danh mục khám chữa bệnh hợp lệ trong phạm vi BHYT hoặc điều trị bệnh bắt buộc (khám bệnh, xét nghiệm thông thường, CĐHA, thuốc điều trị, phẫu thuật bệnh lý...).
+        * "EXCLUDED": Bị loại trừ:
+          + Toàn bộ dịch vụ thuộc Khối ngoài danh mục BHYT chi trả tự nguyện (gói xét nghiệm tầm soát đột biến gen tự nguyện, tầm soát dị ứng tự nguyện theo yêu cầu, khám tổng quát theo yêu cầu...).
+          + Phẫu thuật tạo hình thẩm mỹ làm đẹp, cắt mí, nâng mũi, tiêm filler, botox, spa làm trắng da, thực phẩm chức năng bồi bổ (thuốc bổ gan, thực phẩm bảo vệ sức khỏe chống oxy hóa...), phòng VIP tự chọn, hoặc chữ mờ/không đủ dữ liệu căn cứ hợp lệ...
       - isEligibleDeduction: true nếu deductionStatus là "ELIGIBLE", false nếu "EXCLUDED".
-      - deductionReason: Mã lý do cụ thể: "IN_COVERAGE_COPAY" (cùng chi trả BHYT), "TREATMENT_EXPENSE_SELF_PAY" (điều trị tự chi trả hợp lệ), "EXCLUDED_COSMETIC_SURGERY" (thẩm mỹ làm đẹp), "EXCLUDED_SKIN_CARE_SPA" (spa làm đẹp), "EXCLUDED_FUNCTIONAL_FOOD" (thực phẩm chức năng), "EXCLUDED_VIP_ROOM" (tiện ích tự chọn), hoặc "EXCLUDED_UNREADABLE" (chữ mờ/không đủ căn cứ).
+      - deductionReason: Mã lý do cụ thể:
+        * "IN_COVERAGE_COPAY" (cùng chi trả BHYT - Cột 11).
+        * "TREATMENT_EXPENSE_SELF_PAY" (chỉ dùng khi bệnh nhân KHÔNG CÓ THẺ BHYT và điều trị bệnh bắt buộc theo quy định Bộ Y tế).
+        * "EXCLUDED_COSMETIC_SURGERY" (thẩm mỹ làm đẹp).
+        * "EXCLUDED_SKIN_CARE_SPA" (spa làm đẹp).
+        * "EXCLUDED_FUNCTIONAL_FOOD" (thực phẩm chức năng, thuốc bổ gan, TPCN bồi bổ...).
+        * "EXCLUDED_VOLUNTARY_SCREENING" hoặc "EXCLUDED_OUT_OF_COVERAGE" (dịch vụ/xét nghiệm tầm soát tự chọn ngoài danh mục BHYT).
+        * "EXCLUDED_VIP_ROOM" (tiện ích tự chọn).
+        * "EXCLUDED_UNREADABLE" (chữ mờ/không đủ căn cứ).
       - eligibleAmount: Số tiền người bệnh chi trả thực tế hợp lệ giảm trừ:
-        * Nếu deductionStatus == "ELIGIBLE": eligibleAmount = patientCoPay + patientSelfPay.
+        * QUY TẮC CỐT LÕI: Đối với bảng kê có BHYT, eligibleAmount CHỈ ĐƯỢC LẤY từ phần cùng chi trả trong danh mục BHYT (patientCoPay - Cột 11). Toàn bộ phần tự chi trả (patientSelfPay - Cột 13) của khối ngoài danh mục hoặc thuốc/TPCN bổ sung BẮT BUỘC có eligibleAmount = 0.
+        * Nếu deductionStatus == "ELIGIBLE": eligibleAmount = patientCoPay (nếu có BHYT) hoặc patientSelfPay (nếu không có BHYT và điều trị bắt buộc).
         * Nếu deductionStatus == "EXCLUDED": eligibleAmount = 0.
       - suggestedStatus: "ELIGIBLE" hoặc "EXCLUDED" (đồng bộ với deductionStatus).
       - confidenceScore: Độ rõ nét từ 0.0 đến 1.0.
@@ -110,10 +121,19 @@ def build_medical_categories_guide(categories_text: str) -> str:
     return (
         "\n\nDANH MỤC DỊCH VỤ Y TẾ ĐƯỢC GIẢM TRỪ VÀ LOẠI TRỪ (THEO QĐ 697/QĐ-BYT & THUẾ TNCN):\n"
         f"{categories_text}\n\n"
-        "QUY TẮC ĐỐI CHIẾU:\n"
-        "- Với mỗi dòng trong medicalLines, đối chiếu itemName và tính chất dịch vụ với danh mục trên.\n"
-        "- Dòng thuộc danh mục được giảm trừ: deductionStatus = 'ELIGIBLE', isEligibleDeduction = true, eligibleAmount = patientCoPay + patientSelfPay.\n"
-        "- Dòng thuộc danh mục loại trừ (thẩm mỹ, spa, TPCN, bồi bổ, phòng VIP tự chọn) hoặc chữ mờ không đủ căn cứ: deductionStatus = 'EXCLUDED', isEligibleDeduction = false, eligibleAmount = 0, deductionReason nêu rõ mã loại trừ."
+        "QUY TẮC PHÂN LOẠI CHI TIẾT (ĐẶC BIỆT LÀ CÁC DÒNG XÉT NGHIỆM VÀ DỊCH VỤ):\n"
+        "1. DỰA VÀO TỶ LỆ VÀ CỘT BHYT (CĂN CỨ ĐỊNH LƯỢNG ƯU TIÊN SỐ 1):\n"
+        "   - Nếu bệnh nhân có dùng thẻ BHYT (benefitRate > 0 hoặc hasInsuranceCard = true):\n"
+        "     + Dòng dịch vụ/xét nghiệm/thuốc có tỷ lệ BHYT > 0% và có Quỹ BHYT/Cùng chi trả > 0 (Khối A):\n"
+        "       --> BẮT BUỘC gán deductionStatus = 'ELIGIBLE', isEligibleDeduction = true, deductionReason = 'IN_COVERAGE_COPAY', eligibleAmount = patientCoPay.\n"
+        "     + Dòng dịch vụ/xét nghiệm/thuốc có tỷ lệ BHYT = 0%, Quỹ BHYT = 0 và bệnh nhân tự trả 100% (Khối B - Ngoài danh mục BHYT):\n"
+        "       --> BẮT BUỘC gán deductionStatus = 'EXCLUDED', isEligibleDeduction = false, deductionReason = 'EXCLUDED_OUT_OF_COVERAGE', eligibleAmount = 0.\n"
+        "2. DỰA VÀO BẢN CHẤT CỦA DỊCH VỤ XÉT NGHIỆM:\n"
+        "   - HỢP LỆ (ELIGIBLE): Xét nghiệm bệnh học phục vụ chẩn đoán và điều trị bệnh lý (công thức máu, sinh hóa máu, nước tiểu, vi sinh, chẩn đoán hình ảnh, sinh thiết...).\n"
+        "   - LOẠI TRỪ (EXCLUDED): Xét nghiệm tầm soát tự nguyện theo yêu cầu, không phục vụ điều trị trực tiếp (gói tầm soát đột biến gen, tầm soát dị ứng tự nguyện theo yêu cầu, xét nghiệm ADN huyết thống, khám sức khỏe tổng quát tự chọn...). Gán deductionStatus = 'EXCLUDED', deductionReason = 'EXCLUDED_OUT_OF_COVERAGE' hoặc 'EXCLUDED_VOLUNTARY_SCREENING', eligibleAmount = 0.\n"
+        "3. CÁC KHOẢN LOẠI TRỪ KHÁC:\n"
+        "   - Thực phẩm chức năng, thuốc bổ gan, vitamin bồi bổ: deductionStatus = 'EXCLUDED', deductionReason = 'EXCLUDED_FUNCTIONAL_FOOD', eligibleAmount = 0.\n"
+        "   - Phẫu thuật thẩm mỹ làm đẹp, spa chăm sóc da, phòng VIP tự chọn: deductionStatus = 'EXCLUDED', eligibleAmount = 0."
     )
 
 

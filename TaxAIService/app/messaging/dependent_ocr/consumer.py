@@ -9,7 +9,9 @@ import httpx
 
 from app.services.ocr import DependentOcrService
 from app.infrastructure.database import get_db_context
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
 from app.repositories.system_config.system_config_repository import SystemConfigRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.messaging.dependent_ocr.schemas import (
     OcrExtractRequestMessage,
     OcrExtractResponseMessage,
@@ -84,7 +86,8 @@ async def handle_ocr_extract_message(message: aio_pika.IncomingMessage) -> None:
             # 3. Gọi Gemini OCR bóc tách dữ liệu & đối chiếu rules kèm kiểm tra ngưỡng tự động từ DB
             with get_db_context() as db:
                 config_repo = SystemConfigRepository(db)
-                service = DependentOcrService(repo=config_repo)
+                prompt_service = PromptTemplateService(PromptTemplateRepository(db))
+                service = DependentOcrService(repo=config_repo, prompt_service=prompt_service)
                 ocr_result = service.extract_document(
                     files=files_to_process,
                     target_group=request_msg.target_group,
