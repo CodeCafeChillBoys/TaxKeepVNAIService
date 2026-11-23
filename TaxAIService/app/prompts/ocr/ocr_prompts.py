@@ -1,22 +1,36 @@
 from typing import Optional, List, Dict, Any
 
 
-def build_dependent_ocr_prompt(
+def build_dependent_rules_text(
     target_group: Optional[str] = None, 
     rules: Optional[List[Dict[str, Any]]] = None
 ) -> str:
     rules_text = ""
+    if target_group:
+        group_desc_map = {
+            "PARENT_RETIRED": "Cha/Mẹ ngoài độ tuổi lao động (Nam >= 60/62 tuổi, Nữ >= 55/60 tuổi, không có thu nhập hoặc thu nhập bình quân <= mức quy định). Giấy tờ cần thiết: CCCD chứng minh độ tuổi, Khai sinh/CT07 chứng minh quan hệ.",
+            "PARENT_DISABLED": "Cha/Mẹ trong độ tuổi lao động nhưng bị khuyết tật, mất khả năng lao động (từ 61% trở lên). Giấy tờ cần thiết: Giấy xác nhận khuyết tật / hồ sơ bệnh án, CCCD, Khai sinh/CT07 chứng minh quan hệ.",
+            "CHILD_UNDER_18": "Con chưa thành niên (dưới 18 tuổi). Giấy tờ cần thiết: Giấy khai sinh, CCCD (nếu có).",
+            "CHILD_OVER_18_STUDYING": "Con từ 18 tuổi trở lên đang theo học (ĐH, CĐ, THCN, dạy nghề...). Giấy tờ cần thiết: Giấy khai sinh, Thẻ HSSV hoặc Giấy xác nhận đang theo học.",
+            "CHILD_OVER_18_DISABLED": "Con từ 18 tuổi trở lên bị khuyết tật, mất khả năng lao động. Giấy tờ cần thiết: Giấy khai sinh, Giấy xác nhận khuyết tật / hồ sơ bệnh án.",
+            "SPOUSE_RETIRED": "Vợ hoặc chồng ngoài độ tuổi lao động. Giấy tờ cần thiết: Giấy chứng nhận kết hôn, CCCD.",
+            "SPOUSE_DISABLED": "Vợ hoặc chồng trong độ tuổi lao động bị khuyết tật, mất khả năng lao động. Giấy tờ cần thiết: Giấy chứng nhận kết hôn, CCCD, Giấy xác nhận khuyết tật.",
+            "OTHER_HELPLESS": "Người phụ thuộc khác không nơi nương tựa đang trực tiếp nuôi dưỡng. Giấy tờ cần thiết: Bản cam kết nuôi dưỡng (Mẫu 07/XN-NPT), CCCD, xác nhận cư trú CT07, giấy tờ khuyết tật (nếu trong độ tuổi LĐ).",
+        }
+        if target_group in group_desc_map:
+            rules_text += f"\n- Nhóm đối tượng đang thẩm định: [{target_group}] - {group_desc_map[target_group]}\n"
+        else:
+            rules_text += f"\n- Nhóm đối tượng đang thẩm định: [{target_group}]\n"
+
     if rules:
         rules_text += "\nDANH MỤC QUY TẮC GIẤY TỜ DO ADMIN CẤU HÌNH TRONG DATABASE:\n"
-        if target_group:
-            rules_text += f"- Nhóm đối tượng đang thẩm định: {target_group}\n"
         for r in rules:
             d_type = r.get("doc_type") or r.get("docType") or "UNKNOWN"
             desc = r.get("description") or "Không có mô tả chi tiết"
             mandatory = "Bắt buộc" if (r.get("is_mandatory") or r.get("isMandatory")) else "Tùy chọn"
             rules_text += f"  + [{d_type}] ({mandatory}): Tiêu chí kiểm tra: {desc}\n"
     else:
-        rules_text = """
+        rules_text += """
 - Danh mục giấy tờ tham khảo chuẩn:
   + "CITIZEN_ID": Căn cước công dân / Thẻ căn cước / CMND (CCCD_FRONT, CCCD_BACK, CCCD_BOTH).
   + "BIRTH_CERTIFICATE": Giấy khai sinh (Bản chính hoặc bản sao trích lục).
@@ -29,12 +43,15 @@ def build_dependent_ocr_prompt(
   + "OTHER": Giấy tờ hợp lệ khác.
 """
 
-    return f"""
+    return rules_text
+
+
+DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE = """
 Bạn là hệ thống AI OCR chuyên gia pháp lý và nhận diện giấy tờ chứng minh người phụ thuộc phục vụ đăng ký Thuế Thu nhập cá nhân (TNCN) tại Việt Nam.
 
 Nhiệm vụ của bạn:
 1. Nhận diện loại giấy tờ (documentType):
-{rules_text}
+{dependent_rules_text}
    - Ưu tiên gán `documentType` bằng chính xác mã `doc_type` trong danh mục quy tắc của hệ thống nếu ảnh khớp.
    - Nếu không khớp loại nào trong danh mục: điền "OTHER" hoặc tên loại giấy tờ thực tế.
 
@@ -67,6 +84,15 @@ Nhiệm vụ của bạn:
 
 Hãy phân tích kỹ bức ảnh và trả về JSON theo đúng Schema được cung cấp.
 """
+
+
+def build_dependent_ocr_prompt(
+    target_group: Optional[str] = None,
+    rules: Optional[List[Dict[str, Any]]] = None,
+) -> str:
+    return DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE.replace(
+        "{dependent_rules_text}", build_dependent_rules_text(target_group, rules)
+    )
 
 
 # Prompt mặc định khi không truyền dynamic rules

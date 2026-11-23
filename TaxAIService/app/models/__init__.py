@@ -1,6 +1,7 @@
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
+from app.models.dependent_rule_document import DependentRuleDocument
 from app.models.url_validation_rule import UrlValidationRule
 from app.models.ai_extraction_models import AiExtraction, AiExtractionValue, SystemConfig
 from app.models.chat_session import ChatSession
@@ -12,6 +13,7 @@ __all__ = [
     "TaxRuleSet",
     "TaxRule",
     "DependentRule",
+    "DependentRuleDocument",
     "UrlValidationRule",
     "SystemConfig",
     "AiExtraction",
@@ -20,5 +22,4 @@ __all__ = [
     "ChatMessage",
     "AiPromptTemplate",
     "AiProviderKey",
-    
 ]

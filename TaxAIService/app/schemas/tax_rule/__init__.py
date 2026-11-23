@@ -4,6 +4,10 @@ from app.schemas.tax_rule.tax_rule_request import (
     TaxRuleUpdateRequest,
     TaxRuleItemUpdateRequest,
     DependentRuleUpdateRequest,
+    DependentRuleCreateRequest,
+    RequiredDocumentItemRequest,
+    RequiredDocumentCreateRequest,
+    RequiredDocumentUpdateRequest,
 )
 from app.schemas.tax_rule.tax_rule_response import (
     TaxRuleItemResponse,
@@ -13,7 +17,9 @@ from app.schemas.tax_rule.tax_rule_response import (
     TaxRuleApproveResponse,
     TaxRuleDetailResponse,
     DependentRuleResponse,
+    RequiredDocumentResponse,
 )
+from app.enum.tax_rule_enum import RequiredDocumentType
 from app.schemas.tax_rule.tax_rule_schema import (
     TaxRuleItemSchema,
     TaxRuleSetSchema,
@@ -27,6 +33,10 @@ __all__ = [
     "TaxRuleUpdateRequest",
     "TaxRuleItemUpdateRequest",
     "DependentRuleUpdateRequest",
+    "DependentRuleCreateRequest",
+    "RequiredDocumentItemRequest",
+    "RequiredDocumentCreateRequest",
+    "RequiredDocumentUpdateRequest",
     # Responses
     "TaxRuleItemResponse",
     "TaxRuleSetResponse",
@@ -35,6 +45,9 @@ __all__ = [
     "TaxRuleApproveResponse",
     "TaxRuleDetailResponse",
     "DependentRuleResponse",
+    "RequiredDocumentResponse",
+    # Enums
+    "RequiredDocumentType",
     # Aliases
     "TaxRuleItemSchema",
     "TaxRuleSetSchema",

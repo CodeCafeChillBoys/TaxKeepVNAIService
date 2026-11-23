@@ -9,6 +9,11 @@ from app.core.config import settings
 from app.services.apiKey.ai_key_manager import AiKeyManager
 from app.enum import TaxRuleStatus
 from app.prompts.tax_rule import build_tax_rule_extraction_prompt
+from app.prompts.tax_rule.tax_rule_prompts import (
+    TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE,
+    build_tax_rule_extraction_prompt_params,
+)
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleExtractionError
 
 logger = logging.getLogger(__name__)
@@ -27,7 +32,8 @@ class TaxRuleExtractionService:
         tax_year: int = 2026,
         rule_set_name: Optional[str] = None,
         source_url: Optional[str] = None,
-        legal_doc_name: Optional[str] = None
+        legal_doc_name: Optional[str] = None,
+        prompt_service: Optional[PromptTemplateService] = None,
     ) -> Dict[str, Any]:
         """
         Sử dụng Gemini LLM với Structured JSON Output để trích xuất các quy tắc thuế
@@ -38,13 +44,22 @@ class TaxRuleExtractionService:
 
         default_set_name = rule_set_name or f"Personal Income Tax Rules {tax_year}"
 
-        prompt = build_tax_rule_extraction_prompt(
+        prompt_args = dict(
             tax_year=tax_year,
             default_set_name=default_set_name,
             source_url=source_url,
             legal_doc_name=legal_doc_name,
             document_text=document_text,
         )
+        if prompt_service:
+            params = build_tax_rule_extraction_prompt_params(**prompt_args)
+            prompt = prompt_service.get_rendered_prompt(
+                prompt_key="PROMPT_TAX_RULE_EXTRACTION",
+                default_template=TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE,
+                params=params,
+            )
+        else:
+            prompt = build_tax_rule_extraction_prompt(**prompt_args)
 
         contents = []
         if pdf_bytes:

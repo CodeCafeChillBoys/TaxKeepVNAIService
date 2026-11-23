@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
+from app.models.dependent_rule_document import DependentRuleDocument
 from app.enum import TaxRuleStatus
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 
@@ -257,6 +258,7 @@ class TaxRuleRepository(ITaxRuleRepository):
                     cond = d_data.get("conditions")
                     cond_str = json.dumps(cond, ensure_ascii=False) if isinstance(cond, (dict, list)) else (str(cond) if cond is not None else None)
                     parent_rule_id = d_data.get("rule_id") or default_parent_rule_id
+                    req_docs_data = d_data.get("required_documents") if "required_documents" in d_data else d_data.get("requiredDocuments")
 
                     if d_id_str and d_id_str in existing_dep_rules:
                         d = existing_dep_rules[d_id_str]
@@ -276,9 +278,48 @@ class TaxRuleRepository(ITaxRuleRepository):
                             d.conditions = cond_str
                         if "status" in d_data and d_data["status"]:
                             d.status = d_data["status"]
+
+                        # Cập nhật required_documents nếu được truyền vào
+                        if req_docs_data is not None:
+                            existing_docs_map = {str(doc.id): doc for doc in d.required_documents}
+                            kept_doc_ids = set()
+                            for doc_item in req_docs_data:
+                                doc_dict = doc_item if isinstance(doc_item, dict) else (doc_item.model_dump(by_alias=False) if hasattr(doc_item, "model_dump") else {})
+                                doc_id_str = str(doc_dict.get("id")) if doc_dict.get("id") else None
+                                if doc_id_str and doc_id_str in existing_docs_map:
+                                    target_doc = existing_docs_map[doc_id_str]
+                                    if doc_dict.get("doc_type") or doc_dict.get("docType"):
+                                        target_doc.doc_type = doc_dict.get("doc_type") or doc_dict.get("docType")
+                                    if doc_dict.get("name"):
+                                        target_doc.name = doc_dict.get("name")
+                                    if "is_mandatory" in doc_dict or "isMandatory" in doc_dict:
+                                        target_doc.is_mandatory = bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory")))
+                                    if "description" in doc_dict:
+                                        target_doc.description = doc_dict.get("description")
+                                    kept_doc_ids.add(doc_id_str)
+                                else:
+                                    new_doc = DependentRuleDocument(
+                                        id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
+                                        dependent_rule_id=d.id,
+                                        doc_type=doc_dict.get("doc_type") or doc_dict.get("docType") or "OTHER",
+                                        name=doc_dict.get("name") or "Giấy tờ",
+                                        is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                                        description=doc_dict.get("description")
+                                    )
+                                    d.required_documents.append(new_doc)
+                                    kept_doc_ids.add(str(new_doc.id))
+
+                            for old_id, old_doc in list(existing_docs_map.items()):
+                                if old_id not in kept_doc_ids:
+                                    d.required_documents.remove(old_doc)
+                                    self.db.delete(old_doc)
+
                     elif parent_rule_id:
+                        new_dep_id = d_data.get("id") or uuid.uuid4()
+                        if isinstance(new_dep_id, str):
+                            new_dep_id = uuid.UUID(new_dep_id)
                         new_dep = DependentRule(
-                            id=d_data.get("id") or uuid.uuid4(),
+                            id=new_dep_id,
                             rule_id=parent_rule_id,
                             dependent_type=d_data.get("dependent_type", "OTHER"),
                             name=d_data.get("name", ""),
@@ -289,12 +330,228 @@ class TaxRuleRepository(ITaxRuleRepository):
                             conditions=cond_str,
                             status=d_data.get("status", TaxRuleStatus.DRAFT.value)
                         )
+                        if req_docs_data:
+                            for doc_item in req_docs_data:
+                                doc_dict = doc_item if isinstance(doc_item, dict) else (doc_item.model_dump(by_alias=False) if hasattr(doc_item, "model_dump") else {})
+                                new_doc = DependentRuleDocument(
+                                    id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
+                                    dependent_rule_id=new_dep_id,
+                                    doc_type=doc_dict.get("doc_type") or doc_dict.get("docType") or "OTHER",
+                                    name=doc_dict.get("name") or "Giấy tờ",
+                                    is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                                    description=doc_dict.get("description")
+                                )
+                                new_dep.required_documents.append(new_doc)
+
                         self.db.add(new_dep)
                         existing_dep_rules[str(new_dep.id)] = new_dep
 
             self.db.commit()
             self.db.refresh(rule_set)
             return self.get_tax_rule_set_detail(rule_set_id)
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def create_dependent_rule(
+        self,
+        rule_id: uuid.UUID,
+        dep_data: dict
+    ) -> DependentRule:
+        try:
+            cond = dep_data.get("conditions")
+            cond_str = json.dumps(cond, ensure_ascii=False) if isinstance(cond, (dict, list)) else (str(cond) if cond is not None else None)
+            dep_id = dep_data.get("id") or uuid.uuid4()
+            if isinstance(dep_id, str):
+                dep_id = uuid.UUID(dep_id)
+
+            dep = DependentRule(
+                id=dep_id,
+                rule_id=rule_id,
+                dependent_type=dep_data.get("dependent_type") or dep_data.get("dependentType", "OTHER"),
+                name=dep_data.get("name", ""),
+                max_age=dep_data.get("max_age") if "max_age" in dep_data else dep_data.get("maxAge"),
+                max_monthly_income=dep_data.get("max_monthly_income") if "max_monthly_income" in dep_data else dep_data.get("maxMonthlyIncome"),
+                is_studying=bool(dep_data.get("is_studying", dep_data.get("isStudying", False))),
+                is_disabled=bool(dep_data.get("is_disabled", dep_data.get("isDisabled", False))),
+                conditions=cond_str,
+                status=dep_data.get("status", TaxRuleStatus.DRAFT.value)
+            )
+
+            req_docs = dep_data.get("required_documents") if "required_documents" in dep_data else dep_data.get("requiredDocuments", [])
+            if req_docs:
+                for doc in req_docs:
+                    doc_dict = doc if isinstance(doc, dict) else (doc.model_dump(by_alias=False) if hasattr(doc, "model_dump") else {})
+                    new_doc = DependentRuleDocument(
+                        id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
+                        dependent_rule_id=dep.id,
+                        doc_type=doc_dict.get("doc_type") or doc_dict.get("docType", "OTHER"),
+                        name=doc_dict.get("name", "Giấy tờ"),
+                        is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                        description=doc_dict.get("description")
+                    )
+                    dep.required_documents.append(new_doc)
+
+            self.db.add(dep)
+            self.db.commit()
+            self.db.refresh(dep)
+            return dep
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def update_dependent_rule(
+        self,
+        dep_id: uuid.UUID,
+        dep_data: dict
+    ) -> Optional[DependentRule]:
+        try:
+            dep = self.db.query(DependentRule).filter(DependentRule.id == dep_id).first()
+            if not dep:
+                return None
+
+            if "dependent_type" in dep_data or "dependentType" in dep_data:
+                dep.dependent_type = dep_data.get("dependent_type") or dep_data.get("dependentType")
+            if "name" in dep_data and dep_data["name"]:
+                dep.name = dep_data["name"]
+            if "max_age" in dep_data or "maxAge" in dep_data:
+                dep.max_age = dep_data.get("max_age") if "max_age" in dep_data else dep_data.get("maxAge")
+            if "max_monthly_income" in dep_data or "maxMonthlyIncome" in dep_data:
+                dep.max_monthly_income = dep_data.get("max_monthly_income") if "max_monthly_income" in dep_data else dep_data.get("maxMonthlyIncome")
+            if "is_studying" in dep_data or "isStudying" in dep_data:
+                val = dep_data.get("is_studying") if "is_studying" in dep_data else dep_data.get("isStudying")
+                if val is not None:
+                    dep.is_studying = bool(val)
+            if "is_disabled" in dep_data or "isDisabled" in dep_data:
+                val = dep_data.get("is_disabled") if "is_disabled" in dep_data else dep_data.get("isDisabled")
+                if val is not None:
+                    dep.is_disabled = bool(val)
+            if "conditions" in dep_data and dep_data["conditions"] is not None:
+                cond = dep_data["conditions"]
+                dep.conditions = json.dumps(cond, ensure_ascii=False) if isinstance(cond, (dict, list)) else str(cond)
+            if "status" in dep_data and dep_data["status"]:
+                dep.status = dep_data["status"]
+
+            req_docs = dep_data.get("required_documents") if "required_documents" in dep_data else dep_data.get("requiredDocuments")
+            if req_docs is not None:
+                existing_docs_map = {str(doc.id): doc for doc in dep.required_documents}
+                kept_doc_ids = set()
+                for doc in req_docs:
+                    doc_dict = doc if isinstance(doc, dict) else (doc.model_dump(by_alias=False) if hasattr(doc, "model_dump") else {})
+                    doc_id_str = str(doc_dict.get("id")) if doc_dict.get("id") else None
+                    if doc_id_str and doc_id_str in existing_docs_map:
+                        target_doc = existing_docs_map[doc_id_str]
+                        if doc_dict.get("doc_type") or doc_dict.get("docType"):
+                            target_doc.doc_type = doc_dict.get("doc_type") or doc_dict.get("docType")
+                        if doc_dict.get("name"):
+                            target_doc.name = doc_dict.get("name")
+                        if "is_mandatory" in doc_dict or "isMandatory" in doc_dict:
+                            target_doc.is_mandatory = bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory")))
+                        if "description" in doc_dict:
+                            target_doc.description = doc_dict.get("description")
+                        kept_doc_ids.add(doc_id_str)
+                    else:
+                        new_doc = DependentRuleDocument(
+                            id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
+                            dependent_rule_id=dep.id,
+                            doc_type=doc_dict.get("doc_type") or doc_dict.get("docType", "OTHER"),
+                            name=doc_dict.get("name", "Giấy tờ"),
+                            is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                            description=doc_dict.get("description")
+                        )
+                        dep.required_documents.append(new_doc)
+                        kept_doc_ids.add(str(new_doc.id))
+
+                for old_id, old_doc in list(existing_docs_map.items()):
+                    if old_id not in kept_doc_ids:
+                        dep.required_documents.remove(old_doc)
+                        self.db.delete(old_doc)
+
+            self.db.commit()
+            self.db.refresh(dep)
+            return dep
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def delete_dependent_rule(self, dep_id: uuid.UUID) -> bool:
+        try:
+            dep = self.db.query(DependentRule).filter(DependentRule.id == dep_id).first()
+            if not dep:
+                return False
+            self.db.delete(dep)
+            self.db.commit()
+            return True
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def add_required_document(
+        self,
+        dependent_rule_id: uuid.UUID,
+        doc_data: dict
+    ) -> DependentRuleDocument:
+        try:
+            dep = self.db.query(DependentRule).filter(DependentRule.id == dependent_rule_id).first()
+            if not dep:
+                raise ValueError(f"DependentRule {dependent_rule_id} not found")
+
+            doc_id = doc_data.get("id") or uuid.uuid4()
+            if isinstance(doc_id, str):
+                doc_id = uuid.UUID(doc_id)
+
+            new_doc = DependentRuleDocument(
+                id=doc_id,
+                dependent_rule_id=dependent_rule_id,
+                doc_type=doc_data.get("doc_type") or doc_data.get("docType", "OTHER"),
+                name=doc_data.get("name", "Giấy tờ"),
+                is_mandatory=bool(doc_data.get("is_mandatory", doc_data.get("isMandatory", True))),
+                description=doc_data.get("description")
+            )
+            self.db.add(new_doc)
+            self.db.commit()
+            self.db.refresh(new_doc)
+            return new_doc
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def update_required_document(
+        self,
+        doc_id: uuid.UUID,
+        doc_data: dict
+    ) -> Optional[DependentRuleDocument]:
+        try:
+            doc = self.db.query(DependentRuleDocument).filter(DependentRuleDocument.id == doc_id).first()
+            if not doc:
+                return None
+
+            if "doc_type" in doc_data or "docType" in doc_data:
+                doc.doc_type = doc_data.get("doc_type") or doc_data.get("docType")
+            if "name" in doc_data and doc_data["name"]:
+                doc.name = doc_data["name"]
+            if "is_mandatory" in doc_data or "isMandatory" in doc_data:
+                val = doc_data.get("is_mandatory") if "is_mandatory" in doc_data else doc_data.get("isMandatory")
+                if val is not None:
+                    doc.is_mandatory = bool(val)
+            if "description" in doc_data:
+                doc.description = doc_data["description"]
+
+            self.db.commit()
+            self.db.refresh(doc)
+            return doc
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def delete_required_document(self, doc_id: uuid.UUID) -> bool:
+        try:
+            doc = self.db.query(DependentRuleDocument).filter(DependentRuleDocument.id == doc_id).first()
+            if not doc:
+                return False
+            self.db.delete(doc)
+            self.db.commit()
+            return True
         except Exception:
             self.db.rollback()
             raise

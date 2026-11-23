@@ -58,3 +58,55 @@ class ITaxRuleService(IService):
     ) -> Dict[str, Any]:
         """Chỉnh sửa toàn bộ nội dung TaxRuleSet, TaxRules, DependentRules và cập nhật taxYear."""
         pass
+
+    @abstractmethod
+    def create_dependent_rule(
+        self,
+        rule_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Thêm mới một DependentRule."""
+        pass
+
+    @abstractmethod
+    def update_dependent_rule(
+        self,
+        dep_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Cập nhật một DependentRule."""
+        pass
+
+    @abstractmethod
+    def delete_dependent_rule(
+        self,
+        dep_id: uuid.UUID
+    ) -> Dict[str, Any]:
+        """Xóa một DependentRule."""
+        pass
+
+    @abstractmethod
+    def add_required_document(
+        self,
+        dependent_rule_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Thêm mới giấy tờ cho một DependentRule."""
+        pass
+
+    @abstractmethod
+    def update_required_document(
+        self,
+        doc_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Cập nhật thông tin giấy tờ của DependentRule."""
+        pass
+
+    @abstractmethod
+    def delete_required_document(
+        self,
+        doc_id: uuid.UUID
+    ) -> Dict[str, Any]:
+        """Xóa một giấy tờ của DependentRule."""
+        pass

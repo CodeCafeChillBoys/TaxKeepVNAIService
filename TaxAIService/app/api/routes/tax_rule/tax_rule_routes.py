@@ -13,6 +13,10 @@ from app.schemas.tax_rule import (
     TaxRuleApproveRequest,
     TaxRuleUpdateRequest,
     TaxRuleDetailResponse,
+    DependentRuleCreateRequest,
+    DependentRuleUpdateRequest,
+    RequiredDocumentCreateRequest,
+    RequiredDocumentUpdateRequest,
 )
 from app.repositories.interfaces import ITaxRuleRepository
 from app.repositories.tax_rule import TaxRuleRepository
@@ -209,4 +213,83 @@ def approve_tax_rule_set(
         rule_set_id=id,
         admin_id=payload.admin_id
     )
+
+
+@exclude_from_coverage
+@router.post(
+    "/{ruleId}/dependent-rules",
+    status_code=status.HTTP_201_CREATED,
+    summary="Thêm mới người phụ thuộc cho quy tắc thuế"
+)
+def create_dependent_rule(
+    ruleId: uuid.UUID,
+    payload: DependentRuleCreateRequest,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.create_dependent_rule(rule_id=ruleId, payload=payload)
+
+
+@exclude_from_coverage
+@router.put(
+    "/dependent-rules/{dependentRuleId}",
+    summary="Cập nhật thông tin người phụ thuộc"
+)
+def update_dependent_rule(
+    dependentRuleId: uuid.UUID,
+    payload: DependentRuleUpdateRequest,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.update_dependent_rule(dep_id=dependentRuleId, payload=payload)
+
+
+@exclude_from_coverage
+@router.delete(
+    "/dependent-rules/{dependentRuleId}",
+    summary="Xóa người phụ thuộc"
+)
+def delete_dependent_rule(
+    dependentRuleId: uuid.UUID,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.delete_dependent_rule(dep_id=dependentRuleId)
+
+
+@exclude_from_coverage
+@router.post(
+    "/dependent-rules/{dependentRuleId}/documents",
+    status_code=status.HTTP_201_CREATED,
+    summary="Thêm giấy tờ yêu cầu mới cho người phụ thuộc"
+)
+def add_required_document(
+    dependentRuleId: uuid.UUID,
+    payload: RequiredDocumentCreateRequest,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.add_required_document(dependent_rule_id=dependentRuleId, payload=payload)
+
+
+@exclude_from_coverage
+@router.put(
+    "/dependent-rules/documents/{documentId}",
+    summary="Cập nhật giấy tờ yêu cầu của người phụ thuộc"
+)
+def update_required_document(
+    documentId: uuid.UUID,
+    payload: RequiredDocumentUpdateRequest,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.update_required_document(doc_id=documentId, payload=payload)
+
+
+@exclude_from_coverage
+@router.delete(
+    "/dependent-rules/documents/{documentId}",
+    summary="Xóa giấy tờ yêu cầu của người phụ thuộc"
+)
+def delete_required_document(
+    documentId: uuid.UUID,
+    service: ITaxRuleService = Depends(get_tax_rule_service)
+):
+    return service.delete_required_document(doc_id=documentId)
+
 

@@ -2,7 +2,7 @@ from app.core import exclude_from_coverage
 import uuid
 from typing import Optional, Any, List, Union
 from pydantic import BaseModel, ConfigDict, Field
-from app.enum import TaxRuleType, DependentType, TaxRuleStatus
+from app.enum import TaxRuleType, DependentType, TaxRuleStatus, RequiredDocumentType
 
 
 @exclude_from_coverage
@@ -70,6 +70,65 @@ class TaxRuleItemUpdateRequest(BaseModel):
 
 
 @exclude_from_coverage
+class RequiredDocumentItemRequest(BaseModel):
+    """
+    Schema thông tin từng loại giấy tờ yêu cầu
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: Optional[uuid.UUID] = Field(None, alias="id")
+    doc_type: RequiredDocumentType = Field(..., alias="docType")
+    name: str = Field(..., alias="name")
+    is_mandatory: bool = Field(True, alias="isMandatory")
+    description: Optional[str] = Field(None, alias="description")
+
+
+@exclude_from_coverage
+class RequiredDocumentCreateRequest(BaseModel):
+    """
+    Schema thêm mới một loại giấy tờ yêu cầu
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    doc_type: RequiredDocumentType = Field(..., alias="docType")
+    name: str = Field(..., alias="name")
+    is_mandatory: bool = Field(True, alias="isMandatory")
+    description: Optional[str] = Field(None, alias="description")
+
+
+@exclude_from_coverage
+class RequiredDocumentUpdateRequest(BaseModel):
+    """
+    Schema cập nhật thông tin một loại giấy tờ yêu cầu
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    doc_type: Optional[RequiredDocumentType] = Field(None, alias="docType")
+    name: Optional[str] = Field(None, alias="name")
+    is_mandatory: Optional[bool] = Field(None, alias="isMandatory")
+    description: Optional[str] = Field(None, alias="description")
+
+
+@exclude_from_coverage
+class DependentRuleCreateRequest(BaseModel):
+    """
+    Schema thêm mới một quy tắc người phụ thuộc
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
+    dependent_type: DependentType = Field(..., alias="dependentType")
+    name: str = Field(..., alias="name")
+    max_age: Optional[int] = Field(None, alias="maxAge")
+    max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")
+    is_studying: bool = Field(False, alias="isStudying")
+    is_disabled: bool = Field(False, alias="isDisabled")
+    conditions: Optional[Any] = Field(None, alias="conditions")
+    status: Optional[TaxRuleStatus] = Field(TaxRuleStatus.DRAFT, alias="status")
+    required_documents: Optional[List[RequiredDocumentItemRequest]] = Field(default_factory=list, alias="requiredDocuments")
+
+
+@exclude_from_coverage
 class DependentRuleUpdateRequest(BaseModel):
     """
     Schema cập nhật cho từng quy tắc người phụ thuộc
@@ -85,6 +144,7 @@ class DependentRuleUpdateRequest(BaseModel):
     is_studying: Optional[bool] = Field(None, alias="isStudying")
     is_disabled: Optional[bool] = Field(None, alias="isDisabled")
     conditions: Optional[Any] = Field(None, alias="conditions")
+    required_documents: Optional[List[RequiredDocumentItemRequest]] = Field(None, alias="requiredDocuments")
     status: Optional[TaxRuleStatus] = Field(None, alias="status")
 
 
