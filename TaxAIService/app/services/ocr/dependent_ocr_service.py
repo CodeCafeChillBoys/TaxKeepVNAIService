@@ -11,7 +11,10 @@ from app.schemas.ocr import (
     ConfidenceScores, 
     ThresholdValidationResult
 )
-from app.prompts.ocr import build_dependent_ocr_prompt, OCR_DEPENDENT_DOCUMENT_SYSTEM_PROMPT
+from app.prompts.ocr.ocr_prompts import (
+    DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE,
+    build_dependent_rules_text,
+)
 from app.repositories.interfaces.isystem_config_repository import ISystemConfigRepository
 from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.services.apiKey.ai_key_manager import AiKeyManager
@@ -102,26 +105,18 @@ class DependentOcrService:
                 )
 
             # 2. Xây dựng prompt động dựa trên rules của Admin truyền vào (nếu có)
-            default_prompt = build_dependent_ocr_prompt(target_group=target_group, rules=rules)
-            rules_text = ""
-            if rules:
-                rules_text += "\nDANH MỤC QUY TẮC GIẤY TỜ DO ADMIN CẤU HÌNH TRONG DATABASE:\n"
-                if target_group:
-                    rules_text += f"- Nhóm đối tượng đang thẩm định: {target_group}\n"
-                for r in rules:
-                    d_type = r.get("doc_type") or r.get("docType") or "UNKNOWN"
-                    desc = r.get("description") or "Không có mô tả chi tiết"
-                    mandatory = "Bắt buộc" if (r.get("is_mandatory") or r.get("isMandatory")) else "Tùy chọn"
-                    rules_text += f"  + [{d_type}] ({mandatory}): Tiêu chí kiểm tra: {desc}\n"
+            rules_text = build_dependent_rules_text(target_group, rules)
 
             if self.prompt_service:
                 system_instruction = self.prompt_service.get_rendered_prompt(
                     prompt_key="PROMPT_DEPENDENT_OCR",
-                    default_template=default_prompt,
+                    default_template=DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE,
                     params={"dependent_rules_text": rules_text}
                 )
             else:
-                system_instruction = default_prompt
+                system_instruction = DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE.replace(
+                    "{dependent_rules_text}", rules_text
+                )
 
 
             # 3. Gọi Gemini API với Structured JSON Output

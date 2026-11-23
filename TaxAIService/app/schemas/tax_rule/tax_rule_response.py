@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
-from app.enum import TaxRuleType, DependentType, TaxRuleStatus
+from app.enum import TaxRuleType, DependentType, TaxRuleStatus, RequiredDocumentType
 
 
 @exclude_from_coverage
@@ -48,6 +48,21 @@ class TaxRuleSetResponse(BaseModel):
 
 
 @exclude_from_coverage
+class RequiredDocumentResponse(BaseModel):
+    """
+    Schema đại diện cho từng loại giấy tờ yêu cầu nộp
+    """
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+    id: Optional[uuid.UUID] = Field(None, alias="id")
+    dependent_rule_id: Optional[uuid.UUID] = Field(None, alias="dependentRuleId")
+    doc_type: RequiredDocumentType = Field(..., alias="docType")
+    name: str = Field(..., alias="name")
+    is_mandatory: bool = Field(True, alias="isMandatory")
+    description: Optional[str] = Field(None, alias="description")
+
+
+@exclude_from_coverage
 class DependentRuleResponse(BaseModel):
     """
     Schema đại diện cho từng loại điều kiện người phụ thuộc
@@ -66,7 +81,7 @@ class DependentRuleResponse(BaseModel):
     # Có đang khuyết tật hay ko is_disabled
     is_disabled: bool = Field(False, alias="isDisabled")
     conditions: Optional[Union[str, List[str], Dict[str, Any]]] = Field(None, alias="conditions")
-    required_documents: Optional[List[Dict[str, Any]]] = Field(
+    required_documents: Optional[List[RequiredDocumentResponse]] = Field(
         default_factory=list, 
         alias="requiredDocuments",
         description="Danh sách các loại giấy tờ cần nộp của nhóm đối tượng này"

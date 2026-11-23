@@ -7,6 +7,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from app.infrastructure.database import get_db_context
 from app.models.ai_prompt_template import AiPromptTemplate
 from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.prompts.tax_rule.tax_rule_prompts import (
+    TAX_RULE_EXTRACTION_PROMPT_VARIABLES,
+    TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE,
+)
+from app.prompts.ocr.ocr_prompts import DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE
 from app.prompts.expense_ocr import (
     EXPENSE_OCR_SYSTEM_PROMPT,
     MEDICAL_STATEMENT_RULES,
@@ -91,26 +96,6 @@ QUY TẮC NHẬN DIỆN VÀ BÓC TÁCH:
    - Net Salary xấp xỉ = Tổng thu nhập - Bảo hiểm - Thuế TNCN - Giảm trừ khác.
    - Các giá trị tiền phải là số thực (float), không chứa ký tự 'VNĐ' hay dấu chấm phẩy ngăn cách."""
 
-DEPENDENT_OCR_SYSTEM_PROMPT = """Bạn là hệ thống AI OCR chuyên gia pháp lý và nhận diện giấy tờ chứng minh người phụ thuộc phục vụ đăng ký Thuế Thu nhập cá nhân (TNCN) tại Việt Nam.
-
-NHIỆM VỤ:
-1. Nhận diện loại giấy tờ (documentType):
-{dependent_rules_text}
-   - Ưu tiên gán `documentType` theo đúng mã quy tắc: CITIZEN_ID, BIRTH_CERTIFICATE, STUDENT_CARD, DISABILITY_CERTIFICATE, MARRIAGE_CERTIFICATE, RELATIONSHIP_CERTIFICATE, SUPPORT_COMMITMENT_FORM, RESIDENCE_CT07, OTHER.
-
-2. Thẩm định theo Rule Admin (ruleValidation):
-   - isMatchedRule: true nếu khớp mã quy tắc.
-   - isCompliantWithDescription: true nếu giấy tờ còn hiệu lực, có dấu đỏ, đúng niên khóa theo mô tả.
-   - notes: Ghi nhận xét ngắn gọn về tính hợp lệ.
-
-3. Trích xuất thông tin cá nhân:
-   - citizenId: Số CCCD/CMND (giữ nguyên số 0 ở đầu).
-   - fullName: Họ tên đầy đủ VIẾT HOA CÓ DẤU.
-   - birthDate: Ngày sinh YYYY-MM-DD.
-   - gender: MALE hoặc FEMALE.
-   - originPlace, residencePlace, expiryDate, issueDate.
-   - Đánh giá confidenceScores từ 0.0 đến 1.0 cho từng trường."""
-
 CERTIFICATE_OCR_SYSTEM_PROMPT = """Bạn là chuyên gia thẩm định văn bằng, chứng chỉ chuyên môn tài chính - kế toán - thuế tại Việt Nam.
 Nhiệm vụ của bạn là kiểm tra xem tài liệu được gửi lên CÓ PHẢI LÀ CHỨNG CHỈ HÀNH NGHỀ / BẰNG CẤP HỢP LỆ HAY KHÔNG, và trích xuất thông tin pháp lý.
 
@@ -131,22 +116,6 @@ QUY TẮC LOẠI TRỪ (is_certificate = false):
 
 KHI LÀ CHỨNG CHỈ HỢP LỆ (is_certificate = true):
 - Trích xuất: full_name, certificate_name, certificate_number, issuing_authority, issue_date, expiry_date."""
-
-TAX_RULE_EXTRACTION_SYSTEM_PROMPT = """Bạn là một Chuyên gia Pháp chế cao cấp và Chuyên gia Phân tích Dữ liệu Thuế Thu Nhập Cá Nhân (PIT Legal & Tax Engine Specialist).
-Nhiệm vụ của bạn là đọc sâu, rà soát toàn diện từng điều, khoản, điểm và bảng phụ lục trong văn bản pháp luật được cung cấp, sau đó phân tích và trích xuất CHUYÊN BIỆT CÁC QUY TẮC THUẾ THU NHẬP CÁ NHÂN TỪ TIỀN LƯƠNG, TIỀN CÔNG phục vụ cho Công cụ Tính Thuế (Tax Calculation Engine).
-
-THÔNG TIN ĐẦU VÀO:
-- Năm tính thuế chỉ định: {tax_year}
-- Tên Rule Set: {default_set_name}
-- Nguồn tài liệu: {source_url}
-- Văn bản căn cứ: {legal_doc_name}
-
-QUY TẮC PHẠM VI BẮT BUỘC:
-- CHỈ trích xuất các quy tắc thuế trực tiếp áp dụng cho thu nhập từ TIỀN LƯƠNG, TIỀN CÔNG.
-- TUYỆT ĐỐI KHÔNG trích xuất bất kỳ quy tắc thuế nào liên quan đến THU NHẬP TỪ KINH DOANH, BẤT ĐỘNG SẢN, CHỨNG KHOÁN, BẢN QUYỀN.
-- Trích xuất đầy đủ 2 nhóm cốt lõi:
-  1. DEDUCTION: Mức giảm trừ bản thân (PIT_DEDUCTION_PERSONAL), người phụ thuộc (PIT_DEDUCTION_DEPENDENT), bảo hiểm (PIT_DEDUCTION_INSURANCE), từ thiện (PIT_DEDUCTION_CHARITY).
-  2. BRACKET: Đầy đủ các bậc thuế trong Biểu thuế lũy tiến từng phần (PIT_BRACKET_1 đến PIT_BRACKET_7)."""
 
 SEED_TEMPLATES = [
     {
@@ -191,7 +160,7 @@ SEED_TEMPLATES = [
     },
     {
         "prompt_key": "PROMPT_DEPENDENT_OCR",
-        "system_prompt": DEPENDENT_OCR_SYSTEM_PROMPT,
+        "system_prompt": DEPENDENT_OCR_SYSTEM_PROMPT_TEMPLATE,
         "description": "System prompt bóc tách và thẩm định giấy tờ người phụ thuộc",
         "variables": ["dependent_rules_text"],
         "is_active": True,
@@ -207,9 +176,9 @@ SEED_TEMPLATES = [
     },
     {
         "prompt_key": "PROMPT_TAX_RULE_EXTRACTION",
-        "system_prompt": TAX_RULE_EXTRACTION_SYSTEM_PROMPT,
+        "system_prompt": TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE,
         "description": "System prompt phân tích và bóc tách quy tắc thuế từ văn bản pháp luật PDF",
-        "variables": ["tax_year", "default_set_name", "source_url", "legal_doc_name"],
+        "variables": TAX_RULE_EXTRACTION_PROMPT_VARIABLES,
         "is_active": True,
         "version": 1
     }

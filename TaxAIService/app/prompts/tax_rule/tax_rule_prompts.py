@@ -1,23 +1,8 @@
 from typing import Optional
-from app.enum import DependentType, TaxRuleType, TaxRuleStatus
+from app.enum import DependentType, TaxRuleType, TaxRuleStatus, RequiredDocumentType
 
 
-def build_tax_rule_extraction_prompt(
-    tax_year: int,
-    default_set_name: str,
-    source_url: Optional[str] = None,
-    legal_doc_name: Optional[str] = None,
-    document_text: Optional[str] = None,
-) -> str:
-    """
-    Xây dựng prompt chuyên sâu hướng dẫn Gemini LLM đọc, phân tích và trích xuất
-    đầy đủ, chi tiết các quy tắc Luật Thuế Thu Nhập Cá Nhân theo chuẩn JSON Output.
-    """
-    valid_dependent_types = ", ".join([dt.value for dt in DependentType])
-    valid_rule_types = ", ".join([rt.value for rt in TaxRuleType])
-    default_status = TaxRuleStatus.DRAFT.value
-
-    prompt = f"""
+TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE = """
 Bạn là một Chuyên gia Pháp chế cao cấp và Chuyên gia Phân tích Dữ liệu Thuế Thu Nhập Cá Nhân (PIT Legal & Tax Engine Specialist).
 Nhiệm vụ của bạn là đọc sâu, rà soát toàn diện từng điều, khoản, điểm và bảng phụ lục trong văn bản pháp luật được cung cấp, sau đó phân tích và trích xuất CHUYÊN BIỆT CÁC QUY TẮC THUẾ THU NHẬP CÁ NHÂN TỪ TIỀN LƯƠNG, TIỀN CÔNG (Personal Income Tax on Salary & Wages / Employment Income) có trong văn bản này phục vụ cho Công cụ Tính Thuế (Tax Calculation Engine).
 
@@ -29,8 +14,8 @@ QUY TẮC RÀNG BUỘC PHẠM VI BẮT BUỘC (SCOPE CONSTRAINTS - CHỈ LẤY T
 THÔNG TIN ĐẦU VÀO:
 - Năm tính thuế người dùng nhập (taxYear): {tax_year}
 - Tên Rule Set: {default_set_name}
-- Nguồn tài liệu (sourceUrl): {source_url or ""}
-- Văn bản căn cứ (legalDocument): {legal_doc_name or "Luật Thuế Thu Nhập Cá Nhân"}
+- Nguồn tài liệu (sourceUrl): {source_url}
+- Văn bản căn cứ (legalDocument): {legal_doc_name}
 
 ════════════════════════════════════════════════════════════════════════════════
 QUY TRÌNH PHÂN TÍCH VĂN BẢN PHÁP LUẬT BẮT BUỘC (DEEP ANALYSIS PROTOCOL):
@@ -75,12 +60,29 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
       - Giá trị (value): Số tiền VND/người/tháng theo luật quy định (ví dụ: 4400000 hoặc mức cập nhật mới như 6200000).
       - Đơn vị (unit): "VND/person/month".
       - Điều kiện (condition): Phân tích chi tiết các điều kiện xét duyệt giảm trừ người phụ thuộc và xuất chuỗi JSON theo cấu trúc chuẩn.
-        * Xác định đầy đủ các nhóm đối tượng người phụ thuộc theo quy định pháp luật (ví dụ: Con chưa thành niên [CHILD], Con thành niên đang học/khuyết tật [ADULT_CHILD], Vợ/chồng [SPOUSE], Cha mẹ [PARENT], Người phụ thuộc khác [OTHER]).
+        * BẮT BUỘC TÁCH RỜI TỪNG NHÓM ĐỐI TƯỢNG VÀ TỪNG PHÂN NHÁNH ĐIỀU KIỆN (TUYỆT ĐỐI KHÔNG GỘP CHUNG):
+          Mã nhóm "type" BẮT BUỘC chọn từ danh sách nhóm chuẩn hóa ({valid_dependent_types}), TRONG ĐÓ BẮT BUỘC SỬ DỤNG CHÍNH XÁC CÁC MÃ PHÂN NHÁNH CHI TIẾT SAU:
+          - Với NHÓM CHA MẸ (Ba mẹ: cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi hợp pháp, cha dượng, mẹ kế):
+            + "PARENT_RETIRED": Dành cho Cha mẹ NGOÀI ĐỘ TUỔI LAO ĐỘNG (nam từ đủ 60/62 tuổi, nữ từ đủ 55/60 tuổi trở lên). Điều kiện: Không có thu nhập hoặc thu nhập bình quân tháng trong năm không vượt quá mức quy định (maxMonthlyIncome, vd: 1000000). Đặt isDisabled = false, isStudying = false. Bắt buộc tách riêng từng vai trò cụ thể trong "name" (ví dụ: "Cha đẻ ngoài độ tuổi lao động", "Mẹ đẻ ngoài độ tuổi lao động", "Cha/mẹ của vợ hoặc chồng ngoài độ tuổi lao động"). Hồ sơ: CCCD (chứng minh tuổi), Giấy khai sinh/CT07 (chứng minh quan hệ).
+            + "PARENT_DISABLED": Dành cho Cha mẹ TRONG ĐỘ TUỔI LAO ĐỘNG nhưng BỊ KHUYẾT TẬT / MẤT KHẢ NĂNG LAO ĐỘNG (suy giảm từ 61% trở lên). Điều kiện: Bị khuyết tật/mất KNLĐ VÀ thu nhập không vượt mức quy định (maxMonthlyIncome). Đặt isDisabled = true, isStudying = false. Bắt buộc tách riêng trong "name" (ví dụ: "Cha đẻ trong độ tuổi lao động bị khuyết tật", "Mẹ đẻ trong độ tuổi lao động bị khuyết tật"). Hồ sơ: Giấy xác nhận khuyết tật / hồ sơ bệnh án kết luận mất KNLĐ, CCCD, Giấy khai sinh/CT07.
+          - Với NHÓM CON (Con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng, con ngoài giá thú):
+            + "CHILD_UNDER_18": Dành cho con chưa thành niên (dưới 18 tuổi). Đặt maxAge = 18, isStudying = false, isDisabled = false, maxMonthlyIncome = null. Bắt buộc tách riêng từng vai trò cụ thể trong "name":
+              * "Con đẻ dưới 18 tuổi" (Hồ sơ: BIRTH_CERTIFICATE, CITIZEN_ID nếu có).
+              * "Con nuôi hợp pháp dưới 18 tuổi" (Hồ sơ: RELATIONSHIP_CERTIFICATE hoặc BIRTH_CERTIFICATE [Quyết định công nhận việc nuôi con nuôi / Khai sinh], CITIZEN_ID nếu có).
+              * "Con riêng của vợ hoặc chồng dưới 18 tuổi" (Hồ sơ: MARRIAGE_CERTIFICATE [Chứng nhận kết hôn của cha mẹ], BIRTH_CERTIFICATE của con, CITIZEN_ID nếu có).
+            + "CHILD_OVER_18_STUDYING": Dành cho con từ 18 tuổi trở lên ĐANG THEO HỌC (ĐH, CĐ, THCN, dạy nghề...). Đặt isStudying = true, isDisabled = false, kèm maxMonthlyIncome (vd: 1000000). Bắt buộc tách riêng: "Con đẻ từ 18 tuổi trở lên đang theo học", "Con nuôi hợp pháp từ 18 tuổi trở lên đang theo học", "Con riêng từ 18 tuổi trở lên đang theo học". Hồ sơ: STUDENT_CARD (Thẻ HSSV hoặc giấy xác nhận của nhà trường), kèm giấy tờ chứng minh quan hệ (BIRTH_CERTIFICATE / RELATIONSHIP_CERTIFICATE / MARRIAGE_CERTIFICATE).
+            + "CHILD_OVER_18_DISABLED": Dành cho con từ 18 tuổi trở lên BỊ KHUYẾT TẬT / MẤT KHẢ NĂNG LAO ĐỘNG. Đặt isStudying = false, isDisabled = true, kèm maxMonthlyIncome. Bắt buộc tách riêng: "Con đẻ bị khuyết tật", "Con nuôi hợp pháp bị khuyết tật", "Con riêng bị khuyết tật". Hồ sơ: DISABILITY_CERTIFICATE (Giấy xác nhận khuyết tật / hồ sơ bệnh án kết luận mất KNLĐ), kèm giấy tờ quan hệ (BIRTH_CERTIFICATE / RELATIONSHIP_CERTIFICATE / MARRIAGE_CERTIFICATE).
+          - Với NHÓM VỢ HOẶC CHỒNG:
+            + "SPOUSE_RETIRED": Vợ hoặc chồng ngoài độ tuổi lao động. Đặt isDisabled = false, isStudying = false, kèm maxMonthlyIncome. Hồ sơ: Đăng ký kết hôn, CCCD.
+            + "SPOUSE_DISABLED": Vợ hoặc chồng trong độ tuổi lao động bị khuyết tật / mất khả năng lao động. Đặt isDisabled = true, isStudying = false, kèm maxMonthlyIncome. Hồ sơ: Đăng ký kết hôn, CCCD, Giấy xác nhận khuyết tật / hồ sơ bệnh án.
+          - Với NHÓM NGƯỜI PHỤ THUỘC KHÁC:
+            + "OTHER_HELPLESS": Các cá nhân khác không nơi nương tựa mà người nộp thuế đang trực tiếp nuôi dưỡng (anh/chị/em ruột, ông/bà nội ngoại, cô/dì/chú/bác/cậu ruột, cháu ruột). Tách riêng nhánh ngoài độ tuổi lao động và nhánh trong độ tuổi lao động bị khuyết tật (đặt isDisabled = true). Hồ sơ: Bản cam kết nghĩa vụ nuôi dưỡng (Mẫu 07/XN-NPT), CCCD, giấy tờ chứng minh quan hệ/cư trú, giấy xác nhận khuyết tật (nếu trong độ tuổi LĐ).
+          - NGUYÊN TẮC: TUYỆT ĐỐI KHÔNG GỘP CHUNG cha và mẹ vào cùng một mục, không gộp nhánh trong tuổi và ngoài tuổi lao động vào cùng một mục. Mỗi tổ hợp đối tượng và điều kiện phải là một mục eligibility riêng rẽ.
         * Đối với danh mục giấy tờ cần nộp (requiredDocuments):
           - Nếu văn bản có quy định cụ thể hồ sơ chứng minh: Trích xuất chính xác theo điều khoản của văn bản đó.
           - Nếu văn bản là Luật khung (chưa quy định chi tiết hồ sơ chứng minh mà dẫn chiếu văn bản hướng dẫn): Hãy dựa trên kiến thức pháp luật quản lý thuế TNCN hiện hành của Việt Nam để đề xuất danh mục giấy tờ pháp lý cần thiết tương ứng với từng nhóm (giấy tờ chứng minh nhân thân, quan hệ huyết thống/hôn nhân/nuôi dưỡng, nghĩa vụ phụng dưỡng, xác nhận đang theo học hoặc mất khả năng lao động/khuyết tật).
         * Cấu trúc JSON bắt buộc:
-        {{"subject": "DEPENDENT", "eligibility": [{{"type": "Mã nhóm chuẩn SNAKE_CASE in hoa ({valid_dependent_types})", "name": "Tên nhóm đối tượng theo đúng văn bản luật", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{{"docType": "Mã loại giấy tờ chuẩn hóa in hoa (BIRTH_CERTIFICATE, CITIZEN_ID, STUDENT_CARD, DISABILITY_CERTIFICATE, MARRIAGE_CERTIFICATE, RELATIONSHIP_CERTIFICATE, SUPPORT_COMMITMENT_FORM, RESIDENCE_CT07, OTHER)", "name": "Tên loại giấy tờ", "isMandatory": "true nếu bắt buộc nộp, false nếu là giấy tờ theo điều kiện/tùy chọn", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}}]}}]}}
+        {"subject": "DEPENDENT", "eligibility": [{"type": "Mã nhóm chuẩn SNAKE_CASE in hoa ({valid_dependent_types})", "name": "Tên nhóm đối tượng theo đúng văn bản luật", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{"docType": "Mã loại giấy tờ chuẩn hóa in hoa ({valid_document_types})", "name": "Tên loại giấy tờ", "isMandatory": "true nếu bắt buộc nộp, false nếu là giấy tờ theo điều kiện/tùy chọn", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}]}]}
    c. PIT_DEDUCTION_INSURANCE: Các khoản đóng bảo hiểm bắt buộc trừ vào thu nhập tiền lương (BHXH, BHYT, BHTN, bảo hiểm trách nhiệm nghề nghiệp).
       - Đơn vị (unit): "VND/month" hoặc "%" hoặc "actual".
    d. PIT_DEDUCTION_CHARITY: Các khoản đóng góp từ thiện, nhân đạo, khuyến học trừ vào thu nhập tiền lương, tiền công.
@@ -115,40 +117,27 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
 ════════════════════════════════════════════════════════════════════════════════
 VĂN BẢN PHÁP LUẬT CẦN PHÂN TÍCH:
 ════════════════════════════════════════════════════════════════════════════════
-"""
-    if document_text:
-        prompt += f"""
-NỘI DUNG VĂN BẢN PHÁP LUẬT:
----
-{document_text[:45000]}
----
-"""
-    else:
-        prompt += """
-TÀI LIỆU PHÁP LUẬT ĐÍNH KÈM:
-File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang in điện tử, scan ảnh và bảng biểu). Hãy rà soát kỹ từng trang để tìm các điều khoản quy định về thuế thu nhập từ tiền lương, tiền công: Biểu thuế lũy tiến từng phần, Mức giảm trừ gia cảnh (bản thân, người phụ thuộc), các khoản giảm trừ bảo hiểm/từ thiện, thuế suất tiền lương đặc thù và các khoản miễn thuế gắn liền với tiền lương.
-"""
+{document_section}
 
-    prompt += f"""
 ════════════════════════════════════════════════════════════════════════════════
 YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ, KHÔNG KÈM TEXT GIẢI THÍCH):
 ════════════════════════════════════════════════════════════════════════════════
-{{
-  "verification": {{
+{
+  "verification": {
     "inputTaxYear": {tax_year},
     "extractedTaxYear": {tax_year},
     "isTaxYearMatched": true,
     "mismatchReason": null
-  }},
-  "taxRuleSet": {{
+  },
+  "taxRuleSet": {
     "name": "{default_set_name}",
     "taxYear": {tax_year},
     "effectiveFrom": "YYYY-MM-DD hoặc null (lấy từ ngày hiệu lực thi hành của văn bản)",
     "effectiveTo": "YYYY-MM-DD hoặc null",
     "status": "{default_status}"
-  }},
+  },
   "taxRules": [
-    {{
+    {
       "ruleCode": "Mã chuẩn SNAKE_CASE in hoa (ví dụ: PIT_DEDUCTION_PERSONAL, PIT_BRACKET_1, PIT_RATE_NON_RESIDENT_SALARY)",
       "ruleName": "Tên quy tắc ngắn gọn, rõ nghĩa bằng tiếng Việt hoặc tiếng Anh",
       "ruleType": "Bắt buộc thuộc một trong các loại: {valid_rule_types}",
@@ -157,14 +146,65 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
       "unit": "VND/month hoặc VND/person/month hoặc % hoặc null",
       "effectiveFrom": "YYYY-MM-DD hoặc null",
       "effectiveTo": "YYYY-MM-DD hoặc null",
-      "legalDocument": "{legal_doc_name or 'Luật Thuế Thu Nhập Cá Nhân'}",
+      "legalDocument": "{legal_doc_name}",
       "article": "Số điều (ví dụ: 'Điều 19' hoặc '19')",
       "clause": "Số khoản (ví dụ: 'Khoản 1' hoặc '1')",
       "point": "Điểm (ví dụ: 'Điểm a' hoặc 'a') hoặc null",
-      "sourceUrl": "{source_url or ''}",
+      "sourceUrl": "{source_url}",
       "status": "{default_status}"
-    }}
+    }
   ]
-}}
+}
 """
+
+
+TAX_RULE_EXTRACTION_PROMPT_VARIABLES = ['tax_year', 'default_set_name', 'source_url', 'legal_doc_name', 'valid_dependent_types', 'valid_document_types', 'valid_rule_types', 'default_status', 'document_section']
+
+
+def build_tax_rule_extraction_prompt_params(
+    tax_year: int,
+    default_set_name: str,
+    source_url: Optional[str] = None,
+    legal_doc_name: Optional[str] = None,
+    document_text: Optional[str] = None,
+) -> dict[str, str | int]:
+    if document_text:
+        document_section = f"""
+NỘI DUNG VĂN BẢN PHÁP LUẬT:
+---
+{document_text[:45000]}
+---
+"""
+    else:
+        document_section = """
+TÀI LIỆU PHÁP LUẬT ĐÍNH KÈM:
+File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang in điện tử, scan ảnh và bảng biểu). Hãy rà soát kỹ từng trang để tìm các điều khoản quy định về thuế thu nhập từ tiền lương, tiền công: Biểu thuế lũy tiến từng phần, Mức giảm trừ gia cảnh (bản thân, người phụ thuộc), các khoản giảm trừ bảo hiểm/từ thiện, thuế suất tiền lương đặc thù và các khoản miễn thuế gắn liền với tiền lương.
+"""
+
+    return {
+        "tax_year": tax_year,
+        "default_set_name": default_set_name,
+        "source_url": source_url or "",
+        "legal_doc_name": legal_doc_name or "Luật Thuế Thu Nhập Cá Nhân",
+        "valid_dependent_types": ", ".join(item.value for item in DependentType),
+        "valid_document_types": ", ".join(item.value for item in RequiredDocumentType),
+        "valid_rule_types": ", ".join(item.value for item in TaxRuleType),
+        "default_status": TaxRuleStatus.DRAFT.value,
+        "document_section": document_section,
+    }
+
+
+def build_tax_rule_extraction_prompt(
+    tax_year: int,
+    default_set_name: str,
+    source_url: Optional[str] = None,
+    legal_doc_name: Optional[str] = None,
+    document_text: Optional[str] = None,
+) -> str:
+    params = build_tax_rule_extraction_prompt_params(
+        tax_year, default_set_name, source_url, legal_doc_name, document_text
+    )
+    prompt = TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE
+    for key, value in params.items():
+        prompt = prompt.replace(f"{{{key}}}", str(value))
     return prompt

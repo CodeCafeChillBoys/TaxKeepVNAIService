@@ -5,6 +5,7 @@ from typing import Optional, List, Tuple
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
+from app.models.dependent_rule_document import DependentRuleDocument
 from app.repositories.interfaces.irepository import IRepository
 
 
@@ -80,4 +81,56 @@ class ITaxRuleRepository(IRepository[TaxRuleSet]):
         dependent_rules: Optional[List[dict]] = None
     ) -> Optional[Tuple[TaxRuleSet, List[TaxRule], List[DependentRule]]]:
         """Chỉnh sửa thông tin TaxRuleSet, TaxRules và DependentRules."""
+        pass
+
+    @abstractmethod
+    def create_dependent_rule(
+        self,
+        rule_id: uuid.UUID,
+        dep_data: dict
+    ) -> DependentRule:
+        """Thêm mới một DependentRule cùng các giấy tờ required_documents."""
+        pass
+
+    @abstractmethod
+    def update_dependent_rule(
+        self,
+        dep_id: uuid.UUID,
+        dep_data: dict
+    ) -> Optional[DependentRule]:
+        """Cập nhật một DependentRule cùng các giấy tờ required_documents."""
+        pass
+
+    @abstractmethod
+    def delete_dependent_rule(
+        self,
+        dep_id: uuid.UUID
+    ) -> bool:
+        """Xóa một DependentRule."""
+        pass
+
+    @abstractmethod
+    def add_required_document(
+        self,
+        dependent_rule_id: uuid.UUID,
+        doc_data: dict
+    ) -> DependentRuleDocument:
+        """Thêm mới một DependentRuleDocument cho DependentRule."""
+        pass
+
+    @abstractmethod
+    def update_required_document(
+        self,
+        doc_id: uuid.UUID,
+        doc_data: dict
+    ) -> Optional[DependentRuleDocument]:
+        """Cập nhật thông tin một DependentRuleDocument."""
+        pass
+
+    @abstractmethod
+    def delete_required_document(
+        self,
+        doc_id: uuid.UUID
+    ) -> bool:
+        """Xóa một DependentRuleDocument."""
         pass

@@ -4,7 +4,7 @@ from fastapi import status, HTTPException
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 from app.services.interfaces.tax_rule_service_interface import ITaxRuleService
 from app.services.tax_rule.tax_rule_document_service import TaxRuleDocumentService
-from app.mappers.tax_rule import format_tax_rule_data
+from app.mappers.tax_rule import format_tax_rule_data, parse_condition
 from app.enum import TaxRuleStatus
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleServiceError
 
@@ -170,4 +170,159 @@ class TaxRuleService(ITaxRuleService):
             "status": TaxRuleStatus.ACTIVE.value,
             "approvedBy": approved_rule_set.approved_by,
             "approvedAt": approved_rule_set.approved_at
+        }
+
+    def create_dependent_rule(
+        self,
+        rule_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Thêm mới một DependentRule."""
+        data = payload.model_dump(by_alias=False) if hasattr(payload, "model_dump") else payload
+        created = self.repository.create_dependent_rule(rule_id=rule_id, dep_data=data)
+        return {
+            "message": "Dependent rule created successfully.",
+            "data": {
+                "id": str(created.id),
+                "ruleId": str(created.rule_id),
+                "dependentType": created.dependent_type,
+                "name": created.name,
+                "maxAge": created.max_age,
+                "maxMonthlyIncome": created.max_monthly_income,
+                "isStudying": created.is_studying,
+                "isDisabled": created.is_disabled,
+                "conditions": parse_condition(created.conditions),
+                "requiredDocuments": [
+                    {
+                        "id": str(doc.id),
+                        "dependentRuleId": str(doc.dependent_rule_id),
+                        "docType": doc.doc_type,
+                        "name": doc.name,
+                        "isMandatory": doc.is_mandatory,
+                        "description": doc.description
+                    }
+                    for doc in created.required_documents
+                ],
+                "status": created.status
+            }
+        }
+
+    def update_dependent_rule(
+        self,
+        dep_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Cập nhật một DependentRule."""
+        data = payload.model_dump(by_alias=False) if hasattr(payload, "model_dump") else payload
+        updated = self.repository.update_dependent_rule(dep_id=dep_id, dep_data=data)
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Dependent rule not found."
+            )
+        return {
+            "message": "Dependent rule updated successfully.",
+            "data": {
+                "id": str(updated.id),
+                "ruleId": str(updated.rule_id),
+                "dependentType": updated.dependent_type,
+                "name": updated.name,
+                "maxAge": updated.max_age,
+                "maxMonthlyIncome": updated.max_monthly_income,
+                "isStudying": updated.is_studying,
+                "isDisabled": updated.is_disabled,
+                "conditions": parse_condition(updated.conditions),
+                "requiredDocuments": [
+                    {
+                        "id": str(doc.id),
+                        "dependentRuleId": str(doc.dependent_rule_id),
+                        "docType": doc.doc_type,
+                        "name": doc.name,
+                        "isMandatory": doc.is_mandatory,
+                        "description": doc.description
+                    }
+                    for doc in updated.required_documents
+                ],
+                "status": updated.status
+            }
+        }
+
+    def delete_dependent_rule(
+        self,
+        dep_id: uuid.UUID
+    ) -> Dict[str, Any]:
+        """Xóa một DependentRule."""
+        success = self.repository.delete_dependent_rule(dep_id=dep_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Dependent rule not found."
+            )
+        return {
+            "message": "Dependent rule deleted successfully.",
+            "dependentRuleId": str(dep_id)
+        }
+
+    def add_required_document(
+        self,
+        dependent_rule_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Thêm mới một RequiredDocument."""
+        data = payload.model_dump(by_alias=False) if hasattr(payload, "model_dump") else payload
+        try:
+            doc = self.repository.add_required_document(dependent_rule_id=dependent_rule_id, doc_data=data)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        return {
+            "message": "Required document added successfully.",
+            "data": {
+                "id": str(doc.id),
+                "dependentRuleId": str(doc.dependent_rule_id),
+                "docType": doc.doc_type,
+                "name": doc.name,
+                "isMandatory": doc.is_mandatory,
+                "description": doc.description
+            }
+        }
+
+    def update_required_document(
+        self,
+        doc_id: uuid.UUID,
+        payload: Any
+    ) -> Dict[str, Any]:
+        """Cập nhật một RequiredDocument."""
+        data = payload.model_dump(by_alias=False) if hasattr(payload, "model_dump") else payload
+        doc = self.repository.update_required_document(doc_id=doc_id, doc_data=data)
+        if not doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Required document not found."
+            )
+        return {
+            "message": "Required document updated successfully.",
+            "data": {
+                "id": str(doc.id),
+                "dependentRuleId": str(doc.dependent_rule_id),
+                "docType": doc.doc_type,
+                "name": doc.name,
+                "isMandatory": doc.is_mandatory,
+                "description": doc.description
+            }
+        }
+
+    def delete_required_document(
+        self,
+        doc_id: uuid.UUID
+    ) -> Dict[str, Any]:
+        """Xóa một RequiredDocument."""
+        success = self.repository.delete_required_document(doc_id=doc_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Required document not found."
+            )
+        return {
+            "message": "Required document deleted successfully.",
+            "documentId": str(doc_id)
         }

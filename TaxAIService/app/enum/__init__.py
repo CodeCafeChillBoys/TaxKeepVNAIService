@@ -1,4 +1,4 @@
-from app.enum.tax_rule_enum import TaxRuleType, DependentType, TaxRuleStatus
+from app.enum.tax_rule_enum import TaxRuleType, DependentType, TaxRuleStatus, RequiredDocumentType
 from app.enum.ocr_document_enum import DocumentType, DependentGroup
 from app.enum.expense_document_enum import (
     DocumentExtractionStatus,
@@ -12,6 +12,7 @@ __all__ = [
     "TaxRuleType",
     "DependentType",
     "TaxRuleStatus",
+    "RequiredDocumentType",
     "DocumentType",
     "DependentGroup",
     "DocumentExtractionStatus",

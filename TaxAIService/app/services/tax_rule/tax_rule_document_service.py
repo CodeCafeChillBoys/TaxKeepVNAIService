@@ -6,6 +6,8 @@ from app.core.config import settings
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 from app.services.tax_rule.pdf_service import pdf_service
 from app.services.tax_rule.tax_rule_extraction_service import tax_rule_extraction_service
+from app.repositories.prompt_template.prompt_template_repository import PromptTemplateRepository
+from app.services.prompt_template.prompt_template_service import PromptTemplateService
 from app.mappers.tax_rule import build_tax_rule_models, format_tax_rule_data
 from app.errors.tax_rule_errors import TaxRuleErrorMessages, TaxRuleServiceError
 from app.errors.pdf_errors import PDFProcessingError
@@ -89,13 +91,20 @@ class TaxRuleDocumentService:
 
             # 4. Gọi Gemini AI để trích xuất tax_rule_sets & tax_rules
             try:
+                db = getattr(self.repository, "db", None)
+                prompt_options = {}
+                if db is not None:
+                    prompt_options["prompt_service"] = PromptTemplateService(
+                        PromptTemplateRepository(db)
+                    )
                 extracted_data = tax_rule_extraction_service.extract_tax_rules(
                     document_text=pdf_text if not is_scanned else None,
                     pdf_bytes=scan_bytes if is_scanned else None,
                     tax_year=tax_year,
                     rule_set_name=name,
                     source_url=source_url,
-                    legal_doc_name=filename
+                    legal_doc_name=filename,
+                    **prompt_options,
                 )
             except HTTPException as he:
                 raise TaxRuleServiceError(

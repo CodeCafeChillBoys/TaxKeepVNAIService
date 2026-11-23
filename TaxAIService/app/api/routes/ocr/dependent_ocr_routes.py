@@ -65,7 +65,16 @@ async def extract_dependent_document(
             (DependentRule.dependent_type == target_group) | (DependentRule.dependent_type == norm_group)
         ).first()
         if dep_rule and dep_rule.required_documents:
-            rules = dep_rule.required_documents
+            rules = [
+                {
+                    "id": str(d.id) if hasattr(d, "id") else d.get("id"),
+                    "docType": d.doc_type if hasattr(d, "doc_type") else d.get("docType", d.get("doc_type")),
+                    "name": d.name if hasattr(d, "name") else d.get("name"),
+                    "isMandatory": d.is_mandatory if hasattr(d, "is_mandatory") else d.get("isMandatory", d.get("is_mandatory", True)),
+                    "description": d.description if hasattr(d, "description") else d.get("description"),
+                }
+                for d in dep_rule.required_documents
+            ]
 
     # Nếu Swagger UI gửi 0 hoặc số <= 0, reset về None để tự động lấy từ DB system_configs
     if applied_threshold is not None and applied_threshold <= 0:

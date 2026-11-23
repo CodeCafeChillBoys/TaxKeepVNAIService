@@ -4,7 +4,23 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.models.tax_rule_set import TaxRuleSet
 from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
-from app.enum import TaxRuleStatus
+from app.models.dependent_rule_document import DependentRuleDocument
+from app.enum import TaxRuleStatus, RequiredDocumentType
+
+
+def normalize_document_type(raw_type: Any) -> str:
+    """Chuẩn hóa mã định danh loại giấy tờ về enum RequiredDocumentType"""
+    if not raw_type:
+        return RequiredDocumentType.OTHER.value
+    cleaned = str(raw_type).strip().upper()
+    if cleaned in ("CCCD", "CMND", "CCCD_FRONT", "CCCD_BACK", "CCCD_BOTH"):
+        return RequiredDocumentType.CITIZEN_ID.value
+    if cleaned == "DISABILITY_CERT":
+        return RequiredDocumentType.DISABILITY_CERTIFICATE.value
+    try:
+        return RequiredDocumentType(cleaned).value
+    except ValueError:
+        return RequiredDocumentType.OTHER.value
 
 
 def parse_condition(cond_val: Any) -> Any:
@@ -68,7 +84,17 @@ def format_tax_rule_data(
                 "isStudying": dep.is_studying,
                 "isDisabled": dep.is_disabled,
                 "conditions": parse_condition(dep.conditions),
-                "requiredDocuments": dep.required_documents or [],
+                "requiredDocuments": [
+                    {
+                        "id": str(doc.id) if hasattr(doc, "id") and doc.id else None,
+                        "dependentRuleId": str(doc.dependent_rule_id) if hasattr(doc, "dependent_rule_id") and doc.dependent_rule_id else str(dep.id),
+                        "docType": doc.doc_type if hasattr(doc, "doc_type") else (doc.get("docType") or doc.get("doc_type")),
+                        "name": doc.name if hasattr(doc, "name") else doc.get("name"),
+                        "isMandatory": doc.is_mandatory if hasattr(doc, "is_mandatory") else doc.get("isMandatory", doc.get("is_mandatory", True)),
+                        "description": doc.description if hasattr(doc, "description") else doc.get("description")
+                    }
+                    for doc in (dep.required_documents or [])
+                ],
                 "status": dep.status
             }
             for dep in dep_rules
@@ -167,9 +193,24 @@ def build_tax_rule_models(
                     is_studying=is_stud,
                     is_disabled=is_dis,
                     conditions=conds_str,
-                    required_documents=required_docs,
                     status=TaxRuleStatus.DRAFT.value
                 )
+                if required_docs:
+                    for rdoc in required_docs:
+                        doc_dict = rdoc if isinstance(rdoc, dict) else (rdoc.model_dump() if hasattr(rdoc, "model_dump") else {})
+                        doc_type = normalize_document_type(doc_dict.get("docType") or doc_dict.get("doc_type"))
+                        doc_name = doc_dict.get("name") or doc_type
+                        is_mand = bool(doc_dict.get("isMandatory", doc_dict.get("is_mandatory", True)))
+                        doc_desc = doc_dict.get("description")
+                        doc_obj = DependentRuleDocument(
+                            dependent_rule_id=dep_rule.id,
+                            doc_type=doc_type,
+                            name=doc_name,
+                            is_mandatory=is_mand,
+                            description=doc_desc
+                        )
+                        dep_rule.required_documents.append(doc_obj)
+
                 rule_obj.dependent_rules.append(dep_rule)
                 dependent_rules_to_create.append(dep_rule)
 
