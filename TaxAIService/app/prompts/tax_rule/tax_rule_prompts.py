@@ -1,5 +1,11 @@
 from typing import Optional
-from app.enum import DependentType, TaxRuleType, TaxRuleStatus, RequiredDocumentType
+from app.enum import (
+    DependentType,
+    TaxRuleType,
+    TaxRuleStatus,
+    RequiredDocumentType,
+    DependentRelationship,
+)
 
 
 TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE = """
@@ -65,19 +71,26 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
           - Khi văn bản luật đề cập đến một nhóm đối tượng chung kèm theo các diện thành phần (ví dụ: nhóm 'Con' gồm con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng, con ngoài giá thú; nhóm 'Cha mẹ' gồm cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi hợp pháp; nhóm 'Cá nhân khác' gồm anh chị em, ông bà, cô dì chú bác cháu...), AI BẮT BUỘC đọc sâu văn bản và bóc tách riêng rẽ từng diện đối tượng thành phần kết hợp với từng khung điều kiện (độ tuổi, tình trạng lao động, học tập).
           - TUYỆT ĐỐI KHÔNG GỘP CHUNG nhiều vai trò vào cùng một mục (ví dụ: không gộp con đẻ với con nuôi/con riêng; không gộp cha với mẹ; không gộp người trong độ tuổi với ngoài độ tuổi lao động). Mỗi tổ hợp [Đối tượng cụ thể + Điều kiện cụ thể] BẮT BUỘC là 1 phần tử riêng biệt trong danh sách "eligibility".
 
+        * NGUYÊN TẮC PHÂN LOẠI QUAN HỆ (RELATIONSHIP MAPPING):
+          Mỗi nhóm đối tượng trong "eligibility" BẮT BUỘC có trường "relationship", chọn chính xác từ danh mục quan hệ ({valid_relationships}):
+          - "CHILD": Dành cho các nhóm con (con đẻ, con nuôi, con riêng, con ngoài giá thú), ví dụ: CHILD_UNDER_18, CHILD_OVER_18_STUDYING, CHILD_OVER_18_DISABLED.
+          - "PARENT": Dành cho các nhóm cha mẹ (cha mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi, cha dượng, mẹ kế), ví dụ: PARENT_RETIRED, PARENT_DISABLED.
+          - "SPOUSE": Dành cho vợ hoặc chồng, ví dụ: SPOUSE_RETIRED, SPOUSE_DISABLED.
+          - "OTHER_DEPENDENT": Dành cho cá nhân khác không nơi nương tựa mà NNT trực tiếp nuôi dưỡng (anh chị em, ông bà, cô dì chú bác cháu...), ví dụ: OTHER_HELPLESS.
+
         * NGUYÊN TẮC PHÂN LOẠI MÃ NHÓM (TYPE MAPPING):
           Mã "type" BẮT BUỘC chọn từ danh sách nhóm chuẩn hóa ({valid_dependent_types}) căn cứ theo điều kiện pháp lý của đối tượng trong văn bản:
-          - Con dưới 18 tuổi: "CHILD_UNDER_18" (maxAge: 18, isStudying: false, isDisabled: false).
-          - Con từ 18 tuổi trở lên đang theo học (ĐH, CĐ, THCN, dạy nghề...): "CHILD_OVER_18_STUDYING" (isStudying: true, isDisabled: false).
-          - Con từ 18 tuổi trở lên bị khuyết tật, mất KNLĐ: "CHILD_OVER_18_DISABLED" (isStudying: false, isDisabled: true).
-          - Cha/mẹ ngoài độ tuổi lao động: "PARENT_RETIRED" (isDisabled: false, isStudying: false).
-          - Cha/mẹ trong độ tuổi lao động bị khuyết tật, mất KNLĐ: "PARENT_DISABLED" (isDisabled: true, isStudying: false).
-          - Vợ/chồng ngoài độ tuổi lao động: "SPOUSE_RETIRED".
-          - Vợ/chồng trong độ tuổi lao động bị khuyết tật: "SPOUSE_DISABLED".
-          - Người phụ thuộc khác không nơi nương tựa: "OTHER_HELPLESS".
-          - TRƯỜNG HỢP LUẬT MỚI BỔ SUNG ĐỐI TƯỢNG MỚI: Nếu văn bản luật quy định một nhóm đối tượng hoàn toàn mới chưa có trong danh mục chuẩn hóa ({valid_dependent_types}), AI BẮT BUỘC tự động đặt một mã định danh kỹ thuật mới chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "LEGAL_GUARDIAN", "MARTYR_RELATIVE", "CHILD_MILITARY_SERVICE") và ghi chi tiết tên tiếng Việt có dấu vào trường "name".
+          - Con dưới 18 tuổi: "CHILD_UNDER_18" (maxAge: 18, isStudying: false, isDisabled: false, relationship: "CHILD").
+          - Con từ 18 tuổi trở lên đang theo học (ĐH, CĐ, THCN, dạy nghề...): "CHILD_OVER_18_STUDYING" (isStudying: true, isDisabled: false, relationship: "CHILD").
+          - Con từ 18 tuổi trở lên bị khuyết tật, mất KNLĐ: "CHILD_OVER_18_DISABLED" (isStudying: false, isDisabled: true, relationship: "CHILD").
+          - Cha/mẹ ngoài độ tuổi lao động: "PARENT_RETIRED" (isDisabled: false, isStudying: false, relationship: "PARENT").
+          - Cha/mẹ trong độ tuổi lao động bị khuyết tật, mất KNLĐ: "PARENT_DISABLED" (isDisabled: true, isStudying: false, relationship: "PARENT").
+          - Vợ/chồng ngoài độ tuổi lao động: "SPOUSE_RETIRED" (relationship: "SPOUSE").
+          - Vợ/chồng trong độ tuổi lao động bị khuyết tật: "SPOUSE_DISABLED" (relationship: "SPOUSE").
+          - Người phụ thuộc khác không nơi nương tựa: "OTHER_HELPLESS" (relationship: "OTHER_DEPENDENT").
+          - TRƯỜNG HỢP LUẬT MỚI BỔ SUNG ĐỐI TƯỢNG MỚI: Nếu văn bản luật quy định một nhóm đối tượng hoàn toàn mới chưa có trong danh mục chuẩn hóa ({valid_dependent_types}), AI BẮT BUỘC tự động đặt một mã định danh kỹ thuật mới chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "LEGAL_GUARDIAN", "MARTYR_RELATIVE", "CHILD_MILITARY_SERVICE") và ghi chi tiết tên tiếng Việt có dấu vào trường "name", đồng thời xác định đúng "relationship" tương ứng ({valid_relationships}).
 
-        * NGUYÊN TẮC BÓC TÁCH HỒ SƠ GIẤY TỜ (REQUIRED DOCUMENTS EXTRACTION):
+        * NGUYÊN TẮC BÓC TÁCH HỒ SƠ GIẤY TỜ VÀ QUY TẮC "CHỌN 1 TRONG N" (ALTERNATIVE GROUP):
           - Đọc kỹ quy định về hồ sơ chứng minh trong văn bản (hoặc dẫn chiếu kiến thức pháp luật quản lý thuế TNCN hiện hành nếu văn bản là Luật khung chưa quy định chi tiết hồ sơ) để xác định danh mục giấy tờ cần thiết cho từng đối tượng cụ thể.
           - Tự động ánh xạ (map) từng loại giấy tờ vào mã định danh chuẩn hóa ({valid_document_types}):
             + Giấy khai sinh, trích lục khai sinh -> BIRTH_CERTIFICATE
@@ -90,10 +103,15 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
             + Giấy xác nhận thông tin về cư trú (Mẫu CT07) -> RESIDENCE_CT07
             + Giấy tờ hợp lệ khác theo luật -> OTHER
             + TRƯỜNG HỢP CHỨNG TỪ MỚI CỦA LUẬT MỚI: Nếu văn bản luật quy định một loại giấy tờ đặc thù mới chưa có trong danh mục ({valid_document_types}), AI tự động đặt một mã chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "MILITARY_SERVICE_CERTIFICATE", "SOCIAL_ASSISTANCE_BOOK") và ghi tên tiếng Việt đầy đủ vào "name".
-          - Xác định đúng thuộc tính "isMandatory": true nếu là giấy tờ pháp lý cốt lõi chứng minh đối tượng/quan hệ, false nếu là giấy tờ tùy chọn theo điều kiện ("nếu có", "nếu cần").
+          - NGUYÊN TẮC NHÓM GIẤY TỜ THAY THẾ NHAU (CHỌN 1 TRONG N - ALTERNATIVE GROUP):
+            + Nếu văn bản ghi các giấy tờ thay thế được cho nhau ("hoặc", "một trong các giấy tờ sau", "bản sao giấy khai sinh hoặc giấy tờ hợp pháp khác chứng minh quan hệ"), thì TẤT CẢ các giấy tờ đó đều đặt "isMandatory": true và CÙNG MANG MỘT MÃ "alternativeGroup" dạng UPPER_SNAKE_CASE (ví dụ: "RELATION_PROOF", "IDENTITY_PROOF").
+            + Ví dụ 1 (Cha/mẹ): CCCD của cha/mẹ là bắt buộc độc lập -> isMandatory: true, alternativeGroup: null. Giấy xác nhận quan hệ (RELATIONSHIP_CERTIFICATE) HOẶC Giấy khai sinh của NNT (BIRTH_CERTIFICATE) để chứng minh quan hệ -> cả hai đều có isMandatory: true, alternativeGroup: "RELATION_PROOF".
+            + Ví dụ 2 (Con dưới 18 tuổi): Giấy khai sinh (BIRTH_CERTIFICATE) HOẶC Căn cước công dân (CITIZEN_ID) để chứng minh nhân thân -> cả hai đều có isMandatory: true, alternativeGroup: "IDENTITY_PROOF".
+            + Giấy tờ bắt buộc độc lập (không có giấy tờ thay thế) hoặc giấy tờ tùy chọn độc lập: đặt "alternativeGroup": null.
+            + Thuộc tính "isMandatory": true nếu là giấy tờ bắt buộc nộp (kể cả khi thuộc nhóm chọn 1 trong N), false nếu là giấy tờ tùy chọn theo điều kiện ("nếu có", "nếu cần").
 
         * CẤU TRÚC JSON BẮT BUỘC:
-        {"subject": "DEPENDENT", "eligibility": [{"type": "Mã nhóm chuẩn ({valid_dependent_types}) hoặc mã UPPER_SNAKE_CASE tự sinh nếu là nhóm mới", "name": "Tên chi tiết đối tượng và điều kiện theo văn bản", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{"docType": "Mã loại giấy tờ chuẩn ({valid_document_types}) hoặc mã UPPER_SNAKE_CASE tự sinh nếu là giấy tờ mới", "name": "Tên loại giấy tờ theo luật", "isMandatory": "true nếu bắt buộc nộp, false nếu là tùy chọn/nếu có", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}]}]}
+        {"subject": "DEPENDENT", "eligibility": [{"type": "Mã nhóm chuẩn ({valid_dependent_types}) hoặc mã UPPER_SNAKE_CASE tự sinh nếu là nhóm mới", "relationship": "Chọn từ ({valid_relationships}): CHILD, SPOUSE, PARENT, OTHER_DEPENDENT", "name": "Tên chi tiết đối tượng và điều kiện theo văn bản", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{"docType": "Mã loại giấy tờ chuẩn ({valid_document_types}) hoặc mã UPPER_SNAKE_CASE tự sinh nếu là giấy tờ mới", "name": "Tên loại giấy tờ theo luật", "isMandatory": "true nếu bắt buộc nộp, false nếu là tùy chọn/nếu có", "alternativeGroup": "Mã nhóm thay thế dạng UPPER_SNAKE_CASE (ví dụ RELATION_PROOF) nếu chọn 1 trong N, hoặc null nếu độc lập", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}]}]}
    c. PIT_DEDUCTION_INSURANCE: Các khoản đóng bảo hiểm bắt buộc trừ vào thu nhập tiền lương (BHXH, BHYT, BHTN, bảo hiểm trách nhiệm nghề nghiệp).
       - Đơn vị (unit): "VND/month" hoặc "%" hoặc "actual".
    d. PIT_DEDUCTION_CHARITY: Các khoản đóng góp từ thiện, nhân đạo, khuyến học trừ vào thu nhập tiền lương, tiền công.
@@ -169,7 +187,18 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
 """
 
 
-TAX_RULE_EXTRACTION_PROMPT_VARIABLES = ['tax_year', 'default_set_name', 'source_url', 'legal_doc_name', 'valid_dependent_types', 'valid_document_types', 'valid_rule_types', 'default_status', 'document_section']
+TAX_RULE_EXTRACTION_PROMPT_VARIABLES = [
+    'tax_year',
+    'default_set_name',
+    'source_url',
+    'legal_doc_name',
+    'valid_dependent_types',
+    'valid_document_types',
+    'valid_relationships',
+    'valid_rule_types',
+    'default_status',
+    'document_section',
+]
 
 
 def build_tax_rule_extraction_prompt_params(
@@ -180,6 +209,7 @@ def build_tax_rule_extraction_prompt_params(
     document_text: Optional[str] = None,
     valid_dependent_types: Optional[str] = None,
     valid_document_types: Optional[str] = None,
+    valid_relationships: Optional[str] = None,
 ) -> dict[str, str | int]:
     if document_text:
         document_section = f"""
@@ -201,6 +231,7 @@ File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang 
         "legal_doc_name": legal_doc_name or "Luật Thuế Thu Nhập Cá Nhân",
         "valid_dependent_types": valid_dependent_types or ", ".join(item.value for item in DependentType),
         "valid_document_types": valid_document_types or ", ".join(item.value for item in RequiredDocumentType),
+        "valid_relationships": valid_relationships or ", ".join(item.value for item in DependentRelationship),
         "valid_rule_types": ", ".join(item.value for item in TaxRuleType),
         "default_status": TaxRuleStatus.DRAFT.value,
         "document_section": document_section,
@@ -215,6 +246,7 @@ def build_tax_rule_extraction_prompt(
     document_text: Optional[str] = None,
     valid_dependent_types: Optional[str] = None,
     valid_document_types: Optional[str] = None,
+    valid_relationships: Optional[str] = None,
 ) -> str:
     params = build_tax_rule_extraction_prompt_params(
         tax_year,
@@ -224,6 +256,7 @@ def build_tax_rule_extraction_prompt(
         document_text,
         valid_dependent_types,
         valid_document_types,
+        valid_relationships,
     )
     prompt = TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE
     for key, value in params.items():

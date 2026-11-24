@@ -50,6 +50,13 @@ SEED_SYSTEM_CONFIGS: List[Dict[str, Any]] = [
         "description": "Danh mục mã phân loại nhóm người phụ thuộc chuẩn hóa (Admin có thể thêm/sửa trên UI)",
         "is_active": True,
     },
+    {
+        "config_key": "ALLOWED_RELATIONSHIPS",
+        "config_value": "CHILD, SPOUSE, PARENT, OTHER_DEPENDENT",
+        "data_type": "LIST_STRING",
+        "description": "Danh mục phân loại quan hệ người phụ thuộc chuẩn hóa (Admin có thể thêm/sửa trên UI)",
+        "is_active": True,
+    },
 
     # ── 2. HÓA ĐƠN CHI PHÍ & CHỨNG TỪ GIẢM TRỪ (EXPENSE OCR) ─────────────────
     # 2.1 Y tế & Khám chữa bệnh

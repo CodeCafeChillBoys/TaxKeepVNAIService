@@ -3,7 +3,13 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
-from app.enum import TaxRuleType, DependentType, TaxRuleStatus, RequiredDocumentType
+from app.enum import (
+    TaxRuleType,
+    DependentType,
+    TaxRuleStatus,
+    RequiredDocumentType,
+    DependentRelationship,
+)
 
 
 @exclude_from_coverage
@@ -59,6 +65,7 @@ class RequiredDocumentResponse(BaseModel):
     doc_type: Union[RequiredDocumentType, str] = Field(..., alias="docType")
     name: str = Field(..., alias="name")
     is_mandatory: bool = Field(True, alias="isMandatory")
+    alternative_group: Optional[str] = Field(None, alias="alternativeGroup")
     description: Optional[str] = Field(None, alias="description")
 
 
@@ -72,7 +79,8 @@ class DependentRuleResponse(BaseModel):
     id: Optional[uuid.UUID] = Field(None, alias="id")
     rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
     rule_set_id: Optional[uuid.UUID] = Field(None, alias="ruleSetId")
-    dependent_type: DependentType = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
+    dependent_type: Union[DependentType, str] = Field(..., alias="dependentType", description="CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER")
+    relationship: Optional[Union[DependentRelationship, str]] = Field(None, alias="relationship", description="CHILD, SPOUSE, PARENT, OTHER_DEPENDENT")
     name: str = Field(..., alias="name")
     max_age: Optional[int] = Field(None, alias="maxAge")
     max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")
