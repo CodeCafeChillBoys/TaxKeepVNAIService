@@ -97,6 +97,7 @@ class TaxRuleDocumentService:
                     prompt_options["prompt_service"] = PromptTemplateService(
                         PromptTemplateRepository(db)
                     )
+                    tax_rule_extraction_service.db = db
                 extracted_data = tax_rule_extraction_service.extract_tax_rules(
                     document_text=pdf_text if not is_scanned else None,
                     pdf_bytes=scan_bytes if is_scanned else None,

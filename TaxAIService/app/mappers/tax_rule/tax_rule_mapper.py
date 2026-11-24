@@ -1,4 +1,6 @@
 import json
+import re
+import unicodedata
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 from app.models.tax_rule_set import TaxRuleSet
@@ -8,11 +10,35 @@ from app.models.dependent_rule_document import DependentRuleDocument
 from app.enum import TaxRuleStatus, RequiredDocumentType
 
 
+def to_snake_case_code(text: Any) -> str:
+    """
+    Chuyển chuỗi bất kỳ thành mã định danh chuẩn UPPER_SNAKE_CASE.
+    Ví dụ: 'BIRTH CERTIFICATE' -> 'BIRTH_CERTIFICATE'
+    """
+    if not text:
+        return ""
+    raw = str(text).strip()
+    # Loại bỏ dấu tiếng Việt (nếu có)
+    norm = unicodedata.normalize("NFD", raw)
+    norm = "".join(c for c in norm if unicodedata.category(c) != "Mn")
+    norm = norm.replace("đ", "d").replace("Đ", "D")
+    # Thay thế khoảng trắng và ký tự đặc biệt bằng dấu gạch dưới
+    snake = re.sub(r"[^a-zA-Z0-9]+", "_", norm).strip("_").upper()
+    return snake
+
+
 def normalize_document_type(raw_type: Any) -> str:
-    """Chuẩn hóa mã định danh loại giấy tờ về enum RequiredDocumentType"""
+    """
+    Chuẩn hóa mã định danh loại giấy tờ:
+    - Nếu khớp với Enum RequiredDocumentType thì lấy giá trị Enum.
+    - Hỗ trợ các viết tắt CCCD/CMND thông dụng.
+    - Nếu là mã mới do Admin cấu hình trên UI/DB hoặc AI sinh từ luật mới: giữ nguyên mã UPPER_SNAKE_CASE.
+    """
     if not raw_type:
         return RequiredDocumentType.OTHER.value
-    cleaned = str(raw_type).strip().upper()
+    cleaned = to_snake_case_code(raw_type)
+    if not cleaned:
+        return RequiredDocumentType.OTHER.value
     if cleaned in ("CCCD", "CMND", "CCCD_FRONT", "CCCD_BACK", "CCCD_BOTH"):
         return RequiredDocumentType.CITIZEN_ID.value
     if cleaned == "DISABILITY_CERT":
@@ -20,7 +46,15 @@ def normalize_document_type(raw_type: Any) -> str:
     try:
         return RequiredDocumentType(cleaned).value
     except ValueError:
-        return RequiredDocumentType.OTHER.value
+        return cleaned
+
+
+def normalize_dependent_type(raw_type: Any) -> str:
+    """Chuẩn hóa mã nhóm người phụ thuộc về dạng UPPER_SNAKE_CASE chuẩn."""
+    if not raw_type:
+        return "OTHER_HELPLESS"
+    cleaned = to_snake_case_code(raw_type)
+    return cleaned if cleaned else "OTHER_HELPLESS"
 
 
 def parse_condition(cond_val: Any) -> Any:

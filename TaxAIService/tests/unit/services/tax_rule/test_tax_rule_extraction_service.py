@@ -105,6 +105,39 @@ def test_extract_tax_rules_json_parse_fallback_and_error():
             service.extract_tax_rules(document_text="test", tax_year=2026)
 
 
+def test_extract_tax_rules_with_dynamic_system_configs():
+    """Kiểm tra khi có cấu hình động ALLOWED_DOCUMENT_TYPES và ALLOWED_DEPENDENT_TYPES từ DB."""
+    mock_db = MagicMock()
+    service = TaxRuleExtractionService(db=mock_db)
+
+    fake_json = {
+        "taxRuleSet": {"name": "Luật 2026"},
+        "taxRules": [{"ruleCode": "PIT_01", "ruleName": "Giảm trừ", "ruleType": "DEDUCTION"}],
+        "verification": {"isTaxYearMatched": True, "extractedTaxYear": 2026}
+    }
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(fake_json)
+
+    with patch("app.repositories.system_config.system_config_repository.SystemConfigRepository.get_list_value") as mock_get_list:
+        def side_effect(key, default=None):
+            if key == "ALLOWED_DOCUMENT_TYPES":
+                return ["CUSTOM_VNEID_LEVEL_2", "CUSTOM_CERT"]
+            if key == "ALLOWED_DEPENDENT_TYPES":
+                return ["CUSTOM_CHILD_GROUP"]
+            return default
+        mock_get_list.side_effect = side_effect
+
+        with patch.object(service.client.models, "generate_content", return_value=mock_resp) as mock_generate:
+            result = service.extract_tax_rules(document_text="Nội dung luật thuế", tax_year=2026)
+            assert result["taxRuleSet"]["name"] == "Luật 2026"
+            # Kiểm tra prompt gửi tới Gemini có chứa mã custom từ system_configs
+            call_args = mock_generate.call_args
+            contents = call_args[1]["contents"]
+            prompt_str = contents[-1]
+            assert "CUSTOM_VNEID_LEVEL_2" in prompt_str
+            assert "CUSTOM_CHILD_GROUP" in prompt_str
+
+
 def test_extract_tax_rules_no_rules_without_warning_raises_error():
     """Nếu không trích xuất được rules nào và không có cảnh báo lệch năm -> ném lỗi."""
     service = TaxRuleExtractionService()
@@ -119,3 +152,36 @@ def test_extract_tax_rules_no_rules_without_warning_raises_error():
     with patch.object(service.client.models, "generate_content", return_value=mock_resp):
         with pytest.raises(TaxRuleExtractionError):
             service.extract_tax_rules(document_text="test", tax_year=2026)
+
+
+def test_extract_tax_rules_with_dynamic_system_configs():
+    """Kiểm tra khi có cấu hình động ALLOWED_DOCUMENT_TYPES và ALLOWED_DEPENDENT_TYPES từ DB."""
+    mock_db = MagicMock()
+    service = TaxRuleExtractionService(db=mock_db)
+
+    fake_json = {
+        "taxRuleSet": {"name": "Luật 2026"},
+        "taxRules": [{"ruleCode": "PIT_01", "ruleName": "Giảm trừ", "ruleType": "DEDUCTION"}],
+        "verification": {"isTaxYearMatched": True, "extractedTaxYear": 2026}
+    }
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(fake_json)
+
+    with patch("app.repositories.system_config.system_config_repository.SystemConfigRepository.get_list_value") as mock_get_list:
+        def side_effect(key, default=None):
+            if key == "ALLOWED_DOCUMENT_TYPES":
+                return ["CUSTOM_VNEID_LEVEL_2", "CUSTOM_CERT"]
+            if key == "ALLOWED_DEPENDENT_TYPES":
+                return ["CUSTOM_CHILD_GROUP"]
+            return default
+        mock_get_list.side_effect = side_effect
+
+        with patch.object(service.client.models, "generate_content", return_value=mock_resp) as mock_generate:
+            result = service.extract_tax_rules(document_text="Nội dung luật thuế", tax_year=2026)
+            assert result["taxRuleSet"]["name"] == "Luật 2026"
+            # Kiểm tra prompt gửi tới Gemini có chứa mã custom từ system_configs
+            call_args = mock_generate.call_args
+            contents = call_args[1]["contents"]
+            prompt_str = contents[-1]
+            assert "CUSTOM_VNEID_LEVEL_2" in prompt_str
+            assert "CUSTOM_CHILD_GROUP" in prompt_str

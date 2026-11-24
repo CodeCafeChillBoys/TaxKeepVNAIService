@@ -77,7 +77,7 @@ class RequiredDocumentItemRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     id: Optional[uuid.UUID] = Field(None, alias="id")
-    doc_type: RequiredDocumentType = Field(..., alias="docType")
+    doc_type: Union[RequiredDocumentType, str] = Field(..., alias="docType")
     name: str = Field(..., alias="name")
     is_mandatory: bool = Field(True, alias="isMandatory")
     description: Optional[str] = Field(None, alias="description")
@@ -90,7 +90,7 @@ class RequiredDocumentCreateRequest(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True)
 
-    doc_type: RequiredDocumentType = Field(..., alias="docType")
+    doc_type: Union[RequiredDocumentType, str] = Field(..., alias="docType")
     name: str = Field(..., alias="name")
     is_mandatory: bool = Field(True, alias="isMandatory")
     description: Optional[str] = Field(None, alias="description")
@@ -103,7 +103,7 @@ class RequiredDocumentUpdateRequest(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True)
 
-    doc_type: Optional[RequiredDocumentType] = Field(None, alias="docType")
+    doc_type: Optional[Union[RequiredDocumentType, str]] = Field(None, alias="docType")
     name: Optional[str] = Field(None, alias="name")
     is_mandatory: Optional[bool] = Field(None, alias="isMandatory")
     description: Optional[str] = Field(None, alias="description")

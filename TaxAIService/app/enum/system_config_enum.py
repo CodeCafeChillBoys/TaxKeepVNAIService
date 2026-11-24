@@ -32,3 +32,9 @@ class DefaultSystemConfigKey(str, Enum):
     # Dung sai chênh lệch số tiền cho phép khi đối soát bảng kê y tế
     MEDICAL_STATEMENT_AMOUNT_TOLERANCE = "MEDICAL_STATEMENT_AMOUNT_TOLERANCE"
 
+    # Danh mục mã loại giấy tờ hồ sơ người phụ thuộc chuẩn hóa (Admin có thể sửa trên UI)
+    ALLOWED_DOCUMENT_TYPES = "ALLOWED_DOCUMENT_TYPES"
+
+    # Danh mục mã phân loại nhóm người phụ thuộc chuẩn hóa (Admin có thể sửa trên UI)
+    ALLOWED_DEPENDENT_TYPES = "ALLOWED_DEPENDENT_TYPES"
+

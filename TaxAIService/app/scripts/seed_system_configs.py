@@ -36,6 +36,20 @@ SEED_SYSTEM_CONFIGS: List[Dict[str, Any]] = [
         "description": "Dung sai chênh lệch số tiền cho phép khi đối soát bảng kê y tế (VNĐ)",
         "is_active": True,
     },
+    {
+        "config_key": "ALLOWED_DOCUMENT_TYPES",
+        "config_value": "BIRTH_CERTIFICATE, CITIZEN_ID, STUDENT_CARD, DISABILITY_CERTIFICATE, MARRIAGE_CERTIFICATE, RELATIONSHIP_CERTIFICATE, SUPPORT_COMMITMENT_FORM, RESIDENCE_CT07, OTHER",
+        "data_type": "LIST_STRING",
+        "description": "Danh mục các loại giấy tờ hồ sơ người phụ thuộc hợp lệ (Admin có thể thêm/sửa trên UI)",
+        "is_active": True,
+    },
+    {
+        "config_key": "ALLOWED_DEPENDENT_TYPES",
+        "config_value": "CHILD_UNDER_18, CHILD_OVER_18_STUDYING, CHILD_OVER_18_DISABLED, PARENT_RETIRED, PARENT_DISABLED, SPOUSE_RETIRED, SPOUSE_DISABLED, OTHER_HELPLESS",
+        "data_type": "LIST_STRING",
+        "description": "Danh mục mã phân loại nhóm người phụ thuộc chuẩn hóa (Admin có thể thêm/sửa trên UI)",
+        "is_active": True,
+    },
 
     # ── 2. HÓA ĐƠN CHI PHÍ & CHỨNG TỪ GIẢM TRỪ (EXPENSE OCR) ─────────────────
     # 2.1 Y tế & Khám chữa bệnh
