@@ -234,10 +234,11 @@ def test_required_document_type_enum_and_normalization():
     assert normalize_document_type("CCCD") == "CITIZEN_ID"
     assert normalize_document_type("CMND") == "CITIZEN_ID"
     assert normalize_document_type("DISABILITY_CERT") == "DISABILITY_CERTIFICATE"
-    assert normalize_document_type("NON_EXISTING_TYPE") == "OTHER"
+    assert normalize_document_type("CUSTOM_VNEID_LEVEL_2") == "CUSTOM_VNEID_LEVEL_2"
+    assert normalize_document_type("") == "OTHER"
     assert normalize_document_type(None) == "OTHER"
 
-    # 3. Kiểm tra Pydantic request model với Enum
+    # 3. Kiểm tra Pydantic request model với Enum và chuỗi custom
     req = RequiredDocumentCreateRequest(
         docType=RequiredDocumentType.RESIDENCE_CT07,
         name="Giấy xác nhận cư trú CT07",
@@ -246,10 +247,10 @@ def test_required_document_type_enum_and_normalization():
     assert req.doc_type == RequiredDocumentType.RESIDENCE_CT07
     assert req.model_dump(by_alias=True)["docType"] == "RESIDENCE_CT07"
 
-    # 4. Kiểm tra Pydantic validation error khi truyền docType không hợp lệ
-    with pytest.raises(Exception):
-        RequiredDocumentCreateRequest(
-            docType="INVALID_DOCUMENT_XYZ",
-            name="Sai",
-            isMandatory=True
-        )
+    # Hỗ trợ nhận mã custom linh hoạt từ Admin trên UI
+    req_custom = RequiredDocumentCreateRequest(
+        docType="CUSTOM_VNEID_LEVEL_2",
+        name="Định danh VNeID mức 2",
+        isMandatory=True
+    )
+    assert req_custom.doc_type == "CUSTOM_VNEID_LEVEL_2"

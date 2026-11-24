@@ -1,4 +1,5 @@
 from typing import Optional, List, Dict, Any
+from app.mappers.tax_rule.tax_rule_mapper import normalize_dependent_type
 
 
 def build_dependent_rules_text(
@@ -7,20 +8,22 @@ def build_dependent_rules_text(
 ) -> str:
     rules_text = ""
     if target_group:
+        # Tự động chuẩn hóa nếu FE gửi tiếng Việt (ví dụ: 'Người phụ thuộc khác' -> 'OTHER_HELPLESS')
+        normalized_group = normalize_dependent_type(target_group)
         group_desc_map = {
-            "PARENT_RETIRED": "Cha/Mẹ ngoài độ tuổi lao động (Nam >= 60/62 tuổi, Nữ >= 55/60 tuổi, không có thu nhập hoặc thu nhập bình quân <= mức quy định). Giấy tờ cần thiết: CCCD chứng minh độ tuổi, Khai sinh/CT07 chứng minh quan hệ.",
-            "PARENT_DISABLED": "Cha/Mẹ trong độ tuổi lao động nhưng bị khuyết tật, mất khả năng lao động (từ 61% trở lên). Giấy tờ cần thiết: Giấy xác nhận khuyết tật / hồ sơ bệnh án, CCCD, Khai sinh/CT07 chứng minh quan hệ.",
-            "CHILD_UNDER_18": "Con chưa thành niên (dưới 18 tuổi). Giấy tờ cần thiết: Giấy khai sinh, CCCD (nếu có).",
-            "CHILD_OVER_18_STUDYING": "Con từ 18 tuổi trở lên đang theo học (ĐH, CĐ, THCN, dạy nghề...). Giấy tờ cần thiết: Giấy khai sinh, Thẻ HSSV hoặc Giấy xác nhận đang theo học.",
-            "CHILD_OVER_18_DISABLED": "Con từ 18 tuổi trở lên bị khuyết tật, mất khả năng lao động. Giấy tờ cần thiết: Giấy khai sinh, Giấy xác nhận khuyết tật / hồ sơ bệnh án.",
-            "SPOUSE_RETIRED": "Vợ hoặc chồng ngoài độ tuổi lao động. Giấy tờ cần thiết: Giấy chứng nhận kết hôn, CCCD.",
-            "SPOUSE_DISABLED": "Vợ hoặc chồng trong độ tuổi lao động bị khuyết tật, mất khả năng lao động. Giấy tờ cần thiết: Giấy chứng nhận kết hôn, CCCD, Giấy xác nhận khuyết tật.",
-            "OTHER_HELPLESS": "Người phụ thuộc khác không nơi nương tựa đang trực tiếp nuôi dưỡng. Giấy tờ cần thiết: Bản cam kết nuôi dưỡng (Mẫu 07/XN-NPT), CCCD, xác nhận cư trú CT07, giấy tờ khuyết tật (nếu trong độ tuổi LĐ).",
+            "PARENT_RETIRED": "Cha/Mẹ ngoài độ tuổi lao động (Nam >= 60/62 tuổi, Nữ >= 55/60 tuổi, không có thu nhập hoặc thu nhập bình quân <= mức quy định; gồm cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi). Giấy tờ cần thiết: CCCD chứng minh độ tuổi (CITIZEN_ID), Khai sinh hoặc CT07 chứng minh quan hệ (BIRTH_CERTIFICATE / RESIDENCE_CT07 / RELATIONSHIP_CERTIFICATE).",
+            "PARENT_DISABLED": "Cha/Mẹ trong độ tuổi lao động nhưng bị khuyết tật, mất khả năng lao động từ 61% trở lên (gồm cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi). Giấy tờ cần thiết: Giấy xác nhận khuyết tật / hồ sơ bệnh án (DISABILITY_CERTIFICATE), CCCD (CITIZEN_ID), Khai sinh hoặc CT07 (BIRTH_CERTIFICATE / RESIDENCE_CT07 / RELATIONSHIP_CERTIFICATE).",
+            "CHILD_UNDER_18": "Con chưa thành niên dưới 18 tuổi (gồm con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng, con ngoài giá thú). Giấy tờ cần thiết: Giấy khai sinh (BIRTH_CERTIFICATE), CCCD nếu có (CITIZEN_ID); đối với con nuôi cần thêm Quyết định công nhận việc nuôi con nuôi (RELATIONSHIP_CERTIFICATE); đối với con riêng cần thêm Giấy đăng ký kết hôn của cha mẹ (MARRIAGE_CERTIFICATE).",
+            "CHILD_OVER_18_STUDYING": "Con từ 18 tuổi trở lên đang theo học ĐH, CĐ, THCN, dạy nghề... (gồm con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng). Giấy tờ cần thiết: Thẻ HSSV hoặc Giấy xác nhận đang theo học (STUDENT_CARD), Giấy khai sinh (BIRTH_CERTIFICATE), CCCD (CITIZEN_ID); đối với con nuôi cần thêm Quyết định công nhận việc nuôi con nuôi (RELATIONSHIP_CERTIFICATE); đối với con riêng cần thêm Giấy đăng ký kết hôn của cha mẹ (MARRIAGE_CERTIFICATE).",
+            "CHILD_OVER_18_DISABLED": "Con từ 18 tuổi trở lên bị khuyết tật, mất khả năng lao động (gồm con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng). Giấy tờ cần thiết: Giấy xác nhận khuyết tật / hồ sơ bệnh án kết luận mất KNLĐ (DISABILITY_CERTIFICATE), Giấy khai sinh (BIRTH_CERTIFICATE), CCCD (CITIZEN_ID); đối với con nuôi cần thêm Quyết định công nhận việc nuôi con nuôi (RELATIONSHIP_CERTIFICATE); đối với con riêng cần thêm Giấy đăng ký kết hôn của cha mẹ (MARRIAGE_CERTIFICATE).",
+            "SPOUSE_RETIRED": "Vợ hoặc chồng ngoài độ tuổi lao động. Giấy tờ cần thiết: Giấy chứng nhận kết hôn (MARRIAGE_CERTIFICATE), CCCD (CITIZEN_ID).",
+            "SPOUSE_DISABLED": "Vợ hoặc chồng trong độ tuổi lao động bị khuyết tật, mất khả năng lao động. Giấy tờ cần thiết: Giấy chứng nhận kết hôn (MARRIAGE_CERTIFICATE), CCCD (CITIZEN_ID), Giấy xác nhận khuyết tật (DISABILITY_CERTIFICATE).",
+            "OTHER_HELPLESS": "Người phụ thuộc khác không nơi nương tựa đang trực tiếp nuôi dưỡng. Giấy tờ cần thiết: Bản cam kết nuôi dưỡng Mẫu 07/XN-NPT (SUPPORT_COMMITMENT_FORM), CCCD (CITIZEN_ID), Xác nhận cư trú CT07 (RESIDENCE_CT07), Giấy tờ khuyết tật nếu trong độ tuổi LĐ (DISABILITY_CERTIFICATE).",
         }
-        if target_group in group_desc_map:
-            rules_text += f"\n- Nhóm đối tượng đang thẩm định: [{target_group}] - {group_desc_map[target_group]}\n"
+        if normalized_group in group_desc_map:
+            rules_text += f"\n- Nhóm đối tượng đang thẩm định: [{normalized_group}] - {group_desc_map[normalized_group]}\n"
         else:
-            rules_text += f"\n- Nhóm đối tượng đang thẩm định: [{target_group}]\n"
+            rules_text += f"\n- Nhóm đối tượng đang thẩm định: [{normalized_group}]\n"
 
     if rules:
         rules_text += "\nDANH MỤC QUY TẮC GIẤY TỜ DO ADMIN CẤU HÌNH TRONG DATABASE:\n"
@@ -31,13 +34,13 @@ def build_dependent_rules_text(
             rules_text += f"  + [{d_type}] ({mandatory}): Tiêu chí kiểm tra: {desc}\n"
     else:
         rules_text += """
-- Danh mục giấy tờ tham khảo chuẩn:
+- Danh mục giấy tờ tham khảo chuẩn hóa theo hệ thống:
+  + "BIRTH_CERTIFICATE": Giấy khai sinh (Bản chính hoặc bản sao trích lục khai sinh).
   + "CITIZEN_ID": Căn cước công dân / Thẻ căn cước / CMND (CCCD_FRONT, CCCD_BACK, CCCD_BOTH).
-  + "BIRTH_CERTIFICATE": Giấy khai sinh (Bản chính hoặc bản sao trích lục).
-  + "STUDENT_CARD": Thẻ học sinh, sinh viên hoặc giấy xác nhận đang theo học của trường.
-  + "DISABILITY_CERTIFICATE": Giấy xác nhận khuyết tật hoặc giấy chứng nhận suy giảm khả năng lao động.
-  + "MARRIAGE_CERTIFICATE": Giấy chứng nhận kết hôn.
-  + "RELATIONSHIP_CERTIFICATE": Giấy tờ chứng minh quan hệ cha mẹ/con cái hợp pháp (Khai sinh NNT, sổ hộ tịch...).
+  + "STUDENT_CARD": Thẻ học sinh, sinh viên hoặc Giấy xác nhận đang theo học của nhà trường.
+  + "DISABILITY_CERTIFICATE": Giấy xác nhận khuyết tật hoặc hồ sơ bệnh án kết luận suy giảm khả năng lao động từ 61% trở lên.
+  + "MARRIAGE_CERTIFICATE": Giấy chứng nhận đăng ký kết hôn (chứng minh quan hệ vợ chồng, hoặc cha dượng/mẹ kế đối với con riêng).
+  + "RELATIONSHIP_CERTIFICATE": Giấy tờ chứng minh quan hệ nhân thân (Quyết định công nhận việc nuôi con nuôi của cơ quan nhà nước có thẩm quyền, sổ hộ tịch, giấy khai sinh NNT...).
   + "SUPPORT_COMMITMENT_FORM": Bản cam kết nghĩa vụ nuôi dưỡng (Mẫu 07/XN-NPT).
   + "RESIDENCE_CT07": Giấy xác nhận thông tin về cư trú (Mẫu CT07).
   + "OTHER": Giấy tờ hợp lệ khác.
@@ -52,7 +55,15 @@ Bạn là hệ thống AI OCR chuyên gia pháp lý và nhận diện giấy t�
 Nhiệm vụ của bạn:
 1. Nhận diện loại giấy tờ (documentType):
 {dependent_rules_text}
-   - Ưu tiên gán `documentType` bằng chính xác mã `doc_type` trong danh mục quy tắc của hệ thống nếu ảnh khớp.
+   - Ưu tiên gán `documentType` bằng chính xác mã `doc_type` trong danh mục quy tắc của hệ thống nếu ảnh khớp:
+     * Quyết định công nhận việc nuôi con nuôi / Giấy chứng nhận nuôi con nuôi -> gán "RELATIONSHIP_CERTIFICATE".
+     * Giấy chứng nhận kết hôn -> gán "MARRIAGE_CERTIFICATE".
+     * Bản cam kết nghĩa vụ nuôi dưỡng Mẫu 07/XN-NPT -> gán "SUPPORT_COMMITMENT_FORM".
+     * Giấy xác nhận thông tin về cư trú Mẫu CT07 -> gán "RESIDENCE_CT07".
+     * Giấy khai sinh / Trích lục khai sinh -> gán "BIRTH_CERTIFICATE".
+     * Căn cước công dân / Thẻ căn cước / CMND -> gán "CITIZEN_ID".
+     * Thẻ HSSV / Giấy xác nhận sinh viên của trường -> gán "STUDENT_CARD".
+     * Giấy xác nhận khuyết tật / Bệnh án mất KNLĐ -> gán "DISABILITY_CERTIFICATE".
    - Nếu không khớp loại nào trong danh mục: điền "OTHER" hoặc tên loại giấy tờ thực tế.
 
 2. Đối chiếu và thẩm định theo Rule của Admin (ruleValidation):
@@ -72,7 +83,6 @@ Nhiệm vụ của bạn:
    - expiryDate: Ngày hết hạn của CCCD theo định dạng YYYY-MM-DD.
    - issueDate: Ngày cấp giấy tờ theo định dạng YYYY-MM-DD.
    - confidenceScores: Đánh giá độ tin cậy từ 0.0 đến 1.0 cho trường `overall` và cho TẤT CẢ các trường dữ liệu mà bạn bóc tách được (citizenId, fullName, birthDate, gender, originPlace, residencePlace, expiryDate, issueDate, documentType, documentNumber, issuingAuthority, các trường cha/mẹ nếu có). Trường nào không xuất hiện trên ảnh (null) thì gán điểm tin cậy tương ứng là null.
-
 
 4. QUY TẮC AN TOÀN CHỐNG ẢO GIÁC (HALLUCINATION):
    - Tuyệt đối KHÔNG ĐƯỢC TỰ ĐOÁN hay bịa ra số CCCD, ngày sinh nếu ảnh bị che khuất, bóng đổ hoặc lóa đèn flash.

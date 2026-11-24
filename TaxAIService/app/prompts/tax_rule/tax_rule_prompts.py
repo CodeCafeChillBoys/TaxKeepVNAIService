@@ -57,32 +57,43 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
       - Đơn vị (unit): "VND/month".
       - Điều kiện (condition): "Áp dụng cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công".
    b. PIT_DEDUCTION_DEPENDENT: Mức giảm trừ cho mỗi người phụ thuộc.
-      - Giá trị (value): Số tiền VND/người/tháng theo luật quy định (ví dụ: 4400000 hoặc mức cập nhật mới như 6200000).
+      - Giá trị (value): Số tiền VND/người/tháng theo luật quy định trong văn bản (ví dụ: 4400000 hoặc mức cập nhật mới như 6200000).
       - Đơn vị (unit): "VND/person/month".
-      - Điều kiện (condition): Phân tích chi tiết các điều kiện xét duyệt giảm trừ người phụ thuộc và xuất chuỗi JSON theo cấu trúc chuẩn.
-        * BẮT BUỘC TÁCH RỜI TỪNG NHÓM ĐỐI TƯỢNG VÀ TỪNG PHÂN NHÁNH ĐIỀU KIỆN (TUYỆT ĐỐI KHÔNG GỘP CHUNG):
-          Mã nhóm "type" BẮT BUỘC chọn từ danh sách nhóm chuẩn hóa ({valid_dependent_types}), TRONG ĐÓ BẮT BUỘC SỬ DỤNG CHÍNH XÁC CÁC MÃ PHÂN NHÁNH CHI TIẾT SAU:
-          - Với NHÓM CHA MẸ (Ba mẹ: cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi hợp pháp, cha dượng, mẹ kế):
-            + "PARENT_RETIRED": Dành cho Cha mẹ NGOÀI ĐỘ TUỔI LAO ĐỘNG (nam từ đủ 60/62 tuổi, nữ từ đủ 55/60 tuổi trở lên). Điều kiện: Không có thu nhập hoặc thu nhập bình quân tháng trong năm không vượt quá mức quy định (maxMonthlyIncome, vd: 1000000). Đặt isDisabled = false, isStudying = false. Bắt buộc tách riêng từng vai trò cụ thể trong "name" (ví dụ: "Cha đẻ ngoài độ tuổi lao động", "Mẹ đẻ ngoài độ tuổi lao động", "Cha/mẹ của vợ hoặc chồng ngoài độ tuổi lao động"). Hồ sơ: CCCD (chứng minh tuổi), Giấy khai sinh/CT07 (chứng minh quan hệ).
-            + "PARENT_DISABLED": Dành cho Cha mẹ TRONG ĐỘ TUỔI LAO ĐỘNG nhưng BỊ KHUYẾT TẬT / MẤT KHẢ NĂNG LAO ĐỘNG (suy giảm từ 61% trở lên). Điều kiện: Bị khuyết tật/mất KNLĐ VÀ thu nhập không vượt mức quy định (maxMonthlyIncome). Đặt isDisabled = true, isStudying = false. Bắt buộc tách riêng trong "name" (ví dụ: "Cha đẻ trong độ tuổi lao động bị khuyết tật", "Mẹ đẻ trong độ tuổi lao động bị khuyết tật"). Hồ sơ: Giấy xác nhận khuyết tật / hồ sơ bệnh án kết luận mất KNLĐ, CCCD, Giấy khai sinh/CT07.
-          - Với NHÓM CON (Con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng, con ngoài giá thú):
-            + "CHILD_UNDER_18": Dành cho con chưa thành niên (dưới 18 tuổi). Đặt maxAge = 18, isStudying = false, isDisabled = false, maxMonthlyIncome = null. Bắt buộc tách riêng từng vai trò cụ thể trong "name":
-              * "Con đẻ dưới 18 tuổi" (Hồ sơ: BIRTH_CERTIFICATE, CITIZEN_ID nếu có).
-              * "Con nuôi hợp pháp dưới 18 tuổi" (Hồ sơ: RELATIONSHIP_CERTIFICATE hoặc BIRTH_CERTIFICATE [Quyết định công nhận việc nuôi con nuôi / Khai sinh], CITIZEN_ID nếu có).
-              * "Con riêng của vợ hoặc chồng dưới 18 tuổi" (Hồ sơ: MARRIAGE_CERTIFICATE [Chứng nhận kết hôn của cha mẹ], BIRTH_CERTIFICATE của con, CITIZEN_ID nếu có).
-            + "CHILD_OVER_18_STUDYING": Dành cho con từ 18 tuổi trở lên ĐANG THEO HỌC (ĐH, CĐ, THCN, dạy nghề...). Đặt isStudying = true, isDisabled = false, kèm maxMonthlyIncome (vd: 1000000). Bắt buộc tách riêng: "Con đẻ từ 18 tuổi trở lên đang theo học", "Con nuôi hợp pháp từ 18 tuổi trở lên đang theo học", "Con riêng từ 18 tuổi trở lên đang theo học". Hồ sơ: STUDENT_CARD (Thẻ HSSV hoặc giấy xác nhận của nhà trường), kèm giấy tờ chứng minh quan hệ (BIRTH_CERTIFICATE / RELATIONSHIP_CERTIFICATE / MARRIAGE_CERTIFICATE).
-            + "CHILD_OVER_18_DISABLED": Dành cho con từ 18 tuổi trở lên BỊ KHUYẾT TẬT / MẤT KHẢ NĂNG LAO ĐỘNG. Đặt isStudying = false, isDisabled = true, kèm maxMonthlyIncome. Bắt buộc tách riêng: "Con đẻ bị khuyết tật", "Con nuôi hợp pháp bị khuyết tật", "Con riêng bị khuyết tật". Hồ sơ: DISABILITY_CERTIFICATE (Giấy xác nhận khuyết tật / hồ sơ bệnh án kết luận mất KNLĐ), kèm giấy tờ quan hệ (BIRTH_CERTIFICATE / RELATIONSHIP_CERTIFICATE / MARRIAGE_CERTIFICATE).
-          - Với NHÓM VỢ HOẶC CHỒNG:
-            + "SPOUSE_RETIRED": Vợ hoặc chồng ngoài độ tuổi lao động. Đặt isDisabled = false, isStudying = false, kèm maxMonthlyIncome. Hồ sơ: Đăng ký kết hôn, CCCD.
-            + "SPOUSE_DISABLED": Vợ hoặc chồng trong độ tuổi lao động bị khuyết tật / mất khả năng lao động. Đặt isDisabled = true, isStudying = false, kèm maxMonthlyIncome. Hồ sơ: Đăng ký kết hôn, CCCD, Giấy xác nhận khuyết tật / hồ sơ bệnh án.
-          - Với NHÓM NGƯỜI PHỤ THUỘC KHÁC:
-            + "OTHER_HELPLESS": Các cá nhân khác không nơi nương tựa mà người nộp thuế đang trực tiếp nuôi dưỡng (anh/chị/em ruột, ông/bà nội ngoại, cô/dì/chú/bác/cậu ruột, cháu ruột). Tách riêng nhánh ngoài độ tuổi lao động và nhánh trong độ tuổi lao động bị khuyết tật (đặt isDisabled = true). Hồ sơ: Bản cam kết nghĩa vụ nuôi dưỡng (Mẫu 07/XN-NPT), CCCD, giấy tờ chứng minh quan hệ/cư trú, giấy xác nhận khuyết tật (nếu trong độ tuổi LĐ).
-          - NGUYÊN TẮC: TUYỆT ĐỐI KHÔNG GỘP CHUNG cha và mẹ vào cùng một mục, không gộp nhánh trong tuổi và ngoài tuổi lao động vào cùng một mục. Mỗi tổ hợp đối tượng và điều kiện phải là một mục eligibility riêng rẽ.
-        * Đối với danh mục giấy tờ cần nộp (requiredDocuments):
-          - Nếu văn bản có quy định cụ thể hồ sơ chứng minh: Trích xuất chính xác theo điều khoản của văn bản đó.
-          - Nếu văn bản là Luật khung (chưa quy định chi tiết hồ sơ chứng minh mà dẫn chiếu văn bản hướng dẫn): Hãy dựa trên kiến thức pháp luật quản lý thuế TNCN hiện hành của Việt Nam để đề xuất danh mục giấy tờ pháp lý cần thiết tương ứng với từng nhóm (giấy tờ chứng minh nhân thân, quan hệ huyết thống/hôn nhân/nuôi dưỡng, nghĩa vụ phụng dưỡng, xác nhận đang theo học hoặc mất khả năng lao động/khuyết tật).
-        * Cấu trúc JSON bắt buộc:
-        {"subject": "DEPENDENT", "eligibility": [{"type": "Mã nhóm chuẩn SNAKE_CASE in hoa ({valid_dependent_types})", "name": "Tên nhóm đối tượng theo đúng văn bản luật", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{"docType": "Mã loại giấy tờ chuẩn hóa in hoa ({valid_document_types})", "name": "Tên loại giấy tờ", "isMandatory": "true nếu bắt buộc nộp, false nếu là giấy tờ theo điều kiện/tùy chọn", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}]}]}
+      - Điều kiện (condition): Phân tích chi tiết các điều kiện xét duyệt giảm trừ người phụ thuộc và xuất chuỗi JSON theo các nguyên tắc nghiệp vụ sau:
+
+        * NGUYÊN TẮC PHÂN RÃ ĐỐI TƯỢNG (DISAGGREGATION PRINCIPLE):
+          - Khi văn bản luật đề cập đến một nhóm đối tượng chung kèm theo các diện thành phần (ví dụ: nhóm 'Con' gồm con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng, con ngoài giá thú; nhóm 'Cha mẹ' gồm cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi hợp pháp; nhóm 'Cá nhân khác' gồm anh chị em, ông bà, cô dì chú bác cháu...), AI BẮT BUỘC đọc sâu văn bản và bóc tách riêng rẽ từng diện đối tượng thành phần kết hợp với từng khung điều kiện (độ tuổi, tình trạng lao động, học tập).
+          - TUYỆT ĐỐI KHÔNG GỘP CHUNG nhiều vai trò vào cùng một mục (ví dụ: không gộp con đẻ với con nuôi/con riêng; không gộp cha với mẹ; không gộp người trong độ tuổi với ngoài độ tuổi lao động). Mỗi tổ hợp [Đối tượng cụ thể + Điều kiện cụ thể] BẮT BUỘC là 1 phần tử riêng biệt trong danh sách "eligibility".
+
+        * NGUYÊN TẮC PHÂN LOẠI MÃ NHÓM (TYPE MAPPING):
+          Mã "type" BẮT BUỘC chọn từ danh sách nhóm chuẩn hóa ({valid_dependent_types}) căn cứ theo điều kiện pháp lý của đối tượng trong văn bản:
+          - Con dưới 18 tuổi: "CHILD_UNDER_18" (maxAge: 18, isStudying: false, isDisabled: false).
+          - Con từ 18 tuổi trở lên đang theo học (ĐH, CĐ, THCN, dạy nghề...): "CHILD_OVER_18_STUDYING" (isStudying: true, isDisabled: false).
+          - Con từ 18 tuổi trở lên bị khuyết tật, mất KNLĐ: "CHILD_OVER_18_DISABLED" (isStudying: false, isDisabled: true).
+          - Cha/mẹ ngoài độ tuổi lao động: "PARENT_RETIRED" (isDisabled: false, isStudying: false).
+          - Cha/mẹ trong độ tuổi lao động bị khuyết tật, mất KNLĐ: "PARENT_DISABLED" (isDisabled: true, isStudying: false).
+          - Vợ/chồng ngoài độ tuổi lao động: "SPOUSE_RETIRED".
+          - Vợ/chồng trong độ tuổi lao động bị khuyết tật: "SPOUSE_DISABLED".
+          - Người phụ thuộc khác không nơi nương tựa: "OTHER_HELPLESS".
+          - TRƯỜNG HỢP LUẬT MỚI BỔ SUNG ĐỐI TƯỢNG MỚI: Nếu văn bản luật quy định một nhóm đối tượng hoàn toàn mới chưa có trong danh mục chuẩn hóa ({valid_dependent_types}), AI BẮT BUỘC tự động đặt một mã định danh kỹ thuật mới chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "LEGAL_GUARDIAN", "MARTYR_RELATIVE", "CHILD_MILITARY_SERVICE") và ghi chi tiết tên tiếng Việt có dấu vào trường "name".
+
+        * NGUYÊN TẮC BÓC TÁCH HỒ SƠ GIẤY TỜ (REQUIRED DOCUMENTS EXTRACTION):
+          - Đọc kỹ quy định về hồ sơ chứng minh trong văn bản (hoặc dẫn chiếu kiến thức pháp luật quản lý thuế TNCN hiện hành nếu văn bản là Luật khung chưa quy định chi tiết hồ sơ) để xác định danh mục giấy tờ cần thiết cho từng đối tượng cụ thể.
+          - Tự động ánh xạ (map) từng loại giấy tờ vào mã định danh chuẩn hóa ({valid_document_types}):
+            + Giấy khai sinh, trích lục khai sinh -> BIRTH_CERTIFICATE
+            + Căn cước công dân, thẻ căn cước, CMND -> CITIZEN_ID
+            + Quyết định công nhận nuôi con nuôi, giấy tờ chứng minh quan hệ nhân thân/huyết thống -> RELATIONSHIP_CERTIFICATE
+            + Giấy chứng nhận đăng ký kết hôn (chứng minh vợ/chồng, hoặc cha dượng/mẹ kế với con riêng) -> MARRIAGE_CERTIFICATE
+            + Thẻ học sinh, sinh viên, giấy xác nhận của nhà trường đang theo học -> STUDENT_CARD
+            + Giấy xác nhận khuyết tật, hồ sơ bệnh án kết luận mất khả năng lao động -> DISABILITY_CERTIFICATE
+            + Bản cam kết nghĩa vụ nuôi dưỡng (Mẫu 07/XN-NPT) -> SUPPORT_COMMITMENT_FORM
+            + Giấy xác nhận thông tin về cư trú (Mẫu CT07) -> RESIDENCE_CT07
+            + Giấy tờ hợp lệ khác theo luật -> OTHER
+            + TRƯỜNG HỢP CHỨNG TỪ MỚI CỦA LUẬT MỚI: Nếu văn bản luật quy định một loại giấy tờ đặc thù mới chưa có trong danh mục ({valid_document_types}), AI tự động đặt một mã chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "MILITARY_SERVICE_CERTIFICATE", "SOCIAL_ASSISTANCE_BOOK") và ghi tên tiếng Việt đầy đủ vào "name".
+          - Xác định đúng thuộc tính "isMandatory": true nếu là giấy tờ pháp lý cốt lõi chứng minh đối tượng/quan hệ, false nếu là giấy tờ tùy chọn theo điều kiện ("nếu có", "nếu cần").
+
+        * CẤU TRÚC JSON BẮT BUỘC:
+        {"subject": "DEPENDENT", "eligibility": [{"type": "Mã nhóm chuẩn ({valid_dependent_types}) hoặc mã UPPER_SNAKE_CASE tự sinh nếu là nhóm mới", "name": "Tên chi tiết đối tượng và điều kiện theo văn bản", "maxAge": "Số tuổi tối đa (số nguyên hoặc null)", "maxMonthlyIncome": "Mức thu nhập tối đa (số thực hoặc null)", "isStudying": "true nếu yêu cầu đang đi học, ngược lại false", "isDisabled": "true nếu yêu cầu khuyết tật/mất KNLĐ, ngược lại false", "conditions": ["Mô tả tóm tắt các điều kiện đủ tư cách hưởng giảm trừ"], "requiredDocuments": [{"docType": "Mã loại giấy tờ chuẩn ({valid_document_types}) hoặc mã UPPER_SNAKE_CASE tự sinh nếu là giấy tờ mới", "name": "Tên loại giấy tờ theo luật", "isMandatory": "true nếu bắt buộc nộp, false nếu là tùy chọn/nếu có", "description": "Trích dẫn hoặc mô tả cụ thể yêu cầu/hướng dẫn của giấy tờ đó"}]}]}
    c. PIT_DEDUCTION_INSURANCE: Các khoản đóng bảo hiểm bắt buộc trừ vào thu nhập tiền lương (BHXH, BHYT, BHTN, bảo hiểm trách nhiệm nghề nghiệp).
       - Đơn vị (unit): "VND/month" hoặc "%" hoặc "actual".
    d. PIT_DEDUCTION_CHARITY: Các khoản đóng góp từ thiện, nhân đạo, khuyến học trừ vào thu nhập tiền lương, tiền công.
@@ -167,6 +178,8 @@ def build_tax_rule_extraction_prompt_params(
     source_url: Optional[str] = None,
     legal_doc_name: Optional[str] = None,
     document_text: Optional[str] = None,
+    valid_dependent_types: Optional[str] = None,
+    valid_document_types: Optional[str] = None,
 ) -> dict[str, str | int]:
     if document_text:
         document_section = f"""
@@ -186,8 +199,8 @@ File PDF đính kèm chứa toàn văn bản pháp luật (bao gồm các trang 
         "default_set_name": default_set_name,
         "source_url": source_url or "",
         "legal_doc_name": legal_doc_name or "Luật Thuế Thu Nhập Cá Nhân",
-        "valid_dependent_types": ", ".join(item.value for item in DependentType),
-        "valid_document_types": ", ".join(item.value for item in RequiredDocumentType),
+        "valid_dependent_types": valid_dependent_types or ", ".join(item.value for item in DependentType),
+        "valid_document_types": valid_document_types or ", ".join(item.value for item in RequiredDocumentType),
         "valid_rule_types": ", ".join(item.value for item in TaxRuleType),
         "default_status": TaxRuleStatus.DRAFT.value,
         "document_section": document_section,
@@ -200,9 +213,17 @@ def build_tax_rule_extraction_prompt(
     source_url: Optional[str] = None,
     legal_doc_name: Optional[str] = None,
     document_text: Optional[str] = None,
+    valid_dependent_types: Optional[str] = None,
+    valid_document_types: Optional[str] = None,
 ) -> str:
     params = build_tax_rule_extraction_prompt_params(
-        tax_year, default_set_name, source_url, legal_doc_name, document_text
+        tax_year,
+        default_set_name,
+        source_url,
+        legal_doc_name,
+        document_text,
+        valid_dependent_types,
+        valid_document_types,
     )
     prompt = TAX_RULE_EXTRACTION_SYSTEM_PROMPT_TEMPLATE
     for key, value in params.items():

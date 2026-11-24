@@ -39,6 +39,11 @@ class ISystemConfigRepository(ABC):
         pass
 
     @abstractmethod
+    def get_list_value(self, config_key: str, default: Optional[List[str]] = None) -> List[str]:
+        """Lấy danh sách các giá trị chuỗi (cách nhau bởi dấu phẩy) từ system_configs."""
+        pass
+
+    @abstractmethod
     def save(self, config: SystemConfig) -> SystemConfig:
         """Thêm mới hoặc cập nhật bản ghi cấu hình."""
         pass

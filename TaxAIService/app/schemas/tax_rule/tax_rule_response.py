@@ -56,7 +56,7 @@ class RequiredDocumentResponse(BaseModel):
 
     id: Optional[uuid.UUID] = Field(None, alias="id")
     dependent_rule_id: Optional[uuid.UUID] = Field(None, alias="dependentRuleId")
-    doc_type: RequiredDocumentType = Field(..., alias="docType")
+    doc_type: Union[RequiredDocumentType, str] = Field(..., alias="docType")
     name: str = Field(..., alias="name")
     is_mandatory: bool = Field(True, alias="isMandatory")
     description: Optional[str] = Field(None, alias="description")

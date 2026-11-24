@@ -34,6 +34,8 @@ class TaxRuleExtractionService:
         source_url: Optional[str] = None,
         legal_doc_name: Optional[str] = None,
         prompt_service: Optional[PromptTemplateService] = None,
+        valid_dependent_types: Optional[str] = None,
+        valid_document_types: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Sử dụng Gemini LLM với Structured JSON Output để trích xuất các quy tắc thuế
@@ -44,12 +46,32 @@ class TaxRuleExtractionService:
 
         default_set_name = rule_set_name or f"Personal Income Tax Rules {tax_year}"
 
+        # Đọc danh mục cấu hình động từ database (system_configs) nếu có
+        valid_dep = valid_dependent_types
+        valid_doc = valid_document_types
+        if self.db and (not valid_dep or not valid_doc):
+            try:
+                from app.repositories.system_config.system_config_repository import SystemConfigRepository
+                sys_repo = SystemConfigRepository(self.db)
+                if not valid_doc:
+                    docs = sys_repo.get_list_value("ALLOWED_DOCUMENT_TYPES")
+                    if docs:
+                        valid_doc = ", ".join(docs)
+                if not valid_dep:
+                    deps = sys_repo.get_list_value("ALLOWED_DEPENDENT_TYPES")
+                    if deps:
+                        valid_dep = ", ".join(deps)
+            except Exception:
+                pass
+
         prompt_args = dict(
             tax_year=tax_year,
             default_set_name=default_set_name,
             source_url=source_url,
             legal_doc_name=legal_doc_name,
             document_text=document_text,
+            valid_dependent_types=valid_dep,
+            valid_document_types=valid_doc,
         )
         if prompt_service:
             params = build_tax_rule_extraction_prompt_params(**prompt_args)

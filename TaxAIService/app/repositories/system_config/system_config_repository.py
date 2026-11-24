@@ -110,6 +110,28 @@ class SystemConfigRepository(ISystemConfigRepository):
 
         return {"total_amount", "seller_tax_code", "buyer_id_card", "invoice_number"}
 
+    def get_list_value(self, config_key: str, default: Optional[List[str]] = None) -> List[str]:
+        """
+        Lấy danh sách các giá trị chuỗi (cách nhau bởi dấu phẩy) từ system_configs.
+        Ví dụ: 'BIRTH_CERTIFICATE, CITIZEN_ID, STUDENT_CARD...'
+        Tự động fallback về default nếu không tồn tại hoặc rỗng.
+        """
+        try:
+            config_row = self.get_by_key(config_key, active_only=True)
+            if config_row and config_row.config_value:
+                raw_items = [f.strip() for f in config_row.config_value.split(",") if f.strip()]
+                if raw_items:
+                    from app.mappers.tax_rule.tax_rule_mapper import to_snake_case_code
+                    cleaned_items: List[str] = []
+                    for item in raw_items:
+                        cleaned = to_snake_case_code(item)
+                        if cleaned and cleaned not in cleaned_items:
+                            cleaned_items.append(cleaned)
+                    return cleaned_items
+        except Exception as e:
+            logger.warning(f"Không thể đọc danh sách từ key '{config_key}' ({e}). Dùng mặc định.")
+        return default or []
+
     def save(self, config: SystemConfig) -> SystemConfig:
         """Thêm mới hoặc cập nhật bản ghi cấu hình."""
         self.db.add(config)
