@@ -59,13 +59,19 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
 
 1. NHÓM GIẢM TRỪ (ruleType: "DEDUCTION"):
    a. PIT_DEDUCTION_PERSONAL: Mức giảm trừ cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công.
-      - Giá trị (value): Số tiền VND/tháng theo luật (ví dụ: 11000000 hoặc mức cập nhật mới như 15500000).
+      - Giá trị (value): Số tiền VND/tháng theo luật quy định trong văn bản (ví dụ: mức hiện hành theo Nghị quyết 954 là 11000000, hoặc mức điều chỉnh/dự thảo mới nếu văn bản có nêu như 15000000 hoặc 15500000).
       - Đơn vị (unit): "VND/month".
       - Điều kiện (condition): "Áp dụng cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công".
    b. PIT_DEDUCTION_DEPENDENT: Mức giảm trừ cho mỗi người phụ thuộc.
-      - Giá trị (value): Số tiền VND/người/tháng theo luật quy định trong văn bản (ví dụ: 4400000 hoặc mức cập nhật mới như 6200000).
+      - Giá trị (value): Số tiền VND/người/tháng theo luật quy định trong văn bản (ví dụ: mức hiện hành theo Nghị quyết 954 là 4400000, hoặc mức điều chỉnh/dự thảo mới nếu văn bản có nêu như 5500000 hoặc 6200000).
       - Đơn vị (unit): "VND/person/month".
       - Điều kiện (condition): Phân tích chi tiết các điều kiện xét duyệt giảm trừ người phụ thuộc và xuất chuỗi JSON theo các nguyên tắc nghiệp vụ sau:
+
+        * NGUYÊN TẮC XÁC ĐỊNH MỨC THU NHẬP ĐIỀU KIỆN (maxMonthlyIncome):
+          - ƯU TIÊN SỐ 1: Bóc tách chính xác mức trần thu nhập bình quân tháng quy định trong văn bản pháp luật được cung cấp (ví dụ: nếu văn bản quy định 1.000.000 VNĐ, 2.000.000 VNĐ hoặc bất kỳ mức thu nhập mới nào thì AI BẮT BUỘC gán đúng số tiền số thực đó vào "maxMonthlyIncome", không được giữ con số cũ).
+          - NẾU VĂN BẢN LÀ LUẬT KHUNG (không nêu con số tiền cụ thể mà chỉ ghi chung chung 'không có thu nhập hoặc thu nhập bình quân tháng không vượt quá mức quy định'): Dẫn chiếu mức thu nhập trần theo quy định quản lý thuế TNCN tại thời điểm có hiệu lực của văn bản (mức hiện hành là 1.000.000 VNĐ/tháng -> "maxMonthlyIncome": 1000000).
+          - Áp dụng "maxMonthlyIncome" cho tất cả các đối tượng phải xét điều kiện thu nhập: Con từ 18 tuổi trở lên đang học, Con khuyết tật, Cha mẹ, Vợ/chồng, Cá nhân khác.
+          - Đối với Con dưới 18 tuổi ("CHILD_UNDER_18"): Pháp luật không giới hạn điều kiện thu nhập của con chưa thành niên -> luôn đặt "maxMonthlyIncome": null.
 
         * NGUYÊN TẮC PHÂN RÃ ĐỐI TƯỢNG (DISAGGREGATION PRINCIPLE):
           - Khi văn bản luật đề cập đến một nhóm đối tượng chung kèm theo các diện thành phần (ví dụ: nhóm 'Con' gồm con đẻ, con nuôi hợp pháp, con riêng của vợ/chồng, con ngoài giá thú; nhóm 'Cha mẹ' gồm cha đẻ, mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi hợp pháp; nhóm 'Cá nhân khác' gồm anh chị em, ông bà, cô dì chú bác cháu...), AI BẮT BUỘC đọc sâu văn bản và bóc tách riêng rẽ từng diện đối tượng thành phần kết hợp với từng khung điều kiện (độ tuổi, tình trạng lao động, học tập).
@@ -79,7 +85,7 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
           - "OTHER_DEPENDENT": Dành cho cá nhân khác không nơi nương tựa mà NNT trực tiếp nuôi dưỡng (anh chị em, ông bà, cô dì chú bác cháu...), ví dụ: OTHER_HELPLESS.
 
         * NGUYÊN TẮC PHÂN LOẠI MÃ NHÓM (TYPE MAPPING):
-          Mã "type" BẮT BUỘC chọn từ danh sách nhóm chuẩn hóa ({valid_dependent_types}) căn cứ theo điều kiện pháp lý của đối tượng trong văn bản:
+          Mã "type" BẮT BUỘC chọn từ danh sách nhóm chuẩn hóa ({valid_dependent_types}) căn cứ theo đối tượng pháp lý trong văn bản:
           - Con dưới 18 tuổi: "CHILD_UNDER_18" (maxAge: 18, isStudying: false, isDisabled: false, relationship: "CHILD").
           - Con từ 18 tuổi trở lên đang theo học (ĐH, CĐ, THCN, dạy nghề...): "CHILD_OVER_18_STUDYING" (isStudying: true, isDisabled: false, relationship: "CHILD").
           - Con từ 18 tuổi trở lên bị khuyết tật, mất KNLĐ: "CHILD_OVER_18_DISABLED" (isStudying: false, isDisabled: true, relationship: "CHILD").
@@ -90,8 +96,22 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
           - Người phụ thuộc khác không nơi nương tựa: "OTHER_HELPLESS" (relationship: "OTHER_DEPENDENT").
           - TRƯỜNG HỢP LUẬT MỚI BỔ SUNG ĐỐI TƯỢNG MỚI: Nếu văn bản luật quy định một nhóm đối tượng hoàn toàn mới chưa có trong danh mục chuẩn hóa ({valid_dependent_types}), AI BẮT BUỘC tự động đặt một mã định danh kỹ thuật mới chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "LEGAL_GUARDIAN", "MARTYR_RELATIVE", "CHILD_MILITARY_SERVICE") và ghi chi tiết tên tiếng Việt có dấu vào trường "name", đồng thời xác định đúng "relationship" tương ứng ({valid_relationships}).
 
-        * NGUYÊN TẮC BÓC TÁCH HỒ SƠ GIẤY TỜ VÀ QUY TẮC "CHỌN 1 TRONG N" (ALTERNATIVE GROUP):
-          - Đọc kỹ quy định về hồ sơ chứng minh trong văn bản (hoặc dẫn chiếu kiến thức pháp luật quản lý thuế TNCN hiện hành nếu văn bản là Luật khung chưa quy định chi tiết hồ sơ) để xác định danh mục giấy tờ cần thiết cho từng đối tượng cụ thể.
+        * NGUYÊN TẮC TRÍCH XUẤT ĐIỀU KIỆN TỪ VĂN BẢN (TRƯỜNG "conditions"):
+          - Trường "conditions" (mảng chuỗi): AI BẮT BUỘC ĐỌC VÀ TRÍCH XUẤT TÓM TẮT TRUNG THỰC CÁC ĐIỀU KIỆN ĐƯỢC QUY ĐỊNH TRỰC TIẾP TRONG TỆP PDF VĂN BẢN ĐƯỢC TẢI LÊN.
+          - TUYỆT ĐỐI KHÔNG chép lại câu chữ trong prompt mẫu. Văn bản thực tế quy định điều kiện gì cho từng nhóm đối tượng (ví dụ: các bậc học, tình trạng khuyết tật/mất KNLĐ, độ tuổi nghỉ hưu, hoàn cảnh không nơi nương tựa...) thì trích xuất đúng điều kiện đó vào "conditions".
+          - TRƯỜNG HỢP LUẬT MỚI BỔ SUNG ĐỐI TƯỢNG MỚI: Nếu văn bản luật quy định một nhóm đối tượng hoàn toàn mới chưa có trong danh mục chuẩn hóa ({valid_dependent_types}), AI BẮT BUỘC tự động đặt một mã định danh kỹ thuật mới chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "LEGAL_GUARDIAN", "MARTYR_RELATIVE", "CHILD_MILITARY_SERVICE") và ghi chi tiết tên tiếng Việt có dấu vào trường "name", đồng thời xác định đúng "relationship" tương ứng ({valid_relationships}).
+
+        * NGUYÊN TẮC BÓC TÁCH HỒ SƠ GIẤY TỜ ĐẦY ĐỦ VÀ QUY TẮC "CHỌN 1 TRONG N" (ALTERNATIVE GROUP):
+          - MỖI ĐỐI TƯỢNG NGƯỜI PHỤ THUỘC BẮT BUỘC PHẢI ĐƯỢC THIẾT LẬP BỘ HỒ SƠ TOÀN DIỆN (theo quy định quản lý thuế TNCN) GỒM ĐỦ CÁC THÀNH PHẦN SAU:
+            1. GIẤY TỜ TÙY THÂN (BẮT BUỘC CHO 100% ĐỐI TƯỢNG):
+               + Với Con (con đẻ, con nuôi, con riêng): Giấy khai sinh (BIRTH_CERTIFICATE) HOẶC Thẻ căn cước / CCCD (CITIZEN_ID) -> cả hai đều đặt isMandatory: true, alternativeGroup: "IDENTITY_PROOF".
+               + Với Người lớn (Cha mẹ, Vợ/chồng, Cá nhân khác, Con >= 18 tuổi): Thẻ căn cước / CCCD (CITIZEN_ID) là giấy tờ nhân thân bắt buộc -> isMandatory: true, alternativeGroup: null (hoặc "IDENTITY_PROOF" nếu kèm Hộ chiếu).
+            2. GIẤY TỜ CHỨNG MINH QUAN HỆ NHÂN THÂN (alternativeGroup: "RELATION_PROOF"):
+               + Để chứng minh quan hệ: Giấy tờ xác nhận quan hệ (RELATIONSHIP_CERTIFICATE) HOẶC Giấy khai sinh của NNT (chứng minh cha mẹ) HOẶC Giấy xác nhận thông tin cư trú (RESIDENCE_CT07) HOẶC Giấy chứng nhận kết hôn (MARRIAGE_CERTIFICATE) -> Các giấy tờ thay thế được cho nhau này đều đặt isMandatory: true, alternativeGroup: "RELATION_PROOF".
+            3. GIẤY TỜ CHỨNG MINH ĐIỀU KIỆN ĐẶC THÙ (isMandatory: true, alternativeGroup: null):
+               + Con đang học: Thẻ sinh viên / Giấy xác nhận của nhà trường (STUDENT_CARD) -> isMandatory: true, alternativeGroup: null.
+               + Người khuyết tật / mất KNLĐ: Giấy xác nhận mức độ khuyết tật / Bệnh án kết luận mất khả năng lao động (DISABILITY_CERTIFICATE) -> isMandatory: true, alternativeGroup: null.
+               + Người khác không nơi nương tựa: Bản kê khai cam kết nghĩa vụ nuôi dưỡng (SUPPORT_COMMITMENT_FORM) -> isMandatory: true, alternativeGroup: null.
           - Tự động ánh xạ (map) từng loại giấy tờ vào mã định danh chuẩn hóa ({valid_document_types}):
             + Giấy khai sinh, trích lục khai sinh -> BIRTH_CERTIFICATE
             + Căn cước công dân, thẻ căn cước, CMND -> CITIZEN_ID
@@ -104,7 +124,7 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
             + Giấy tờ hợp lệ khác theo luật -> OTHER
             + TRƯỜNG HỢP CHỨNG TỪ MỚI CỦA LUẬT MỚI: Nếu văn bản luật quy định một loại giấy tờ đặc thù mới chưa có trong danh mục ({valid_document_types}), AI tự động đặt một mã chuẩn UPPER_SNAKE_CASE bằng tiếng Anh (ví dụ: "MILITARY_SERVICE_CERTIFICATE", "SOCIAL_ASSISTANCE_BOOK") và ghi tên tiếng Việt đầy đủ vào "name".
           - NGUYÊN TẮC NHÓM GIẤY TỜ THAY THẾ NHAU (CHỌN 1 TRONG N - ALTERNATIVE GROUP):
-            + Nếu văn bản ghi các giấy tờ thay thế được cho nhau ("hoặc", "một trong các giấy tờ sau", "bản sao giấy khai sinh hoặc giấy tờ hợp pháp khác chứng minh quan hệ"), thì TẤT CẢ các giấy tờ đó đều đặt "isMandatory": true và CÙNG MANG MỘT MÃ "alternativeGroup" dạng UPPER_SNAKE_CASE (ví dụ: "RELATION_PROOF", "IDENTITY_PROOF").
+            + Nếu văn bản hoặc quy định thuế cho phép các giấy tờ thay thế được cho nhau ("hoặc", "một trong các giấy tờ sau", "chọn 1 trong N"), thì TẤT CẢ các giấy tờ đó đều đặt "isMandatory": true và CÙNG MANG MỘT MÃ "alternativeGroup" dạng UPPER_SNAKE_CASE (ví dụ: "RELATION_PROOF", "IDENTITY_PROOF").
             + Ví dụ 1 (Cha/mẹ): CCCD của cha/mẹ là bắt buộc độc lập -> isMandatory: true, alternativeGroup: null. Giấy xác nhận quan hệ (RELATIONSHIP_CERTIFICATE) HOẶC Giấy khai sinh của NNT (BIRTH_CERTIFICATE) để chứng minh quan hệ -> cả hai đều có isMandatory: true, alternativeGroup: "RELATION_PROOF".
             + Ví dụ 2 (Con dưới 18 tuổi): Giấy khai sinh (BIRTH_CERTIFICATE) HOẶC Căn cước công dân (CITIZEN_ID) để chứng minh nhân thân -> cả hai đều có isMandatory: true, alternativeGroup: "IDENTITY_PROOF".
             + Giấy tờ bắt buộc độc lập (không có giấy tờ thay thế) hoặc giấy tờ tùy chọn độc lập: đặt "alternativeGroup": null.
