@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from sqlalchemy import Integer, String, Text, Float, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship as sa_relationship
 from app.infrastructure.database import Base
 from app.enum import TaxRuleStatus
 
@@ -31,13 +31,14 @@ class DependentRule(Base):
         index=True
     )
     dependent_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True) # CHILD, ADULT_CHILD, SPOUSE, PARENT, OTHER
+    relationship: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True) # CHILD, SPOUSE, PARENT, OTHER_DEPENDENT
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     max_age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     max_monthly_income: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     is_studying: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     conditions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    required_documents: Mapped[List["DependentRuleDocument"]] = relationship(
+    required_documents: Mapped[List["DependentRuleDocument"]] = sa_relationship(
         "DependentRuleDocument",
         back_populates="dependent_rule",
         cascade="all, delete-orphan",
@@ -49,7 +50,7 @@ class DependentRule(Base):
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    rule: Mapped["TaxRule"] = relationship("TaxRule", back_populates="dependent_rules")
+    rule: Mapped["TaxRule"] = sa_relationship("TaxRule", back_populates="dependent_rules")
 
     @property
     def rule_set_id(self) -> Optional[uuid.UUID]:

@@ -2,7 +2,13 @@ from app.core import exclude_from_coverage
 import uuid
 from typing import Optional, Any, List, Union
 from pydantic import BaseModel, ConfigDict, Field
-from app.enum import TaxRuleType, DependentType, TaxRuleStatus, RequiredDocumentType
+from app.enum import (
+    TaxRuleType,
+    DependentType,
+    TaxRuleStatus,
+    RequiredDocumentType,
+    DependentRelationship,
+)
 
 
 @exclude_from_coverage
@@ -80,6 +86,7 @@ class RequiredDocumentItemRequest(BaseModel):
     doc_type: Union[RequiredDocumentType, str] = Field(..., alias="docType")
     name: str = Field(..., alias="name")
     is_mandatory: bool = Field(True, alias="isMandatory")
+    alternative_group: Optional[str] = Field(None, alias="alternativeGroup")
     description: Optional[str] = Field(None, alias="description")
 
 
@@ -93,6 +100,7 @@ class RequiredDocumentCreateRequest(BaseModel):
     doc_type: Union[RequiredDocumentType, str] = Field(..., alias="docType")
     name: str = Field(..., alias="name")
     is_mandatory: bool = Field(True, alias="isMandatory")
+    alternative_group: Optional[str] = Field(None, alias="alternativeGroup")
     description: Optional[str] = Field(None, alias="description")
 
 
@@ -106,6 +114,7 @@ class RequiredDocumentUpdateRequest(BaseModel):
     doc_type: Optional[Union[RequiredDocumentType, str]] = Field(None, alias="docType")
     name: Optional[str] = Field(None, alias="name")
     is_mandatory: Optional[bool] = Field(None, alias="isMandatory")
+    alternative_group: Optional[str] = Field(None, alias="alternativeGroup")
     description: Optional[str] = Field(None, alias="description")
 
 
@@ -117,7 +126,8 @@ class DependentRuleCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
-    dependent_type: DependentType = Field(..., alias="dependentType")
+    dependent_type: Union[DependentType, str] = Field(..., alias="dependentType")
+    relationship: Optional[Union[DependentRelationship, str]] = Field(None, alias="relationship")
     name: str = Field(..., alias="name")
     max_age: Optional[int] = Field(None, alias="maxAge")
     max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")
@@ -137,7 +147,8 @@ class DependentRuleUpdateRequest(BaseModel):
 
     id: Optional[uuid.UUID] = Field(None, alias="id")
     rule_id: Optional[uuid.UUID] = Field(None, alias="ruleId")
-    dependent_type: Optional[DependentType] = Field(None, alias="dependentType")
+    dependent_type: Optional[Union[DependentType, str]] = Field(None, alias="dependentType")
+    relationship: Optional[Union[DependentRelationship, str]] = Field(None, alias="relationship")
     name: Optional[str] = Field(None, alias="name")
     max_age: Optional[int] = Field(None, alias="maxAge")
     max_monthly_income: Optional[float] = Field(None, alias="maxMonthlyIncome")

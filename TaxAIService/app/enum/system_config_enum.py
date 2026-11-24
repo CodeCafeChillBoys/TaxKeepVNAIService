@@ -38,3 +38,7 @@ class DefaultSystemConfigKey(str, Enum):
     # Danh mục mã phân loại nhóm người phụ thuộc chuẩn hóa (Admin có thể sửa trên UI)
     ALLOWED_DEPENDENT_TYPES = "ALLOWED_DEPENDENT_TYPES"
 
+    # Danh mục mã quan hệ người phụ thuộc chuẩn hóa (Admin có thể sửa trên UI)
+    ALLOWED_RELATIONSHIPS = "ALLOWED_RELATIONSHIPS"
+
+

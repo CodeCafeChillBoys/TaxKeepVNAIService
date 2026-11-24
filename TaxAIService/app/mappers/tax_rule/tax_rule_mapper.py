@@ -57,6 +57,32 @@ def normalize_dependent_type(raw_type: Any) -> str:
     return cleaned if cleaned else "OTHER_HELPLESS"
 
 
+def normalize_relationship(raw_rel: Any) -> Optional[str]:
+    """Chuẩn hóa mã quan hệ người phụ thuộc (CHILD, SPOUSE, PARENT, OTHER_DEPENDENT)."""
+    if not raw_rel:
+        return None
+    cleaned = to_snake_case_code(raw_rel)
+    if not cleaned:
+        return None
+    if cleaned in ("CON", "CHILD"):
+        return "CHILD"
+    if cleaned in ("VO_CHONG", "SPOUSE", "HUSBAND", "WIFE"):
+        return "SPOUSE"
+    if cleaned in ("CHA_ME", "PARENT", "FATHER", "MOTHER"):
+        return "PARENT"
+    if cleaned in ("KHAC", "OTHER", "OTHER_DEPENDENT"):
+        return "OTHER_DEPENDENT"
+    return cleaned
+
+
+def normalize_alternative_group(raw_group: Any) -> Optional[str]:
+    """Chuẩn hóa mã nhóm giấy tờ thay thế nhau dạng UPPER_SNAKE_CASE (hoặc None)."""
+    if not raw_group:
+        return None
+    cleaned = to_snake_case_code(raw_group)
+    return cleaned if cleaned else None
+
+
 def parse_condition(cond_val: Any) -> Any:
     """Helper chuyển chuỗi JSON condition thành Dict/List nếu có."""
     if not cond_val:
@@ -112,6 +138,7 @@ def format_tax_rule_data(
                 "ruleId": str(dep.rule_id) if dep.rule_id else None,
                 "ruleSetId": str(dep.rule_set_id or rule_set.rule_set_id),
                 "dependentType": dep.dependent_type,
+                "relationship": getattr(dep, "relationship", None) or (dep.get("relationship") if isinstance(dep, dict) else None),
                 "name": dep.name,
                 "maxAge": dep.max_age,
                 "maxMonthlyIncome": dep.max_monthly_income,
@@ -125,6 +152,7 @@ def format_tax_rule_data(
                         "docType": doc.doc_type if hasattr(doc, "doc_type") else (doc.get("docType") or doc.get("doc_type")),
                         "name": doc.name if hasattr(doc, "name") else doc.get("name"),
                         "isMandatory": doc.is_mandatory if hasattr(doc, "is_mandatory") else doc.get("isMandatory", doc.get("is_mandatory", True)),
+                        "alternativeGroup": (getattr(doc, "alternative_group", None) if not isinstance(doc, dict) else (doc.get("alternativeGroup") or doc.get("alternative_group"))) or None,
                         "description": doc.description if hasattr(doc, "description") else doc.get("description")
                     }
                     for doc in (dep.required_documents or [])
@@ -208,7 +236,8 @@ def build_tax_rule_models(
 
         if isinstance(cond_data, dict) and "eligibility" in cond_data:
             for elig in cond_data.get("eligibility", []):
-                dep_type = elig.get("type", "OTHER")
+                dep_type = normalize_dependent_type(elig.get("type", "OTHER"))
+                dep_rel = normalize_relationship(elig.get("relationship"))
                 dep_name = elig.get("name") or elig.get("type", "Người phụ thuộc")
                 max_age = elig.get("maxAge")
                 max_inc = elig.get("maxMonthlyIncome")
@@ -221,6 +250,7 @@ def build_tax_rule_models(
                 dep_rule = DependentRule(
                     rule_id=rule_obj.rule_id,
                     dependent_type=dep_type,
+                    relationship=dep_rel,
                     name=dep_name,
                     max_age=int(max_age) if max_age is not None else None,
                     max_monthly_income=float(max_inc) if max_inc is not None else None,
@@ -235,12 +265,14 @@ def build_tax_rule_models(
                         doc_type = normalize_document_type(doc_dict.get("docType") or doc_dict.get("doc_type"))
                         doc_name = doc_dict.get("name") or doc_type
                         is_mand = bool(doc_dict.get("isMandatory", doc_dict.get("is_mandatory", True)))
+                        alt_group = normalize_alternative_group(doc_dict.get("alternativeGroup") or doc_dict.get("alternative_group"))
                         doc_desc = doc_dict.get("description")
                         doc_obj = DependentRuleDocument(
                             dependent_rule_id=dep_rule.id,
                             doc_type=doc_type,
                             name=doc_name,
                             is_mandatory=is_mand,
+                            alternative_group=alt_group,
                             description=doc_desc
                         )
                         dep_rule.required_documents.append(doc_obj)

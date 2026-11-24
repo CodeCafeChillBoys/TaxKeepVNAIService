@@ -57,3 +57,12 @@ class RequiredDocumentType(str, Enum):
     OTHER = "OTHER"                                       # Giấy tờ khác
 
 
+class DependentRelationship(str, Enum):
+    """Phân loại quan hệ người phụ thuộc phục vụ quản lý và phân loại nhóm"""
+    CHILD = "CHILD"                          # Con (con đẻ, con nuôi, con riêng)
+    SPOUSE = "SPOUSE"                        # Vợ hoặc chồng
+    PARENT = "PARENT"                        # Cha mẹ (cha mẹ đẻ, cha mẹ vợ/chồng, cha mẹ nuôi)
+    OTHER_DEPENDENT = "OTHER_DEPENDENT"      # Cá nhân khác không nơi nương tựa
+
+
+

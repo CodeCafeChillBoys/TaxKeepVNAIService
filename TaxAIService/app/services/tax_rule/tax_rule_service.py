@@ -186,6 +186,7 @@ class TaxRuleService(ITaxRuleService):
                 "id": str(created.id),
                 "ruleId": str(created.rule_id),
                 "dependentType": created.dependent_type,
+                "relationship": created.relationship,
                 "name": created.name,
                 "maxAge": created.max_age,
                 "maxMonthlyIncome": created.max_monthly_income,
@@ -199,6 +200,7 @@ class TaxRuleService(ITaxRuleService):
                         "docType": doc.doc_type,
                         "name": doc.name,
                         "isMandatory": doc.is_mandatory,
+                        "alternativeGroup": doc.alternative_group,
                         "description": doc.description
                     }
                     for doc in created.required_documents
@@ -226,6 +228,7 @@ class TaxRuleService(ITaxRuleService):
                 "id": str(updated.id),
                 "ruleId": str(updated.rule_id),
                 "dependentType": updated.dependent_type,
+                "relationship": updated.relationship,
                 "name": updated.name,
                 "maxAge": updated.max_age,
                 "maxMonthlyIncome": updated.max_monthly_income,
@@ -239,6 +242,7 @@ class TaxRuleService(ITaxRuleService):
                         "docType": doc.doc_type,
                         "name": doc.name,
                         "isMandatory": doc.is_mandatory,
+                        "alternativeGroup": doc.alternative_group,
                         "description": doc.description
                     }
                     for doc in updated.required_documents
@@ -282,6 +286,7 @@ class TaxRuleService(ITaxRuleService):
                 "docType": doc.doc_type,
                 "name": doc.name,
                 "isMandatory": doc.is_mandatory,
+                "alternativeGroup": doc.alternative_group,
                 "description": doc.description
             }
         }
@@ -307,6 +312,7 @@ class TaxRuleService(ITaxRuleService):
                 "docType": doc.doc_type,
                 "name": doc.name,
                 "isMandatory": doc.is_mandatory,
+                "alternativeGroup": doc.alternative_group,
                 "description": doc.description
             }
         }

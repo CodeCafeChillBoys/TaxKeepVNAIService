@@ -217,6 +217,16 @@ def seed_prompts():
 
         print(f"\n[HOÀN TẤT] Tạo mới: {created_count}, Cập nhật: {updated_count} System Prompt Templates!")
 
+        try:
+            from app.infrastructure.redis_client import get_redis_client
+            redis_cli = get_redis_client()
+            if redis_cli:
+                for item in SEED_TEMPLATES:
+                    redis_cli.delete(f"ai:prompt:{item['prompt_key']}")
+                print(" -> Đã xóa sạch Redis cache cho các prompt templates.")
+        except Exception as e:
+            print(f" -> Cảnh báo xóa cache Redis: {e}")
+
 
 def seed_expense_medical_prompt():
     prompt_key = "PROMPT_EXPENSE_OCR"

@@ -36,6 +36,7 @@ class TaxRuleExtractionService:
         prompt_service: Optional[PromptTemplateService] = None,
         valid_dependent_types: Optional[str] = None,
         valid_document_types: Optional[str] = None,
+        valid_relationships: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Sử dụng Gemini LLM với Structured JSON Output để trích xuất các quy tắc thuế
@@ -49,7 +50,8 @@ class TaxRuleExtractionService:
         # Đọc danh mục cấu hình động từ database (system_configs) nếu có
         valid_dep = valid_dependent_types
         valid_doc = valid_document_types
-        if self.db and (not valid_dep or not valid_doc):
+        valid_rel = valid_relationships
+        if self.db and (not valid_dep or not valid_doc or not valid_rel):
             try:
                 from app.repositories.system_config.system_config_repository import SystemConfigRepository
                 sys_repo = SystemConfigRepository(self.db)
@@ -61,6 +63,10 @@ class TaxRuleExtractionService:
                     deps = sys_repo.get_list_value("ALLOWED_DEPENDENT_TYPES")
                     if deps:
                         valid_dep = ", ".join(deps)
+                if not valid_rel:
+                    rels = sys_repo.get_list_value("ALLOWED_RELATIONSHIPS")
+                    if rels:
+                        valid_rel = ", ".join(rels)
             except Exception:
                 pass
 
@@ -72,6 +78,7 @@ class TaxRuleExtractionService:
             document_text=document_text,
             valid_dependent_types=valid_dep,
             valid_document_types=valid_doc,
+            valid_relationships=valid_rel,
         )
         if prompt_service:
             params = build_tax_rule_extraction_prompt_params(**prompt_args)

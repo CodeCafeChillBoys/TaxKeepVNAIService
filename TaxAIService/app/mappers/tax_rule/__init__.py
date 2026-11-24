@@ -3,6 +3,10 @@ from app.mappers.tax_rule.tax_rule_mapper import (
     format_tax_rule_data,
     parse_condition,
     normalize_document_type,
+    normalize_dependent_type,
+    normalize_relationship,
+    normalize_alternative_group,
+    to_snake_case_code,
 )
 
 __all__ = [
@@ -10,4 +14,8 @@ __all__ = [
     "format_tax_rule_data",
     "parse_condition",
     "normalize_document_type",
+    "normalize_dependent_type",
+    "normalize_relationship",
+    "normalize_alternative_group",
+    "to_snake_case_code",
 ]

@@ -9,6 +9,7 @@ from app.models.tax_rule import TaxRule
 from app.models.dependent_rule import DependentRule
 from app.models.dependent_rule_document import DependentRuleDocument
 from app.enum import TaxRuleStatus
+from app.mappers.tax_rule.tax_rule_mapper import to_snake_case_code
 from app.repositories.interfaces.tax_rule_repository_interface import ITaxRuleRepository
 
 
@@ -274,6 +275,9 @@ class TaxRuleRepository(ITaxRuleRepository):
                             d.is_studying = d_data["is_studying"]
                         if "is_disabled" in d_data and d_data["is_disabled"] is not None:
                             d.is_disabled = d_data["is_disabled"]
+                        if "relationship" in d_data:
+                            rel = d_data.get("relationship")
+                            d.relationship = to_snake_case_code(rel) if rel else None
                         if cond is not None:
                             d.conditions = cond_str
                         if "status" in d_data and d_data["status"]:
@@ -294,16 +298,21 @@ class TaxRuleRepository(ITaxRuleRepository):
                                         target_doc.name = doc_dict.get("name")
                                     if "is_mandatory" in doc_dict or "isMandatory" in doc_dict:
                                         target_doc.is_mandatory = bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory")))
+                                    if "alternative_group" in doc_dict or "alternativeGroup" in doc_dict:
+                                        alt = doc_dict.get("alternative_group") or doc_dict.get("alternativeGroup")
+                                        target_doc.alternative_group = to_snake_case_code(alt) if alt else None
                                     if "description" in doc_dict:
                                         target_doc.description = doc_dict.get("description")
                                     kept_doc_ids.add(doc_id_str)
                                 else:
+                                    alt = doc_dict.get("alternative_group") or doc_dict.get("alternativeGroup")
                                     new_doc = DependentRuleDocument(
                                         id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
                                         dependent_rule_id=d.id,
                                         doc_type=doc_dict.get("doc_type") or doc_dict.get("docType") or "OTHER",
                                         name=doc_dict.get("name") or "Giấy tờ",
                                         is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                                        alternative_group=to_snake_case_code(alt) if alt else None,
                                         description=doc_dict.get("description")
                                     )
                                     d.required_documents.append(new_doc)
@@ -318,10 +327,12 @@ class TaxRuleRepository(ITaxRuleRepository):
                         new_dep_id = d_data.get("id") or uuid.uuid4()
                         if isinstance(new_dep_id, str):
                             new_dep_id = uuid.UUID(new_dep_id)
+                        rel = d_data.get("relationship")
                         new_dep = DependentRule(
                             id=new_dep_id,
                             rule_id=parent_rule_id,
                             dependent_type=d_data.get("dependent_type", "OTHER"),
+                            relationship=to_snake_case_code(rel) if rel else None,
                             name=d_data.get("name", ""),
                             max_age=d_data.get("max_age"),
                             max_monthly_income=d_data.get("max_monthly_income"),
@@ -333,12 +344,14 @@ class TaxRuleRepository(ITaxRuleRepository):
                         if req_docs_data:
                             for doc_item in req_docs_data:
                                 doc_dict = doc_item if isinstance(doc_item, dict) else (doc_item.model_dump(by_alias=False) if hasattr(doc_item, "model_dump") else {})
+                                alt = doc_dict.get("alternative_group") or doc_dict.get("alternativeGroup")
                                 new_doc = DependentRuleDocument(
                                     id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
                                     dependent_rule_id=new_dep_id,
                                     doc_type=doc_dict.get("doc_type") or doc_dict.get("docType") or "OTHER",
                                     name=doc_dict.get("name") or "Giấy tờ",
                                     is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                                    alternative_group=to_snake_case_code(alt) if alt else None,
                                     description=doc_dict.get("description")
                                 )
                                 new_dep.required_documents.append(new_doc)
@@ -365,10 +378,12 @@ class TaxRuleRepository(ITaxRuleRepository):
             if isinstance(dep_id, str):
                 dep_id = uuid.UUID(dep_id)
 
+            rel = dep_data.get("relationship")
             dep = DependentRule(
                 id=dep_id,
                 rule_id=rule_id,
                 dependent_type=dep_data.get("dependent_type") or dep_data.get("dependentType", "OTHER"),
+                relationship=to_snake_case_code(rel) if rel else None,
                 name=dep_data.get("name", ""),
                 max_age=dep_data.get("max_age") if "max_age" in dep_data else dep_data.get("maxAge"),
                 max_monthly_income=dep_data.get("max_monthly_income") if "max_monthly_income" in dep_data else dep_data.get("maxMonthlyIncome"),
@@ -382,12 +397,14 @@ class TaxRuleRepository(ITaxRuleRepository):
             if req_docs:
                 for doc in req_docs:
                     doc_dict = doc if isinstance(doc, dict) else (doc.model_dump(by_alias=False) if hasattr(doc, "model_dump") else {})
+                    alt = doc_dict.get("alternative_group") or doc_dict.get("alternativeGroup")
                     new_doc = DependentRuleDocument(
                         id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
                         dependent_rule_id=dep.id,
                         doc_type=doc_dict.get("doc_type") or doc_dict.get("docType", "OTHER"),
                         name=doc_dict.get("name", "Giấy tờ"),
                         is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                        alternative_group=to_snake_case_code(alt) if alt else None,
                         description=doc_dict.get("description")
                     )
                     dep.required_documents.append(new_doc)
@@ -412,6 +429,9 @@ class TaxRuleRepository(ITaxRuleRepository):
 
             if "dependent_type" in dep_data or "dependentType" in dep_data:
                 dep.dependent_type = dep_data.get("dependent_type") or dep_data.get("dependentType")
+            if "relationship" in dep_data:
+                rel = dep_data.get("relationship")
+                dep.relationship = to_snake_case_code(rel) if rel else None
             if "name" in dep_data and dep_data["name"]:
                 dep.name = dep_data["name"]
             if "max_age" in dep_data or "maxAge" in dep_data:
@@ -447,16 +467,21 @@ class TaxRuleRepository(ITaxRuleRepository):
                             target_doc.name = doc_dict.get("name")
                         if "is_mandatory" in doc_dict or "isMandatory" in doc_dict:
                             target_doc.is_mandatory = bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory")))
+                        if "alternative_group" in doc_dict or "alternativeGroup" in doc_dict:
+                            alt = doc_dict.get("alternative_group") or doc_dict.get("alternativeGroup")
+                            target_doc.alternative_group = to_snake_case_code(alt) if alt else None
                         if "description" in doc_dict:
                             target_doc.description = doc_dict.get("description")
                         kept_doc_ids.add(doc_id_str)
                     else:
+                        alt = doc_dict.get("alternative_group") or doc_dict.get("alternativeGroup")
                         new_doc = DependentRuleDocument(
                             id=uuid.UUID(str(doc_dict["id"])) if doc_dict.get("id") else uuid.uuid4(),
                             dependent_rule_id=dep.id,
                             doc_type=doc_dict.get("doc_type") or doc_dict.get("docType", "OTHER"),
                             name=doc_dict.get("name", "Giấy tờ"),
                             is_mandatory=bool(doc_dict.get("is_mandatory", doc_dict.get("isMandatory", True))),
+                            alternative_group=to_snake_case_code(alt) if alt else None,
                             description=doc_dict.get("description")
                         )
                         dep.required_documents.append(new_doc)
@@ -500,12 +525,14 @@ class TaxRuleRepository(ITaxRuleRepository):
             if isinstance(doc_id, str):
                 doc_id = uuid.UUID(doc_id)
 
+            alt = doc_data.get("alternative_group") or doc_data.get("alternativeGroup")
             new_doc = DependentRuleDocument(
                 id=doc_id,
                 dependent_rule_id=dependent_rule_id,
                 doc_type=doc_data.get("doc_type") or doc_data.get("docType", "OTHER"),
                 name=doc_data.get("name", "Giấy tờ"),
                 is_mandatory=bool(doc_data.get("is_mandatory", doc_data.get("isMandatory", True))),
+                alternative_group=to_snake_case_code(alt) if alt else None,
                 description=doc_data.get("description")
             )
             self.db.add(new_doc)
@@ -534,6 +561,9 @@ class TaxRuleRepository(ITaxRuleRepository):
                 val = doc_data.get("is_mandatory") if "is_mandatory" in doc_data else doc_data.get("isMandatory")
                 if val is not None:
                     doc.is_mandatory = bool(val)
+            if "alternative_group" in doc_data or "alternativeGroup" in doc_data:
+                alt = doc_data.get("alternative_group") or doc_data.get("alternativeGroup")
+                doc.alternative_group = to_snake_case_code(alt) if alt else None
             if "description" in doc_data:
                 doc.description = doc_data["description"]
 
@@ -542,6 +572,7 @@ class TaxRuleRepository(ITaxRuleRepository):
             return doc
         except Exception:
             self.db.rollback()
+            raise
             raise
 
     def delete_required_document(self, doc_id: uuid.UUID) -> bool:
