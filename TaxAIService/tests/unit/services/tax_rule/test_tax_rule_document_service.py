@@ -149,19 +149,18 @@ async def test_process_document_ai_extraction_http_error():
 
 
 # ==============================================================================
-# 6. Test Step 5: Kiểm tra trùng mã Rule Code
+# 6. Test Step 5: Kiểm tra trùng mã Rule Code nội bộ trong file bóc tách
 # ==============================================================================
 @pytest.mark.anyio
 async def test_process_document_duplicate_rule_code():
-    """Nếu ruleCode bóc tách được đã tồn tại trong DB, ném lỗi 409 Conflict."""
+    """Nếu tài liệu bóc tách chứa 2 ruleCode trùng nhau, ném lỗi 400 Bad Request."""
     mock_repo = MagicMock()
     mock_repo.get_rule_set_by_year.return_value = None
-    mock_repo.check_existing_rule_codes.return_value = True
 
     service = TaxRuleDocumentService(repository=mock_repo)
 
     fake_extracted = {
-        "taxRules": [{"ruleCode": "PIT_DEDUCTION_01"}]
+        "taxRules": [{"ruleCode": "PIT_DEDUCTION_01"}, {"ruleCode": "PIT_DEDUCTION_01"}]
     }
 
     with patch("app.services.tax_rule.tax_rule_document_service.pdf_service.prepare_pdf_for_ai", return_value=(False, "Text content", None)):
@@ -173,8 +172,8 @@ async def test_process_document_duplicate_rule_code():
                     tax_year=2026
                 )
 
-    assert exc_info.value.status_code == 409
-    assert exc_info.value.message == "The rule code already exists."
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.message == TaxRuleErrorMessages.DUPLICATE_RULE_CODE_IN_EXTRACT
 
 
 # ==============================================================================
