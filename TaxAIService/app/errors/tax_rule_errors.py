@@ -1,5 +1,5 @@
 from app.core import exclude_from_coverage
-from typing import Any, Optional
+from typing import Optional
 from fastapi import HTTPException, status
 
 
@@ -23,9 +23,8 @@ class TaxRuleErrorMessages:
         return f"Duplicate ruleCode in database: {code}."
 
     @staticmethod
-    def tax_year_mismatch(doc_year: Any, input_year: int, reason: Optional[str] = None) -> str:
-        doc_year_str = str(doc_year) if doc_year is not None else "không xác định"
-        msg = f"Năm áp dụng trong văn bản ({doc_year_str}) không khớp với năm tính thuế nhập vào ({input_year})."
+    def tax_year_mismatch(input_year: int, reason: Optional[str] = None) -> str:
+        msg = f"Văn bản không áp dụng cho kỳ tính thuế {input_year}."
         if reason:
             msg += f" Chi tiết: {reason}"
         return msg
