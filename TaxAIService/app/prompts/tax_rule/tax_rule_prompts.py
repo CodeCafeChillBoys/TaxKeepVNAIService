@@ -28,14 +28,15 @@ QUY TRÌNH PHÂN TÍCH VĂN BẢN PHÁP LUẬT BẮT BUỘC (DEEP ANALYSIS PROTO
 ════════════════════════════════════════════════════════════════════════════════
 Trước khi xuất JSON, bạn phải thực hiện tuần tự 5 bước phân tích trong tư duy:
 1. BẮT BUỘC ĐỐI SOÁT NĂM ÁP DỤNG (TAX YEAR VERIFICATION):
-   - Đọc kỹ tiêu đề, căn cứ pháp lý, ngày ký ban hành và điều khoản về hiệu lực thi hành để xác định năm áp dụng thuế của văn bản (extractedTaxYear dạng số nguyên, ví dụ: 2026 hoặc 2020).
-   - So sánh extractedTaxYear với năm người dùng đã nhập ({tax_year}):
-     + isTaxYearMatched = true: nếu văn bản pháp luật này quy định áp dụng hoặc có hiệu lực điều chỉnh cho năm tính thuế {tax_year}.
-     + isTaxYearMatched = false: nếu văn bản này thuộc về năm khác và KHÔNG áp dụng cho năm tính thuế {tax_year}.
-     + mismatchReason: Nếu không khớp, giải thích rõ lý do ngắn gọn bằng tiếng Việt (ví dụ: "Văn bản này ban hành và áp dụng cho năm 2020, không phải năm {tax_year}"). Nếu khớp thì ghi null.
+   - Xác định văn bản có áp dụng cho kỳ tính thuế {tax_year} dựa trên điều khoản áp dụng, thời gian hiệu lực và quy định chuyển tiếp trong tài liệu.
+   - Ghi extractedTaxYear là năm bắt đầu áp dụng nếu xác định được, hoặc null. Văn bản có thể tiếp tục áp dụng cho các kỳ tính thuế sau năm bắt đầu.
+     + isTaxYearMatched = true: có căn cứ xác định văn bản áp dụng cho kỳ tính thuế {tax_year}.
+     + isTaxYearMatched = false: có căn cứ xác định văn bản chưa áp dụng, đã hết áp dụng hoặc chỉ áp dụng cho kỳ tính thuế khác.
+     + isTaxYearMatched = null: tài liệu thiếu căn cứ để xác định khả năng áp dụng.
+     + mismatchReason: Khi isTaxYearMatched = false, nêu ngắn gọn căn cứ bằng tiếng Việt. Các trường hợp khác ghi null.
 
    ⚠️ CHỈ THỊ BẮT BUỘC KHI NĂM KHÔNG KHỚP (CRITICAL RULE FOR YEAR MISMATCH):
-   - DÙ NĂM CỦA VĂN BẢN (extractedTaxYear) CÓ KHỚP VỚI NĂM NGƯỜI DÙNG NHẬP ({tax_year}) HAY KHÔNG (kể cả khi isTaxYearMatched = false, ví dụ: văn bản thuộc năm 2020 trong khi người dùng nhập {tax_year}), BẠN VẪN BẮT BUỘC 100% PHẢI TRÍCH XUẤT ĐẦY ĐỦ CÁC QUY TẮC THUẾ (DEDUCTIONS, BRACKETS, RATES, EXEMPTIONS) CÓ TRONG VĂN BẢN NÀY VÀO MẢNG "taxRules".
+   - Với mọi kết quả kiểm tra, trích xuất đầy đủ các quy tắc thuế (DEDUCTIONS, BRACKETS, RATES, EXEMPTIONS) có trong văn bản vào mảng "taxRules".
    - TUYỆT ĐỐI KHÔNG ĐƯỢC trả về "taxRules": [] rỗng chỉ vì lý do lệch năm! Hệ thống sẽ lưu các quy tắc này kèm cảnh báo lệch năm để Admin có thể đối soát và chỉnh sửa lại năm áp dụng.
    - Nếu văn bản là văn bản sửa đổi, bổ sung (ví dụ: chỉ quy định về mức giảm trừ gia cảnh): Hãy trích xuất tất cả các quy tắc xuất hiện trong văn bản đó.
 2. RÀ SOÁT CẤU TRÚC VĂN BẢN (CHUYÊN BIỆT TIỀN LƯƠNG, TIỀN CÔNG): Đọc kỹ từ đầu đến cuối, chỉ tập trung vào:
@@ -59,11 +60,11 @@ DANH MỤC QUY TẮC THUẾ BẮT BUỘC TRÍCH XUẤT CHI TIẾT (CHỈ THUỘC
 
 1. NHÓM GIẢM TRỪ (ruleType: "DEDUCTION"):
    a. PIT_DEDUCTION_PERSONAL: Mức giảm trừ cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công.
-      - Giá trị (value): Số tiền VND/tháng theo luật quy định trong văn bản (ví dụ: mức hiện hành theo Nghị quyết 954 là 11000000, hoặc mức điều chỉnh/dự thảo mới nếu văn bản có nêu như 15000000 hoặc 15500000).
+      - Giá trị (value): Trích xuất mức giảm trừ cho bản thân theo quy định trong văn bản đang xử lý và biểu diễn dưới dạng số tiền VND/tháng. Nếu văn bản không quy định mức này, không tự điền giá trị.
       - Đơn vị (unit): "VND/month".
       - Điều kiện (condition): "Áp dụng cho bản thân người nộp thuế cư trú có thu nhập từ tiền lương, tiền công".
    b. PIT_DEDUCTION_DEPENDENT: Mức giảm trừ cho mỗi người phụ thuộc.
-      - Giá trị (value): Số tiền VND/người/tháng theo luật quy định trong văn bản (ví dụ: mức hiện hành theo Nghị quyết 954 là 4400000, hoặc mức điều chỉnh/dự thảo mới nếu văn bản có nêu như 5500000 hoặc 6200000).
+      - Giá trị (value): Trích xuất mức giảm trừ cho mỗi người phụ thuộc theo quy định trong văn bản đang xử lý và biểu diễn dưới dạng số tiền VND/người/tháng. Nếu văn bản không quy định mức này, không tự điền giá trị.
       - Đơn vị (unit): "VND/person/month".
       - Điều kiện (condition): Phân tích chi tiết các điều kiện xét duyệt giảm trừ người phụ thuộc và xuất chuỗi JSON theo các nguyên tắc nghiệp vụ sau:
 
@@ -174,8 +175,8 @@ YÊU CẦU ĐẦU RA (CHỈ XUẤT DUY NHẤT 1 ĐỐI TƯỢNG JSON HỢP LỆ,
 {
   "verification": {
     "inputTaxYear": {tax_year},
-    "extractedTaxYear": {tax_year},
-    "isTaxYearMatched": true,
+    "extractedTaxYear": null,
+    "isTaxYearMatched": null,
     "mismatchReason": null
   },
   "taxRuleSet": {

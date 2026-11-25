@@ -2,7 +2,7 @@ from app.core import exclude_from_coverage
 import uuid
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import Integer, String, Text, Float, DateTime, ForeignKey, func
+from sqlalchemy import Integer, String, Text, Float, DateTime, ForeignKey, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database import Base
@@ -16,7 +16,10 @@ if TYPE_CHECKING:
 @exclude_from_coverage
 class TaxRule(Base):
     __tablename__ = "tax_rules"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        UniqueConstraint("rule_set_id", "rule_code", name="uq_tax_rules_rule_set_rule_code"),
+        {"extend_existing": True}
+    )
 
     # Primary key dạng GUID (UUID)
     rule_id: Mapped[uuid.UUID] = mapped_column(
@@ -32,7 +35,7 @@ class TaxRule(Base):
         nullable=True,
         index=True
     )
-    rule_code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    rule_code: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     rule_name: Mapped[str] = mapped_column(String(255), nullable=False)
     rule_type: Mapped[str] = mapped_column(String(100), nullable=False) # DEDUCTION, RATE, BRACKET, EXEMPTION
     condition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

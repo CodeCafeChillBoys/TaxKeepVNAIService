@@ -13,23 +13,23 @@ def test_extract_tax_rules_no_input():
     assert exc_info.value.detail == TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED
 
 
-def test_extract_tax_rules_success_with_text():
+def test_extract_tax_rules_applies_after_first_effective_year():
     service = TaxRuleExtractionService()
 
     fake_json = {
-        "taxRuleSet": {"name": "Luật 2026"},
+        "taxRuleSet": {"name": "Luật 2020", "effectiveFrom": "2020-01-01"},
         "taxRules": [{"ruleCode": "PIT_01", "ruleName": "Giảm trừ", "ruleType": "DEDUCTION"}],
-        "verification": {"isTaxYearMatched": True, "extractedTaxYear": 2026}
+        "verification": {"isTaxYearMatched": True, "extractedTaxYear": 2020}
     }
 
     mock_resp = MagicMock()
     mock_resp.text = json.dumps(fake_json)
 
     with patch.object(service.client.models, "generate_content", return_value=mock_resp):
-        result = service.extract_tax_rules(document_text="Nội dung luật thuế 2026", tax_year=2026)
+        result = service.extract_tax_rules(document_text="Luật thuế có hiệu lực từ 2020", tax_year=2025)
 
-    assert result["taxRuleSet"]["name"] == "Luật 2026"
-    assert result["taxRuleSet"]["taxYear"] == 2026
+    assert result["taxRuleSet"]["name"] == "Luật 2020"
+    assert result["taxRuleSet"]["taxYear"] == 2025
     assert result["taxRuleSet"]["status"] == "Draft"
     assert len(result["taxRules"]) == 1
     assert result["verification"]["isTaxYearMatched"] is True
@@ -57,11 +57,12 @@ def test_extract_tax_rules_with_pdf_bytes_and_markdown_fence():
     assert "PIT_RULE_" in result["taxRules"][0]["ruleCode"]
     assert result["taxRules"][0]["ruleType"] == "DEDUCTION"
     assert result["taxRuleSet"]["taxYear"] == 2026
-    assert result["verification"]["isTaxYearMatched"] is True
+    assert result["verification"]["isTaxYearMatched"] is None
+    assert "Chưa xác định" in result["warning"]
 
 
 def test_extract_tax_rules_tax_year_mismatch_warning():
-    """Khi AI phát hiện năm trong văn bản khác năm input, sinh warning nhưng vẫn giữ dữ liệu."""
+    """Cảnh báo khi văn bản đã hết áp dụng cho kỳ tính thuế được chọn."""
     service = TaxRuleExtractionService()
 
     fake_json = {
@@ -70,7 +71,7 @@ def test_extract_tax_rules_tax_year_mismatch_warning():
         "verification": {
             "isTaxYearMatched": False,
             "extractedTaxYear": 2025,
-            "mismatchReason": "Văn bản năm 2025 chứ không phải 2026"
+            "mismatchReason": "Văn bản chỉ áp dụng cho kỳ tính thuế 2025"
         }
     }
 

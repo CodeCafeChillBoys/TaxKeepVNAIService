@@ -113,12 +113,12 @@ class TaxRuleDocumentService:
                     message=he.detail
                 )
 
-            # 5. Kiểm tra trùng lặp ruleCode trong database
+            # 5. Kiểm tra trùng lặp ruleCode nội bộ trong cùng tài liệu bóc tách
             rule_codes = [r["ruleCode"] for r in extracted_data.get("taxRules", []) if "ruleCode" in r]
-            if rule_codes and self.repository.check_existing_rule_codes(rule_codes):
+            if len(rule_codes) != len(set(rule_codes)):
                 raise TaxRuleServiceError(
-                    status_code=status.HTTP_409_CONFLICT,
-                    message="The rule code already exists."
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message=TaxRuleErrorMessages.DUPLICATE_RULE_CODE_IN_EXTRACT
                 )
 
             # 6. Chuyển đổi JSON sang các thực thể ORM

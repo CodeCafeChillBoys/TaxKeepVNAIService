@@ -136,41 +136,23 @@ class TaxRuleExtractionService:
         if not isinstance(data, dict):
             raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
 
-        # Kiểm tra verification đối soát năm tính thuế
         verification = data.get("verification")
-        warning_msg = None
-        if isinstance(verification, dict):
-            is_matched = verification.get("isTaxYearMatched")
-            extracted_year = verification.get("extractedTaxYear")
-            mismatch_reason = verification.get("mismatchReason")
-
-            extracted_year_int = None
-            if extracted_year is not None:
-                try:
-                    extracted_year_int = int(str(extracted_year).strip())
-                except (ValueError, TypeError):
-                    pass
-
-            # Nếu AI xác định không khớp hoặc năm bóc tách khác với tax_year nhập vào
-            if is_matched is False or (extracted_year_int is not None and extracted_year_int != tax_year):
-                warning_msg = TaxRuleErrorMessages.tax_year_mismatch(
-                    doc_year=extracted_year_int if extracted_year_int is not None else extracted_year,
-                    input_year=tax_year,
-                    reason=mismatch_reason
-                )
-                verification["isTaxYearMatched"] = False
-                verification["warningMessage"] = warning_msg
-            else:
-                verification["isTaxYearMatched"] = True
-                verification["warningMessage"] = None
+        if not isinstance(verification, dict):
+            verification = {}
+        verification["inputTaxYear"] = tax_year
+        verification.setdefault("extractedTaxYear", None)
+        is_matched = verification.get("isTaxYearMatched")
+        mismatch_reason = verification.get("mismatchReason")
+        if is_matched is False:
+            warning_msg = TaxRuleErrorMessages.tax_year_mismatch(tax_year, mismatch_reason)
+        elif is_matched is True:
+            warning_msg = None
         else:
-            verification = {
-                "inputTaxYear": tax_year,
-                "extractedTaxYear": tax_year,
-                "isTaxYearMatched": True,
-                "mismatchReason": None,
-                "warningMessage": None
-            }
+            is_matched = None
+            warning_msg = f"Chưa xác định được văn bản có áp dụng cho kỳ tính thuế {tax_year}."
+        verification["isTaxYearMatched"] = is_matched
+        verification["mismatchReason"] = mismatch_reason if is_matched is False else None
+        verification["warningMessage"] = warning_msg
         data["verification"] = verification
         if warning_msg:
             data["warning"] = warning_msg
@@ -184,9 +166,8 @@ class TaxRuleExtractionService:
 
         # Nếu không trích xuất được rules nào:
         # Nếu có cảnh báo lệch năm (hoặc verification xác định không khớp), KHÔNG ném lỗi để hệ thống vẫn lưu Draft kèm cảnh báo cho Admin
-        if not valid_rules:
-            if not warning_msg and verification.get("isTaxYearMatched") is not False:
-                raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
+        if not valid_rules and is_matched is not False:
+            raise TaxRuleExtractionError(detail=TaxRuleErrorMessages.NO_TAX_RULE_EXTRACTED)
 
         for rule in valid_rules:
             if not rule.get("ruleCode"):
