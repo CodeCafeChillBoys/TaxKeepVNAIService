@@ -176,7 +176,7 @@ class TaxRuleExtractionService:
                 rule["ruleName"] = rule["ruleCode"]
             if not rule.get("ruleType"):
                 rule["ruleType"] = "DEDUCTION"
-
+        
         rule_set = data.get("taxRuleSet", {})
         if not isinstance(rule_set, dict):
             rule_set = {}

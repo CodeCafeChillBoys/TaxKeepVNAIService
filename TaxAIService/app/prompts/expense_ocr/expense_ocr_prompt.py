@@ -54,11 +54,12 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
    - invoiceNumber: Số hóa đơn / biên lai (VD: 0012345).
    - invoiceDate: Ngày lập hóa đơn/chứng từ, định dạng YYYY-MM-DD.
    - extractedYear: Năm của ngày lập hóa đơn/chứng từ, được xác định từ invoiceDate. Đây KHÔNG mặc định là năm thu nhập.
-   - buyerName: Họ tên người mua / bệnh nhân / học sinh.
-   - buyerTaxCode: Mã số thuế người mua (nếu có).
+   - buyerName: Họ tên người mua / bệnh nhân / học sinh. Với hóa đơn viện phí, ưu tiên "Họ và tên người thanh toán" nếu có ghi.
+   - buyerTaxCode: Mã số thuế người mua hoặc người thanh toán (nếu có). Với hóa đơn viện phí, đọc dòng "Mã số thuế" trong khối thông tin người thanh toán. Giữ nguyên chuỗi số, kể cả số 0 ở đầu.
    - buyerIdCard: Số CCCD / CMND / Mã định danh người mua.
      * LƯU Ý BÓC TÁCH ĐỊNH DANH NGƯỜI MUA: Đọc kỹ vùng "Người mua hàng / Buyer", "CCCD / No:", "Số định danh cá nhân". Nếu trên hóa đơn có số CCCD/CMND (hoặc có thẻ CCCD chụp kèm theo), BẮT BUỘC trích xuất chính xác vào trường 'buyerIdCard' và họ tên người mua vào 'buyerName'.
-   - buyerAddress: Địa chỉ người mua.
+     * Với hóa đơn viện phí, nếu không có CCCD/CMND ghi riêng và hóa đơn xác định người thanh toán là cá nhân nộp thuế cho chính mình (ví dụ tên bệnh nhân trùng tên người thanh toán và quan hệ ghi "Người nộp thuế" hoặc "Bản thân"), dùng mã số thuế cá nhân 12 chữ số trong khối người thanh toán làm 'buyerIdCard' và vẫn giữ số đó trong 'buyerTaxCode'. Không dùng mã BHYT, mã số thuế của bệnh viện hoặc mã của người khác làm 'buyerIdCard'.
+   - buyerAddress: Địa chỉ người mua hoặc người thanh toán. Với hóa đơn viện phí, lấy nguyên văn dòng "Địa chỉ" trong khối "Họ và tên người thanh toán", kể cả khi dòng này nằm dưới "Mã số thuế". Địa chỉ trên tiêu đề của bệnh viện thuộc sellerAddress. Nếu đọc được buyerAddress, ghi cùng giá trị vào fields với fieldName = "buyer_address".
    - paymentMethod: Hình thức thanh toán (Tiền mặt, Chuyển khoản, QR...).
    - lookupUrl: Link tra cứu hóa đơn điện tử (nếu có).
    - lookupCode: Mã tra cứu / mã bí mật của hóa đơn điện tử (nếu có).
