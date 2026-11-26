@@ -58,6 +58,7 @@ class ConfidenceScores(BaseModel):
     residence_place: Optional[float] = Field(None, alias="residencePlace")
     expiry_date: Optional[float] = Field(None, alias="expiryDate")
     issue_date: Optional[float] = Field(None, alias="issueDate")
+    disability_severity: Optional[float] = Field(None, alias="disabilitySeverity")
 
     # 2. Thông tin thân nhân
     father_full_name: Optional[float] = Field(None, alias="fatherFullName")
@@ -181,6 +182,11 @@ class ExtractedDependentData(BaseModel):
         None, 
         alias="unreadableReason", 
         description="Lý do nếu mờ/lóa"
+    )
+    disability_severity: Optional[str] = Field(
+        None,
+        alias="disabilitySeverity",
+        description="Mức độ ghi trên giấy xác nhận khuyết tật, ví dụ Đặc biệt nặng, Nặng hoặc Nhẹ",
     )
     confidence_scores: Optional[ConfidenceScores] = Field(
         None, 

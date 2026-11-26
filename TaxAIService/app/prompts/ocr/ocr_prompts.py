@@ -82,6 +82,7 @@ Nhiệm vụ của bạn:
    - residencePlace: Nơi thường trú / địa chỉ cư trú ghi trên giấy tờ.
    - expiryDate: Ngày hết hạn của CCCD theo định dạng YYYY-MM-DD.
    - issueDate: Ngày cấp giấy tờ theo định dạng YYYY-MM-DD.
+   - disabilitySeverity: Với giấy xác nhận khuyết tật (DISABILITY_CERTIFICATE), đọc mục "Mức độ khuyết tật". Nếu có các ô lựa chọn, chỉ lấy nhãn của ô được đánh dấu rõ ràng (ví dụ "Đặc biệt nặng", "Nặng" hoặc "Nhẹ"). Nếu mức độ được ghi bằng chữ, lấy nguyên văn mức ghi rõ. Trả null nếu thiếu mục này, không đọc được, không xác định được một lựa chọn duy nhất hoặc giấy tờ thuộc loại khác. Không suy ra mức độ từ dạng khuyết tật hoặc tỷ lệ suy giảm khả năng lao động. Ghi điểm riêng vào confidenceScores.disabilitySeverity khi trích xuất được, ngược lại để null.
    - confidenceScores: Đánh giá độ tin cậy từ 0.0 đến 1.0 cho trường `overall` và cho TẤT CẢ các trường dữ liệu mà bạn bóc tách được (citizenId, fullName, birthDate, gender, originPlace, residencePlace, expiryDate, issueDate, documentType, documentNumber, issuingAuthority, các trường cha/mẹ nếu có). Trường nào không xuất hiện trên ảnh (null) thì gán điểm tin cậy tương ứng là null.
 
 4. QUY TẮC AN TOÀN CHỐNG ẢO GIÁC (HALLUCINATION):
