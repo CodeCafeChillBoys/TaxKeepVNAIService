@@ -47,7 +47,7 @@ NHIỆM VỤ BÓC TÁCH CHI TIẾT:
 
 4. BÓC TÁCH CÁC TRƯỜNG THÔNG TIN CHUNG:
    - sellerName: Tên cơ sở phát hành, bệnh viện, trường học, công ty bên bán.
-   - sellerTaxCode: Mã số thuế bên bán (nếu có).
+   - sellerTaxCode: Chỉ lấy mã số thuế ghi rõ thuộc bên bán hoặc đơn vị phát hành. Với hóa đơn viện phí, tìm trong thông tin của bệnh viện/cơ sở y tế. Dòng "Mã số thuế" trong khối "Họ và tên người thanh toán" chỉ thuộc buyerTaxCode, kể cả khi đó là mã số thuế duy nhất trên hóa đơn. Nếu thiếu mã số thuế của bên bán hoặc không xác định được mã thuộc bên bán, trả sellerTaxCode = null. Quy tắc này cũng áp dụng cho trường seller_tax_code trong mảng fields.
    - sellerAddress: Địa chỉ bên bán.
    - sellerPhone: Số điện thoại bên bán.
    - invoiceSeries: Ký hiệu mẫu hóa đơn (VD: 1C26TAA).
