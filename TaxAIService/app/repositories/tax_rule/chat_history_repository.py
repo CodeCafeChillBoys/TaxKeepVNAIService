@@ -12,6 +12,10 @@ class ChatHistoryRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def get_session(self, session_id: uuid.UUID) -> Optional[ChatSession]:
+        """Lấy thông tin của một phiên trò chuyện theo ID."""
+        return self.db.query(ChatSession).filter(ChatSession.id == session_id).first()
+
     def get_or_create_session(
         self, 
         session_id: Optional[uuid.UUID] = None, 
@@ -59,6 +63,8 @@ class ChatHistoryRepository:
         """
         Lấy tối đa N tin nhắn gần nhất của phiên này để làm ngữ cảnh.
         Sắp xếp tăng dần theo thời gian để gửi cho AI đọc theo đúng trình tự.
+        Đảm bảo lọc bỏ các tin nhắn trùng vai trò liên tiếp (nếu có lỗi trước đó)
+        để không vi phạm quy tắc bắt buộc luân phiên vai trò của Gemini API.
         """
         messages = (
             self.db.query(ChatMessage)
@@ -68,14 +74,42 @@ class ChatHistoryRepository:
             .all()
         )
         messages.reverse()
-        return messages
 
-    def get_user_sessions(self, user_id: Optional[uuid.UUID] = None, limit: int = 50) -> List[ChatSession]:
-        """Lấy danh sách các phiên chat của user (sắp xếp mới nhất lên đầu)."""
-        query = self.db.query(ChatSession)
-        if user_id:
-            query = query.filter(ChatSession.user_id == user_id)
-        return query.order_by(ChatSession.updated_at.desc()).limit(limit).all()
+        # Sanitize alternating roles
+        sanitized: List[ChatMessage] = []
+        for msg in messages:
+            if not sanitized:
+                sanitized.append(msg)
+            else:
+                # Nếu cùng role với tin nhắn trước đó, chỉ giữ tin nhắn sau cùng
+                if sanitized[-1].role == msg.role:
+                    sanitized[-1] = msg
+                else:
+                    sanitized.append(msg)
+
+        return sanitized
+
+    def get_user_sessions(
+        self, 
+        user_id: Optional[uuid.UUID] = None, 
+        limit: int = 50, 
+        skip: int = 0
+    ) -> List[ChatSession]:
+        """Lấy danh sách các phiên chat của user (sắp xếp mới nhất lên đầu), hỗ trợ phân trang."""
+        if not user_id:
+            return []
+        query = self.db.query(ChatSession).filter(ChatSession.user_id == user_id)
+        return query.order_by(ChatSession.updated_at.desc()).offset(skip).limit(limit).all()
+
+    def update_session_title(self, session_id: uuid.UUID, title: str) -> Optional[ChatSession]:
+        """Cập nhật tiêu đề phiên trò chuyện."""
+        session = self.get_session(session_id)
+        if session:
+            session.title = title.strip()
+            session.updated_at = datetime.now(timezone.utc)
+            self.db.commit()
+            self.db.refresh(session)
+        return session
 
     def get_session_messages(self, session_id: uuid.UUID) -> List[ChatMessage]:
         """Lấy toàn bộ tin nhắn trong một phiên trò chuyện theo thứ tự thời gian."""

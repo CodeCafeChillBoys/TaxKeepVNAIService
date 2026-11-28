@@ -168,3 +168,69 @@ class AiKeyManager:
         logger.info("Chuyển sang Gemini client mặc định")
         fallback_client = default_client or (genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None)
         return ai_operation_func(fallback_client, settings.GEMINI_MODEL)
+
+    @classmethod
+    def execute_stream_with_failover(
+        cls,
+        db: Optional[Session],
+        ai_operation_stream_func,
+        default_client: Optional[genai.Client] = None
+    ):
+        """
+        Thực thi generator stream với failover key.
+        Nếu key đầu tiên dính lỗi 429 tại bước kết nối / chunk đầu tiên, chuyển key tiếp theo.
+        """
+        if db:
+            try:
+                now = datetime.now(timezone.utc)
+                available_keys = db.query(AiProviderKey).filter(
+                    AiProviderKey.provider == "GEMINI",
+                    AiProviderKey.is_active == True,
+                    AiProviderKey.status != "INVALID",
+                    (AiProviderKey.cooldown_until == None) | (AiProviderKey.cooldown_until <= now)
+                ).order_by(AiProviderKey.priority.asc(), AiProviderKey.last_used_at.asc().nullsfirst()).all()
+
+                for key_item in available_keys:
+                    try:
+                        client = genai.Client(api_key=key_item.api_key)
+                        stream_gen = ai_operation_stream_func(client, settings.GEMINI_MODEL)
+
+                        # Đọc thử chunk đầu tiên để xác nhận kết nối và quota không bị lỗi
+                        first_chunk = None
+                        try:
+                            first_chunk = next(stream_gen)
+                        except StopIteration:
+                            return
+
+                        # Thành công: Cập nhật metrics key
+                        key_item.request_count += 1
+                        key_item.last_used_at = datetime.now(timezone.utc)
+                        key_item.status = "ACTIVE"
+                        key_item.cooldown_until = None
+                        db.commit()
+
+                        if first_chunk is not None:
+                            yield first_chunk
+                        for chunk in stream_gen:
+                            yield chunk
+                        return
+
+                    except Exception as e:
+                        err_msg = str(e).lower()
+                        if "429" in err_msg or "quota" in err_msg or "resource_exhausted" in err_msg:
+                            logger.warning(f"Key '{key_item.key_name}' dính lỗi 429 khi stream. Chuyển key tiếp theo...")
+                            key_item.status = "QUOTA_EXCEEDED"
+                            key_item.cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=2)
+                            db.commit()
+                            continue
+                        else:
+                            raise e
+            except Exception as db_err:
+                logger.warning(f"Lỗi khi dùng pool key stream từ DB: {db_err}")
+
+        # Fallback về key mặc định
+        logger.info("Chuyển sang Gemini stream client mặc định")
+        fallback_client = default_client or (genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None)
+        stream_gen = ai_operation_stream_func(fallback_client, settings.GEMINI_MODEL)
+        for chunk in stream_gen:
+            yield chunk

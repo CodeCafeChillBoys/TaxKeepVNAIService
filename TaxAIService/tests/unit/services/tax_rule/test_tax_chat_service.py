@@ -219,3 +219,185 @@ def test_tax_chat_ask_empty_or_whitespace_question_raises_value_error(mock_repo,
             except ValueError as e:
                 assert "Vui lòng nhập câu hỏi" in str(e)
 
+
+@patch("app.services.tax_rule.tax_chat_service.genai.Client")
+def test_tax_chat_ask_stream_success(mock_client_class, mock_repo, mock_history_repo):
+    mock_client = MagicMock()
+    chunk1 = MagicMock()
+    chunk1.text = "Thuế TNCN "
+    chunk2 = MagicMock()
+    chunk2.text = "năm 2026."
+    mock_client.models.generate_content_stream.return_value = [chunk1, chunk2]
+    mock_client_class.return_value = mock_client
+
+    service = TaxChatService(repository=mock_repo, history_repository=mock_history_repo)
+    service.client = mock_client
+
+    chunks = list(service.ask_stream(
+        question="Tính thuế 2026",
+        session_id=None,
+        tax_year=2026,
+        user_id=uuid.uuid4()
+    ))
+
+    assert "".join(chunks) == "Thuế TNCN năm 2026."
+    mock_history_repo.save_message.assert_called()
+
+
+def test_tax_chat_ask_stream_empty_question(mock_repo, mock_history_repo):
+    with patch("app.services.tax_rule.tax_chat_service.genai.Client"):
+        service = TaxChatService(repository=mock_repo, history_repository=mock_history_repo)
+        with pytest.raises(ValueError):
+            list(service.ask_stream(question="   "))
+
+
+def test_tax_chat_get_session_and_update_title(mock_repo, mock_history_repo):
+    session_id = uuid.uuid4()
+    mock_history_repo.get_session.return_value = ChatSession(id=session_id, title="Old")
+    mock_history_repo.update_session_title.return_value = ChatSession(id=session_id, title="New")
+
+    with patch("app.services.tax_rule.tax_chat_service.genai.Client"):
+        service = TaxChatService(repository=mock_repo, history_repository=mock_history_repo)
+        sess = service.get_session(session_id)
+        assert sess is not None
+        assert sess.title == "Old"
+
+        updated = service.update_session_title(session_id, "New")
+        assert updated is not None
+        assert updated.title == "New"
+
+        service_no_repo = TaxChatService(repository=mock_repo, history_repository=None)
+        assert service_no_repo.get_session(session_id) is None
+        assert service_no_repo.update_session_title(session_id, "New") is None
+
+
+def test_tax_calculator_pit_2026():
+    from app.services.tax_rule.tax_calculator import TaxCalculator
+    # Lương 80 triệu, 2 người phụ thuộc, năm 2026 (giống bài toán thực tế)
+    res = TaxCalculator.calculate_pit(
+        monthly_salary=80_000_000,
+        dependents_count=2,
+        insurance_amount=8_400_000,
+        tax_year=2026
+    )
+    assert res["personal_deduction"] == 15_500_000
+    assert res["dependents_deduction"] == 12_400_000
+    assert res["assessable_income"] == 43_700_000
+    # Bậc 1: 10m x 5% = 500k
+    # Bậc 2: 20m x 10% = 2,000k
+    # Bậc 3: 13.7m x 20% = 2,740k
+    # Tổng thuế = 5,240,000 VND
+    assert res["total_tax"] == 5_240_000
+    assert res["net_income"] == 66_360_000
+
+
+def test_tax_calculator_pit_2025():
+    from app.services.tax_rule.tax_calculator import TaxCalculator
+    # Lương 25 triệu, không người phụ thuộc, năm 2025
+    res = TaxCalculator.calculate_pit(
+        monthly_salary=25_000_000,
+        dependents_count=0,
+        insurance_amount=2_625_000,
+        tax_year=2025
+    )
+    assert res["personal_deduction"] == 11_000_000
+    assert res["dependents_deduction"] == 0
+    # TNTT = 25 - 11 - 2.625 = 11,375,000
+    assert res["assessable_income"] == 11_375_000
+    # Bậc 1 (đến 5tr, 5%): 250k
+    # Bậc 2 (5-10tr, 10%): 500k
+    # Bậc 3 (10-18tr, 15%): 1,375k x 15% = 206,250
+    # Tổng = 956,250 VND
+    assert res["total_tax"] == 956_250
+
+
+def test_tax_calculator_zero_income():
+    from app.services.tax_rule.tax_calculator import TaxCalculator
+    res = TaxCalculator.calculate_pit(monthly_salary=0, dependents_count=0)
+    assert res["assessable_income"] == 0
+    assert res["total_tax"] == 0
+    assert res["net_income"] == 0
+
+
+def test_tax_chat_ask_cache_hit(mock_repo, mock_history_repo):
+    mock_redis = MagicMock()
+    mock_redis.get.return_value = "Câu trả lời từ Redis Cache"
+
+    with patch("app.services.tax_rule.tax_chat_service.genai.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        service = TaxChatService(
+            repository=mock_repo,
+            history_repository=mock_history_repo,
+            redis_client=mock_redis
+        )
+
+        res = service.ask(
+            question="Mức giảm trừ gia cảnh là bao nhiêu?",
+            session_id=None,
+            tax_year=2026
+        )
+
+        assert res["cached"] is True
+        assert res["answer"] == "Câu trả lời từ Redis Cache"
+        # Đảm bảo KHÔNG gọi Gemini API khi đã trúng cache
+        assert not mock_client.models.generate_content.called
+        # Vẫn lưu vào database của session
+        assert mock_history_repo.save_message.called
+
+
+def test_tax_chat_ask_cache_miss_saves_to_cache(mock_repo, mock_history_repo):
+    mock_redis = MagicMock()
+    mock_redis.get.return_value = None  # Cache miss
+
+    with patch("app.services.tax_rule.tax_chat_service.genai.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Câu trả lời mới từ Gemini"
+        mock_client.models.generate_content.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        service = TaxChatService(
+            repository=mock_repo,
+            history_repository=mock_history_repo,
+            redis_client=mock_redis
+        )
+
+        res = service.ask(
+            question="Mức giảm trừ gia cảnh là bao nhiêu?",
+            session_id=None,
+            tax_year=2026
+        )
+
+        assert res["cached"] is False
+        assert res["answer"] == "Câu trả lời mới từ Gemini"
+        # Đảm bảo gọi hàm setex lưu vào cache
+        assert mock_redis.setex.called
+
+
+def test_tax_chat_ask_stream_cache_hit(mock_repo, mock_history_repo):
+    mock_redis = MagicMock()
+    mock_redis.get.return_value = "Câu trả lời stream từ Redis Cache"
+
+    with patch("app.services.tax_rule.tax_chat_service.genai.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        service = TaxChatService(
+            repository=mock_repo,
+            history_repository=mock_history_repo,
+            redis_client=mock_redis
+        )
+
+        chunks = list(service.ask_stream(
+            question="Mức giảm trừ gia cảnh là bao nhiêu?",
+            session_id=None,
+            tax_year=2026
+        ))
+
+        assert "".join(chunks) == "Câu trả lời stream từ Redis Cache"
+        assert not mock_client.models.generate_content_stream.called
+
+
+
