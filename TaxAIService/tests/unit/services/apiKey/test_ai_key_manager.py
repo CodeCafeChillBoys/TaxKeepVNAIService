@@ -212,3 +212,51 @@ def test_execute_with_failover_fallback_to_default_client():
 
     res = AiKeyManager.execute_with_failover(mock_db, dummy_op, default_client=mock_default)
     assert res == f"result_with_{mock_default}"
+
+
+def test_execute_stream_with_failover_db_success():
+    mock_db = MagicMock()
+    key1 = AiProviderKey(
+        id=uuid.uuid4(), provider="GEMINI", key_name="K1", api_key="key1",
+        priority=1, is_active=True, status="ACTIVE", request_count=0
+    )
+    mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [key1]
+
+    with patch("app.services.apiKey.ai_key_manager.genai.Client"):
+        def dummy_stream(client, model):
+            yield "chunk1 "
+            yield "chunk2"
+
+        chunks = list(AiKeyManager.execute_stream_with_failover(mock_db, dummy_stream))
+        assert "".join(chunks) == "chunk1 chunk2"
+        assert key1.request_count == 1
+        assert key1.status == "ACTIVE"
+
+
+def test_execute_stream_with_failover_429_switches():
+    mock_db = MagicMock()
+    key1 = AiProviderKey(
+        id=uuid.uuid4(), provider="GEMINI", key_name="K1", api_key="key1",
+        priority=1, is_active=True, status="ACTIVE", request_count=0
+    )
+    key2 = AiProviderKey(
+        id=uuid.uuid4(), provider="GEMINI", key_name="K2", api_key="key2",
+        priority=2, is_active=True, status="ACTIVE", request_count=0
+    )
+    mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [key1, key2]
+
+    with patch("app.services.apiKey.ai_key_manager.genai.Client"):
+        call_count = 0
+
+        def dummy_stream(client, model):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("429 ResourceExhausted: Quota exceeded")
+            yield "stream_recovered"
+
+        chunks = list(AiKeyManager.execute_stream_with_failover(mock_db, dummy_stream))
+        assert "".join(chunks) == "stream_recovered"
+        assert key1.status == "QUOTA_EXCEEDED"
+        assert key2.status == "ACTIVE"
+
